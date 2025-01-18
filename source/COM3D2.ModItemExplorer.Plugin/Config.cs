@@ -1,0 +1,118 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Xml.Serialization;
+using COM3D2.MotionTimelineEditor;
+using UnityEngine;
+
+namespace COM3D2.ModItemExplorer.Plugin
+{
+    public enum KeyBindType
+    {
+        PluginToggle,
+        OpenExplorer,
+    }
+
+    public class Config
+    {
+        public static readonly int CurrentVersion = 1;
+
+        [XmlAttribute]
+        public int version = 0;
+
+        // 動作設定
+        public bool pluginEnabled = true;
+        public float keyRepeatTimeFirst = 0.15f;
+        public float keyRepeatTime = 1f / 30f;
+        public bool useHSVColor = false;
+        public bool groupOfficialItemsByMPN = true;
+        public bool groupModItemsByMPN = false;
+        public int flatViewItemCount = 32;
+        public bool dumpItemInfo = false;
+
+        // 表示設定
+        public int windowWidth = 960;
+        public int windowHeight = 480;
+        public int windowPosX = -1;
+        public int windowPosY = -1;
+        public int naviWidth = 200;
+        public float itemNameBGAlpha = 0.7f;
+
+        // 色設定
+        public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
+
+        [XmlIgnore]
+        public Dictionary<KeyBindType, KeyBind> keyBinds = new Dictionary<KeyBindType, KeyBind>
+        {
+            { KeyBindType.PluginToggle, new KeyBind("Alt+M") },
+            { KeyBindType.OpenExplorer, new KeyBind("Shift") },
+        };
+
+        public struct KeyBindPair
+        {
+            public KeyBindType key;
+            public string value;
+        }
+
+        [XmlElement("keyBind")]
+        public KeyBindPair[] keyBindsXml
+        {
+            get
+            {
+                var result = new List<KeyBindPair>(keyBinds.Count);
+                foreach (var pair in keyBinds)
+                {
+                    result.Add(new KeyBindPair { key = pair.Key, value = pair.Value.ToString() });
+                }
+                return result.ToArray();
+            }
+            set
+            {
+                if (value == null)
+                {
+                    return;
+                }
+
+                foreach (var pair in value)
+                {
+                    //PluginUtils.LogDebug("keyBind: " + pair.key + " = " + pair.value);
+                    keyBinds[pair.key] = new KeyBind(pair.value);
+                }
+            }
+        }
+
+        [XmlIgnore]
+        public bool dirty = false;
+
+        public void ConvertVersion()
+        {
+            version = CurrentVersion;
+        }
+
+        public bool GetKey(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKey();
+        }
+
+        public bool GetKeyDown(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKeyDown();
+        }
+
+        public bool GetKeyDownRepeat(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKeyDownRepeat(keyRepeatTimeFirst, keyRepeatTime);
+        }
+
+        public bool GetKeyUp(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].GetKeyUp();
+        }
+
+        public string GetKeyName(KeyBindType keyBindType)
+        {
+            return keyBinds[keyBindType].ToString();
+        }
+    }
+}
+

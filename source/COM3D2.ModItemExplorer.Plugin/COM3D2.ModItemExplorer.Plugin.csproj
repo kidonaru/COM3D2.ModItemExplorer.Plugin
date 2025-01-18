@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{FE19FD67-A2FD-45EF-962B-D3E66ADF5B43}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>COM3D2.ModItemExplorer.Plugin</RootNamespace>
+    <AssemblyName>COM3D2.ModItemExplorer.Plugin</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;COM3D2</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;COM3D2</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Accessibility" />
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-UnityScript-firstpass">
+      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-UnityScript-firstpass.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityInjector">
+      <HintPath>..\..\..\..\Sybaris\lib\UnityInjector.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Manager\ConfigManager.cs" />
+    <Compile Include="Manager\MaidPresetManager.cs" />
+    <Compile Include="Manager\ManagerBase.cs" />
+    <Compile Include="Manager\ModItemManager.cs" />
+    <Compile Include="Manager\TempPresetManager.cs" />
+    <Compile Include="Manager\TextureManager.cs" />
+    <Compile Include="Manager\WindowManager.cs" />
+    <Compile Include="MTEHack\ModelHackManagerField.cs" />
+    <Compile Include="MTEHack\ModelHackManagerWrapper.cs" />
+    <Compile Include="MTEHack\OfficialObjectInfoField.cs" />
+    <Compile Include="MTEHack\StudioModelManagerField.cs" />
+    <Compile Include="MTEHack\StudioModelStatField.cs" />
+    <Compile Include="MTEUtils\BinaryExtensions.cs" />
+    <Compile Include="MTEUtils\BinaryLoader.cs" />
+    <Compile Include="MTEUtils\BoneUtils.cs" />
+    <Compile Include="MTEUtils\ColorExtensions.cs" />
+    <Compile Include="MTEUtils\COM3D2.GUIExt.cs" />
+    <Compile Include="MTEUtils\CustomFieldBase.cs" />
+    <Compile Include="MTEUtils\Extensions.cs" />
+    <Compile Include="MTEUtils\GUICache.cs" />
+    <Compile Include="MTEUtils\GUIComboBox.cs" />
+    <Compile Include="MTEUtils\GUIView.cs" />
+    <Compile Include="MTEUtils\KeyBind.cs" />
+    <Compile Include="MTEUtils\MaidPartType.cs" />
+    <Compile Include="MTEUtils\MaidPartUtils.cs" />
+    <Compile Include="MTEUtils\MainThreadDispatcher.cs" />
+    <Compile Include="MTEUtils\ManagerRegistry.cs" />
+    <Compile Include="MTEUtils\ModMenuLoader.cs" />
+    <Compile Include="MTEUtils\MPNUtils.cs" />
+    <Compile Include="MTEUtils\MTEUtils.cs" />
+    <Compile Include="MTEUtils\ParallelHelper.cs" />
+    <Compile Include="MTEUtils\PresetLoader.cs" />
+    <Compile Include="MTEUtils\TextureLoader.cs" />
+    <Compile Include="MTEUtils\TextureUtils.cs" />
+    <Compile Include="MTEUtils\TransformCache.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="COM3D2.ModItemExplorer.Plugin.cs" />
+    <Compile Include="Config.cs" />
+    <Compile Include="ModItemBase.cs" />
+    <Compile Include="ModItemWindow.cs" />
+    <Compile Include="PluginInfo.cs" />
+    <Compile Include="PluginUtils.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

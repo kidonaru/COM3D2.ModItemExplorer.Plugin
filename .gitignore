@@ -1,0 +1,11 @@
+.vscode
+source/.vs
+source/*/.vs
+source/*/bin
+source/*/obj
+*.pdb
+output/
+UnityProject/Library
+UnityProject/Temp
+UnityProject/obj
+UnityProject/Assets/PostProcessing*
