@@ -420,7 +420,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 modelHackManager.CreateModel(
-                    menu.name,
+                    menu.fileName,
                     menu.fileName,
                     group,
                     pluginName,
