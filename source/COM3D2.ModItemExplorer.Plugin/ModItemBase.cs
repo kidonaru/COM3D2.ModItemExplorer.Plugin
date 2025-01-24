@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Xml;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 
@@ -322,6 +323,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
             set => _preset = value;
         }
+
+        public XmlDocument xmlMemory { get; set; }
 
         public override Texture2D thum
         {

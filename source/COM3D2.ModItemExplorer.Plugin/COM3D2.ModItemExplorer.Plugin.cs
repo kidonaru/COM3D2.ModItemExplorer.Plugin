@@ -196,6 +196,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 managerRegistry.RegisterManager(WindowManager.instance);
                 managerRegistry.RegisterManager(ConfigManager.instance);
 
+                _ = ExPresetWrapper.instance;
+
                 AddGearMenu();
             }
             catch (Exception e)

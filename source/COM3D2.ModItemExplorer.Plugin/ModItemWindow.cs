@@ -393,9 +393,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             contentSize = new Vector2(150, 300),
         };
 
-        private GUIComboBox<CharacterMgr.Preset> _presetComboBox = new GUIComboBox<CharacterMgr.Preset>
+        private GUIComboBox<TempPreset> _tempPresetComboBox = new GUIComboBox<TempPreset>
         {
-            getName = (preset, _) => preset == null ? "未選択" : preset.strFileName,
+            getName = (tempPreset, _) => tempPreset == null ? "未選択" : tempPreset.preset.strFileName,
             buttonSize = new Vector2(100, 20),
             contentSize = new Vector2(100, 300),
         };
@@ -607,30 +607,30 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.DrawLabel("一時記録", 60, 20, style: GUIView.gsLabelRight);
 
-            var tempPresets  = maidTempPresetManager.GetPresets(maid);
+            var tempPresets = maidTempPresetManager.GetTempPresets(maid);
             if (tempPresets.Count == 0)
             {
                 maidTempPresetManager.SavePresetCache(maid, CharacterMgr.PresetType.All);
                 modItemManager.UpdateTempPresetItems();
-                tempPresets = maidTempPresetManager.GetPresets(maid);
+                tempPresets = maidTempPresetManager.GetTempPresets(maid);
             }
 
-            _presetComboBox.items = tempPresets;
-            _presetComboBox.DrawButton(view);
+            _tempPresetComboBox.items = tempPresets;
+            _tempPresetComboBox.DrawButton(view);
 
             if (view.DrawButton("セーブ", 60, 20))
             {
                 maidTempPresetManager.SavePresetCache(maid, presetType);
-                _presetComboBox.currentIndex = 0;
+                _tempPresetComboBox.currentIndex = 0;
                 modItemManager.UpdateTempPresetItems();
             }
 
             if (view.DrawButton("ロード", 60, 20))
             {
-                var preset = _presetComboBox.currentItem;
-                if (preset != null)
+                var tempPreset = _tempPresetComboBox.currentItem;
+                if (tempPreset != null)
                 {
-                    maidPresetManager.ApplyPreset(maid, preset);
+                    maidPresetManager.ApplyPreset(maid, tempPreset.preset, xmlMemory: tempPreset.xmlMemory);
                 }
             }
 

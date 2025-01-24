@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Xml;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -392,7 +393,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            maidPresetManager.ApplyPreset(currentMaid, item.preset);
+            maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
         }
 
         public void CreateModel(MenuItem item, string pluginName)
@@ -977,14 +978,16 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             foreach (var maid in maidList)
             {
-                var presets = tempPresetManager.GetPresets(maid);
+                var tempPresets = tempPresetManager.GetTempPresets(maid);
                 var maidName = maid.status.fullNameJpStyle;
-                foreach (var preset in presets)
+                foreach (var tempPreset in tempPresets)
                 {
                     try
                     {
+                        var preset = tempPreset.preset;
+                        var xmlMemory = tempPreset.xmlMemory;
                         var itemPath = MTEUtils.CombinePaths(TempPresetDirName, maidName, preset.strFileName);
-                        GetOrCreatePresetItem(itemPath, preset, ModItemType.TempPreset);
+                        GetOrCreatePresetItem(itemPath, preset, ModItemType.TempPreset, xmlMemory);
                     }
                     catch (Exception e)
                     {
@@ -1689,7 +1692,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private PresetItem GetOrCreatePresetItem(
             string itemPath,
             CharacterMgr.Preset preset,
-            ModItemType itemType)
+            ModItemType itemType,
+            XmlDocument xmlMemory = null)
         {
             if (preset == null)
             {
@@ -1721,6 +1725,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 itemName = itemName,
                 itemPath = itemPath,
                 preset = preset,
+                xmlMemory = xmlMemory,
                 itemType = itemType,
             };
 

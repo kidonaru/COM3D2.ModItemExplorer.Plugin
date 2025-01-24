@@ -47,6 +47,12 @@
     <Reference Include="UnityInjector">
       <HintPath>..\..\..\..\Sybaris\lib\UnityInjector.dll</HintPath>
     </Reference>
+    <Reference Include="ExternalPreset">
+      <HintPath>..\..\..\..\Sybaris\COM3D2.ExternalPreset.Managed.dll</HintPath>
+    </Reference>
+    <Reference Include="ExternalSaveData">
+      <HintPath>..\..\..\..\Sybaris\COM3D2.ExternalSaveData.Managed.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Windows.Forms" />
@@ -63,6 +69,8 @@
     <Compile Include="Manager\TempPresetManager.cs" />
     <Compile Include="Manager\TextureManager.cs" />
     <Compile Include="Manager\WindowManager.cs" />
+    <Compile Include="MTEHack\ExPresetField.cs" />
+    <Compile Include="MTEHack\ExPresetWrapper.cs" />
     <Compile Include="MTEHack\ModelHackManagerField.cs" />
     <Compile Include="MTEHack\ModelHackManagerWrapper.cs" />
     <Compile Include="MTEHack\OfficialObjectInfoField.cs" />

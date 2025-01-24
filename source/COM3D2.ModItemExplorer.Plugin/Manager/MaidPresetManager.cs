@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Xml;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -133,7 +134,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             _presetLoadThread.Start();
         }
 
-        public void ApplyPreset(Maid maid, CharacterMgr.Preset preset)
+        public void ApplyPreset(
+            Maid maid,
+            CharacterMgr.Preset preset,
+            string presetPath = null,
+            XmlDocument xmlMemory = null)
         {
             if (maid == null || preset == null)
             {
@@ -141,6 +146,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             characterMgr.PresetSet(maid, preset);
+            ExPresetWrapper.ExPresetLoad(maid, presetPath, xmlMemory);
 			maid.AllProcPropSeqStart();
         }
 
