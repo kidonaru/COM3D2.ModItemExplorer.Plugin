@@ -1063,6 +1063,26 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 view.BeginHorizontal();
                 {
+                    view.DrawLabel("タグ 背景透過度", 200, 20);
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        min = 0f,
+                        max = 1f,
+                        step = 0.01f,
+                        defaultValue = 0.7f,
+                        value = config.tagBGAlpha,
+                        onChanged = newValue =>
+                        {
+                            config.tagBGAlpha = newValue;
+                            config.dirty = true;
+                        },
+                    });
+                }
+                view.EndLayout();
+
+                view.BeginHorizontal();
+                {
                     view.DrawLabel("フラットビューの基本アイテム数", 200, 20);
 
                     view.DrawSliderValue(new GUIView.SliderOption

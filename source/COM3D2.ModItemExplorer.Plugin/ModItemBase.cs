@@ -57,7 +57,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override Color tagColor
         {
-            get => menu != null ? MaidPartUtils.GetMaidPartColor(menu.maidPartType) : Color.gray;
+            get => menu != null ? MaidPartUtils.GetMaidPartColor(menu.maidPartType, config.tagBGAlpha) : Color.gray;
         }
 
         public override bool isSelected
@@ -300,6 +300,18 @@ namespace COM3D2.ModItemExplorer.Plugin
             { CharacterMgr.PresetType.All, new Color(0.8f, 0.5f, 0.2f) },
         };
 
+        private static Color GetPresetTypeColor(CharacterMgr.Preset preset)
+        {
+            var color = Color.gray;
+            if (preset != null)
+            {
+                color = _presetTypeColor.GetOrDefault(preset.ePreType, Color.gray);
+            }
+
+            color.a = config.tagBGAlpha;
+            return color;
+        }
+
         public override string tag
         {
             get => preset != null ? MTEUtils.GetPresetTypeName(preset.ePreType) : "";
@@ -307,7 +319,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override Color tagColor
         {
-            get => preset != null ? _presetTypeColor[preset.ePreType] : Color.gray;
+            get => GetPresetTypeColor(preset);
         }
 
         private CharacterMgr.Preset _preset = null;

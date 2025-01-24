@@ -393,7 +393,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
+            if (item.itemPath.StartsWith(PresetDirName))
+            {
+                maidPresetManager.ApplyPreset(currentMaid, item.preset);
+            }
+            else
+            {
+                maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
+            }
         }
 
         public void CreateModel(MenuItem item, string pluginName)

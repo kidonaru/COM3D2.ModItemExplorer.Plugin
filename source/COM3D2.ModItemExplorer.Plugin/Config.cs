@@ -37,6 +37,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int windowPosY = -1;
         public int naviWidth = 200;
         public float itemNameBGAlpha = 0.7f;
+        public float tagBGAlpha = 0.9f;
 
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
