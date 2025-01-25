@@ -1070,7 +1070,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         min = 0f,
                         max = 1f,
                         step = 0.01f,
-                        defaultValue = 0.7f,
+                        defaultValue = 0.9f,
                         value = config.tagBGAlpha,
                         onChanged = newValue =>
                         {

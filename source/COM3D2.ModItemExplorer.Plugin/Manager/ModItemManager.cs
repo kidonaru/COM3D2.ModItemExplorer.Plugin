@@ -240,7 +240,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     if (reset)
                     {
-                        ResetItems();
+                        _menuMap.Clear();
+                        InitItemCache();
                     }
                     else if (rebuild)
                     {
