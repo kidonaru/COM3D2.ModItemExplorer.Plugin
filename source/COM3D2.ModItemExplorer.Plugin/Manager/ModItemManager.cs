@@ -257,7 +257,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     LoadOfficialItems();
                     LoadModItems("*.menu");
-                    LoadModItems("*.mod");
+                    LoadModItems("mod_*.mod");
                     UpdateModPresetItems();
                     ValidateItemChildren(modRootItem);
                     SortItemChildren(modRootItem);
