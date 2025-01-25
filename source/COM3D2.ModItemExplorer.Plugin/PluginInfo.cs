@@ -162,5 +162,60 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return _listIconTexture;
             }
         }
+
+        public readonly static byte[] FavoriteOffIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "w0lEQVRYhe2X4VHDMAyFn7kOkA0aNvAGhA06QpkANqBMAJ0gbAAbBCZINmiZoNng8SNyqwYnsdtc" +
+            "8gfd+Zzalt4X1XJdQxJz2s2s6v8AABb6gzEmyplkIX73kX7nH1yLDJLxZFkswFHzCoBCARSTApC0" +
+            "IryTRpJ2SoBcRNfSSDKfBIBk6t5ejbkspLEAl5Tho/RbNeaen2ODGf3mXWVIMgFgASQAXKpvjTG1" +
+            "mncZeQBQA6jcvCfe8XnRmrAAVgCWAFIRtJ4YLzq4MaYmuUWTgY+WUCVAewA/AD5l7C+AiLfT+CX9" +
+            "t/SVGtP2JnMO+E76zLP2CHC2IUgmJEvZUKWk9irzxeytgjEhumINluEYEH0xgs6BayCGfIMA1OLc" +
+            "BYoAcOLe0zEKQAeMAOgF1pqhJ2GKpo5DbS8+gzYIIN9fcgFAErJvQjJgpf/Wg7LRnqS1hdxaiwGL" +
+            "AaiV+BpACeBVWiljzvZjAiylr9hcw0o0P0gpgHdpKYBcNmumAJYYsoAyLGRXu949W7XGeubJjqta" +
+            "7DlwUIF3JFc9L7Pi6XJCkocxACgQmy5hj8/GgY8BkIaUk8cvYccVTWuaLuGpbPa/ZrMD/AL/kRDG" +
+            "XW/pCgAAAABJRU5ErkJggg==");
+
+        private static Texture2D _favoriteOffIconTexture = null;
+        public static Texture2D FavoriteOffIconTexture
+        {
+            get
+            {
+                if (_favoriteOffIconTexture == null)
+                {
+                    _favoriteOffIconTexture = new Texture2D(1, 1);
+                    _favoriteOffIconTexture.LoadImage(FavoriteOffIcon);
+                }
+                return _favoriteOffIconTexture;
+            }
+        }
+
+        public readonly static byte[] FavoriteOnIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAC" +
+            "kUlEQVRYhe2XPUwUQRiGn0EEf068xAQNJnqhgBBjxBjFEjsLCzFB27vG2ElEEyuBzsJESqMmR0tF" +
+            "4W9swFiZGLSxsNA7QYzEEDi5Azm8fS12jvuDY/fuAg1fMpmdzHzf8+43MzuzRhLbaXXbSt8RANTn" +
+            "N4wxvpwlha3fiE+/wka2+AwSlDRvS9CvgGypZgr6UDKIkkGgr+IoVWQgptSolByVpFjFzEoESApL" +
+            "kn5dkX5elrXwVgqIKfVCmu6Svp+VFp/5ykJVa0BSNxAi8QQcBzIOzD0CCNk+X+ZLgF3tA6xMwuqM" +
+            "C3ccSP+ApQ8AA353hMlPvTEm94ZuOQh0AkFbuzZ7wwU6Ti4Le85AKJof+xOwYOsEEAfixpiJAmbR" +
+            "3HcD4ygJma8gQfqjW69MurCVL7CaKIQ7DjgZIACN7W47cM71O3Dejbz/BNQ3AVwAJsplIAqESd6H" +
+            "5ZdFkI2eM5CRrdfpb+6F9mGAEWNMJJ9ZsgaMMRFgiMBdaLhYS/iQjV3IK85A1uy+jvLnKSw8rgx+" +
+            "7BYc7weI5J8XG66B4sNoTUTyOcze8wdvewiHr5bAiwWU3YbWMULgEhzq9w5vHdwQXmybfgdsgGEa" +
+            "2rzBHcdd8TDs5Zj2+iEKkZ7xBs84sDzl+ngwfwK8wB0HlmovoJPF96XwvR2wr6NUyNw716cWAiS5" +
+            "gf5O5SC7W6D1AZx6DaffuPu88agVkoFkvNC3GgFkU7k8DXUBaLkJJ19Bc28c6AF6OHItTtc4tN6B" +
+            "XU2QihX6bvKGZe8DkgaV+ix9uy39S8jeAQfXHSfNK70gTV6Xfr/VeuNKmB4EjCln0XLHrb2oRvPG" +
+            "j9VCQFTSuJf5zPPptD7RDfrXSvFxvOW27X9GOwL+A3Iuz0y+jzwNAAAAAElFTkSuQmCC");
+
+        private static Texture2D _favoriteOnIconTexture = null;
+        public static Texture2D FavoriteOnIconTexture
+        {
+            get
+            {
+                if (_favoriteOnIconTexture == null)
+                {
+                    _favoriteOnIconTexture = new Texture2D(1, 1);
+                    _favoriteOnIconTexture.LoadImage(FavoriteOnIcon);
+                }
+                return _favoriteOnIconTexture;
+            }
+        }
     }
 }

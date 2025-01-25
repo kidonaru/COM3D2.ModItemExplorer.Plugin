@@ -70,6 +70,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public static readonly string PresetDirName = "Preset";
         public static readonly string TempPresetDirName = "TempPreset";
         public static readonly string SearchDirName = "Search";
+        public static readonly string FavoriteDirName = "Favorite";
 
         private static ModItemManager _instance;
         public static ModItemManager instance
@@ -89,6 +90,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "Root",
             itemName = "",
             itemPath = "",
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -97,6 +99,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "公式",
             itemName = OfficialDirName,
             itemPath = OfficialDirName,
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -105,6 +108,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "Mod",
             itemName = ModDirName,
             itemPath = ModDirName,
+            canFavorite = false,
             fullPath = Path.Combine(UTY.gameProjectPath, ModDirName),
             children = new List<ITileViewContent>(16),
         };
@@ -114,6 +118,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "着用中",
             itemName = EquippedDirName,
             itemPath = EquippedDirName,
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -122,6 +127,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "配置中",
             itemName = ModelDirName,
             itemPath = ModelDirName,
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -130,6 +136,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "Preset",
             itemName = PresetDirName,
             itemPath = PresetDirName,
+            canFavorite = false,
             fullPath = Path.Combine(UTY.gameProjectPath, PresetDirName),
             children = new List<ITileViewContent>(16),
         };
@@ -139,6 +146,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "一時記録",
             itemName = TempPresetDirName,
             itemPath = TempPresetDirName,
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -147,6 +155,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             name = "検索結果",
             itemName = SearchDirName,
             itemPath = SearchDirName,
+            canFavorite = false,
+            children = new List<ITileViewContent>(16),
+        };
+
+        public TempDirItem favoriteRootItem { get; private set; } = new TempDirItem
+        {
+            name = "お気に入り",
+            itemName = FavoriteDirName,
+            itemPath = FavoriteDirName,
+            canFavorite = false,
             children = new List<ITileViewContent>(16),
         };
 
@@ -190,6 +208,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             rootItem.AddChild(presetRootItem);
             rootItem.AddChild(tempPresetRootItem);
             rootItem.AddChild(searchRootItem);
+            rootItem.AddChild(favoriteRootItem);
 
             InitItemCache();
         }
@@ -271,6 +290,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     UpdateEquippedItems();
                     UpdateModelItems();
                     UpdateSearchItems();
+                    UpdateFavoriteItems();
                     ResetFlatView();
 
                     MTEUtils.EnqueueAction(() =>
@@ -1397,6 +1417,26 @@ namespace COM3D2.ModItemExplorer.Plugin
             SortItemChildren(searchRootItem);
         }
 
+        public void UpdateFavoriteItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] UpdateFavoriteItems");
+
+            favoriteRootItem.RemoveAllChildren();
+
+            foreach (var itemPath in config.favoriteItemPathSet)
+            {
+                var item = GetItemByPath<ModItemBase>(itemPath);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                favoriteRootItem.AddChild(item);
+            }
+
+            SortItemChildren(favoriteRootItem);
+        }
+
         public void UpdateModelItems()
         {
             MTEUtils.LogDebug("[ModMenuItemManager] UpdateModelItems");
@@ -1505,6 +1545,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     {
                         name = name,
                         maidPartType = MaidPartUtils.GetMaidPartType(itemName),
+                        itemType = ModItemType.Dir,
                         itemName = itemName,
                         itemPath = itemPath,
                         fullPath = fullPath,

@@ -25,6 +25,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
         public override Texture2D changeIcon => null;
+        public override Texture2D favoriteOffIcon => PluginInfo.FavoriteOffIconTexture;
+        public override Texture2D favoriteOnIcon => PluginInfo.FavoriteOnIconTexture;
 
         private static Config config => ConfigManager.instance.config;
     }

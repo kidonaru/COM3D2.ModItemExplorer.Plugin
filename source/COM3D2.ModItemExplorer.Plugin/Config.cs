@@ -42,6 +42,25 @@ namespace COM3D2.ModItemExplorer.Plugin
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
 
+        // お気に入りアイテム
+        [XmlIgnore]
+        public HashSet<string> favoriteItemPathSet = new HashSet<string>();
+
+        [XmlArray("favoriteItemPaths")]
+        [XmlArrayItem("value")]
+        public string[] favoriteItemPathsXml
+        {
+            get => favoriteItemPathSet.ToArray();
+            set
+            {
+                if (value == null)
+                {
+                    return;
+                }
+                favoriteItemPathSet = new HashSet<string>(value);
+            }
+        }
+
         [XmlIgnore]
         public Dictionary<KeyBindType, KeyBind> keyBinds = new Dictionary<KeyBindType, KeyBind>
         {
@@ -113,6 +132,38 @@ namespace COM3D2.ModItemExplorer.Plugin
         public string GetKeyName(KeyBindType keyBindType)
         {
             return keyBinds[keyBindType].ToString();
+        }
+
+        public bool IsFavoriteItemPath(string itemPath)
+        {
+            if (string.IsNullOrEmpty(itemPath))
+            {
+                return false;
+            }
+            return favoriteItemPathSet.Contains(itemPath);
+        }
+
+        public void SetFavoriteItemPath(string itemPath, bool isFavorite)
+        {
+            if (string.IsNullOrEmpty(itemPath))
+            {
+                return;
+            }
+            if (isFavorite)
+            {
+                favoriteItemPathSet.Add(itemPath);
+            }
+            else
+            {
+                favoriteItemPathSet.Remove(itemPath);
+            }
+            dirty = true;
+        }
+
+        public void ResetFavoriteItemPath()
+        {
+            favoriteItemPathSet.Clear();
+            dirty = true;
         }
     }
 }

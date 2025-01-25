@@ -19,11 +19,23 @@ namespace COM3D2.ModItemExplorer.Plugin
 
     public abstract class ModItemBase : TileViewContentBase
     {
-        public abstract ModItemType itemType { get; set; }
+        public virtual ModItemType itemType { get; set; }
 
         public override bool isDir
         {
             get => itemType == ModItemType.Dir;
+        }
+
+        public override bool canFavorite { get; set; } = true;
+
+        public override bool isFavorite
+        {
+            get => config.IsFavoriteItemPath(itemPath);
+            set
+            {
+                config.SetFavoriteItemPath(itemPath, value);
+                MTEUtils.EnqueueAction(() => modItemManager.UpdateFavoriteItems());
+            }
         }
 
         public string itemName { get; set; }
@@ -90,7 +102,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             set => _thum = value;
         }
 
-        public override ModItemType itemType { get; set; }
         public override MaidPartType maidPartType => menu?.maidPartType ?? MaidPartType.null_mpn;
         public override float priority => menu?.priority ?? 0f;
 
@@ -202,6 +213,17 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => sourceItem?.colorSet;
             set => sourceItem.colorSet = value;
         }
+
+        public override bool canFavorite
+        {
+            get => sourceItem?.canFavorite ?? false;
+        }
+
+        public override bool isFavorite
+        {
+            get => sourceItem?.isFavorite ?? false;
+            set => sourceItem.isFavorite = value;
+        }
     }
 
     public class ModelMenuItem : MenuItem
@@ -209,6 +231,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public StudioModelStatWrapper model { get; set; }
 
         public override bool canDelete => true;
+        public override bool canFavorite => false;
     }
 
     public class DirItem : ModItemBase
@@ -226,7 +249,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             set => _thum = value;
         }
 
-        public override ModItemType itemType { get; set; } = ModItemType.Dir;
         public override MaidPartType maidPartType { get; set; }
         public bool isExpanded { get; set; }
         public Vector2 scrollPosition { get; set; }
@@ -236,6 +258,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             get => this != modItemManager.searchRootItem &&
                     this != modItemManager.rootItem &&
+                    this != modItemManager.favoriteRootItem &&
                     GetDirCount(false) > 0;
         }
 
@@ -322,6 +345,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => GetPresetTypeColor(preset);
         }
 
+        public override bool canFavorite
+        {
+            get => itemType == ModItemType.Preset;
+        }
+
         private CharacterMgr.Preset _preset = null;
         public CharacterMgr.Preset preset
         {
@@ -357,12 +385,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
             set => _thum = value;
-        }
-
-        public override ModItemType itemType
-        {
-            get => ModItemType.Preset;
-            set { }
         }
     }
 }

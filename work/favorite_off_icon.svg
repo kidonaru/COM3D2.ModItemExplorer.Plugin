@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="24" height="24" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- 星型のアイコン -->
+  <path
+    d="M13 4L15.8 10.1L22.5 10.9L17.7 15.5L18.8 22.2L13 18.9L7.2 22.2L8.3 15.5L3.5 10.9L10.2 10.1L13 4Z"
+    stroke="white"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+</svg>

@@ -1186,6 +1186,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     MTEUtils.Log("name: {0}", item.name);
                     MTEUtils.Log("setumei: {0}", item.setumei);
+                    MTEUtils.Log("itemType: {0}", item.itemType);
                     MTEUtils.Log("itemName: {0}", item.itemName);
                     MTEUtils.Log("itemPath: {0}", item.itemPath);
 
