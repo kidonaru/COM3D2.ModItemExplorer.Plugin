@@ -11,6 +11,8 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class ModItemWindow : IWindow
     {
         public readonly static int WINDOW_ID = 582870;
+        public readonly static int VARIATION_WINDOW_ID = 4474065;
+        public readonly static int COLOR_SET_WINDOW_ID = 6345715;
         public readonly static int MIN_WINDOW_WIDTH = 640;
         public readonly static int MIN_WINDOW_HEIGHT = 480;
         public readonly static int HEADER_HEIGHT = 20;
@@ -18,6 +20,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public readonly static int MIN_NAVI_WIDTH = 100;
         public readonly static int MAX_NAVI_WIDTH = 400;
         public readonly static int VARIATION_WIDTH = 100;
+        public readonly static int COLOR_SET_WIDTH = 100;
         public readonly static int FOOTER_HEIGHT = 20;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
@@ -41,6 +44,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             set => _windowRect = value;
         }
 
+        private Rect _variationWindowRect;
+        private Rect _colorSetWindowRect;
+
         private int _windowWidth = 960;
         private int _windowHeight = 480;
         private int _naviWidth = 200;
@@ -57,23 +63,33 @@ namespace COM3D2.ModItemExplorer.Plugin
                     return;
                 }
 
-                var colorSet = selectedColorSet;
-                if (colorSet != null)
+                if (selectedColorSet != null)
                 {
-                    colorSet.scrollPosition = _variationView.scrollPosition;
+                    selectedColorSet.scrollPosition = _colorSetView.scrollPosition;
+                }
+
+                if (selectedMenuItem != null)
+                {
+                    selectedMenuItem.scrollPosition = _variationView.scrollPosition;
                 }
 
                 _selectedItem = value;
 
-                colorSet = selectedColorSet;
-                if (colorSet != null)
+                if (selectedColorSet != null)
                 {
-                    _variationView.scrollPosition = colorSet.scrollPosition;
+                    _colorSetView.scrollPosition = selectedColorSet.scrollPosition;
+                }
+
+                if (selectedMenuItem != null)
+                {
+                    _variationView.scrollPosition = selectedMenuItem.scrollPosition;
                 }
             }
         }
 
+        private MenuInfo _mouseOverMenu = null;
         private ModItemBase _mouseOverItem = null;
+        private int _mouseOverFrameCount = 0;
         private ModItemBase _focusedItem = null;
 
         private GUIView _rootView = new GUIView();
@@ -82,8 +98,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         private GUIView _naviView = new GUIView();
         private GUIView _contentView = new GUIView();
         private GUIView _contentSettingView = new GUIView();
-        private GUIView _variationView = new GUIView();
         private GUIView _footerView = new GUIView();
+
+        private GUIView _variationView = new GUIView();
+        private GUIView _colorSetView = new GUIView();
 
         public GUIStyle gsWin = new GUIStyle("box")
         {
@@ -104,11 +122,52 @@ namespace COM3D2.ModItemExplorer.Plugin
         private MenuItem selectedMenuItem => selectedItem as MenuItem;
         private ColorSetInfo selectedColorSet => selectedMenuItem?.colorSet;
 
+        private bool isVariationVisible
+        {
+            get
+            {
+                if (selectedMenuItem == null)
+                {
+                    return false;
+                }
+
+                if (selectedMenuItem.colorSet == null)
+                {
+                    return true;
+                }
+
+                if (selectedMenuItem.menuList != null && selectedMenuItem.menuList.Count > 1)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        private bool isColorSetVisible
+        {
+            get
+            {
+                if (selectedMenuItem == null)
+                {
+                    return false;
+                }
+
+                if (selectedMenuItem.colorSet != null)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         public ModItemWindow()
         {
             this.windowIndex = 0;
             this.isShowWnd = true;
-            this._windowRect = new Rect(
+            this.windowRect = new Rect(
                 Screen.width - _windowWidth - 30,
                 100,
                 _windowWidth,
@@ -124,17 +183,18 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             var contentHeight = _windowHeight - HEADER_HEIGHT - INFO_HEIGHT - FOOTER_HEIGHT;
             _naviView.Init(0, HEADER_HEIGHT + INFO_HEIGHT, _naviWidth, contentHeight);
-            _contentView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth - VARIATION_WIDTH, contentHeight);
-            _contentSettingView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth - VARIATION_WIDTH, contentHeight);
-            _variationView.Init(_windowWidth - VARIATION_WIDTH, HEADER_HEIGHT + INFO_HEIGHT, VARIATION_WIDTH, contentHeight);
+            _contentView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth, contentHeight);
+            _contentSettingView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth, contentHeight);
             _footerView.Init(0, _windowHeight - FOOTER_HEIGHT, _windowWidth, FOOTER_HEIGHT);
+
+            _variationView.Init(0, 0, VARIATION_WIDTH, _windowHeight);
+            _colorSetView.Init(0, 0, COLOR_SET_WIDTH, _windowHeight);
 
             _headerView.parent = _rootView;
             _infoView.parent = _rootView;
             _naviView.parent = _rootView;
             _contentView.parent = _rootView;
             _contentSettingView.parent = _rootView;
-            _variationView.parent = _rootView;
             _footerView.parent = _rootView;
         }
 
@@ -155,7 +215,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             selectedItem = null;
+            _mouseOverMenu = null;
             _mouseOverItem = null;
+            _mouseOverFrameCount = 0;
             _focusedItem = null;
 
             _flatViewItem.itemPath = "";
@@ -238,6 +300,47 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 config.windowPosX = (int)windowRect.x;
                 config.windowPosY = (int)windowRect.y;
+            }
+
+            Vector2 offset;
+            offset.x = windowRect.x + windowRect.width;
+            offset.y = windowRect.y;
+
+            if (isVariationVisible)
+            {
+                _variationWindowRect.width = VARIATION_WIDTH;
+                _variationWindowRect.height = windowRect.height;
+                _variationWindowRect.position = offset;
+
+                _variationWindowRect = GUI.Window(VARIATION_WINDOW_ID, _variationWindowRect, DrawVariationWindow, "", gsWin);
+                MTEUtils.ResetInputOnScroll(_variationWindowRect);
+
+                var diffPosition = _variationWindowRect.position - offset;
+                _windowRect.position += diffPosition;
+
+                offset.x += VARIATION_WIDTH;
+            }
+
+            if (isColorSetVisible)
+            {
+                _colorSetWindowRect.width = COLOR_SET_WIDTH;
+                _colorSetWindowRect.height = windowRect.height;
+                _colorSetWindowRect.position = offset;
+
+                _colorSetWindowRect = GUI.Window(COLOR_SET_WINDOW_ID, _colorSetWindowRect, DrawColorSetWindow, "", gsWin);
+                MTEUtils.ResetInputOnScroll(_colorSetWindowRect);
+
+                var diffPosition = _colorSetWindowRect.position - offset;
+                _windowRect.position += diffPosition;
+            }
+
+            if (_mouseOverItem != null || _mouseOverMenu != null)
+            {
+                if (Time.frameCount > _mouseOverFrameCount + 5)
+                {
+                    _mouseOverItem = null;
+                    _mouseOverMenu = null;
+                }
             }
         }
 
@@ -454,8 +557,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void DrawWindow(int id)
         {
-            _mouseOverItem = null;
-
             DrawHeader();
             DrawInfo();
             DrawNavi();
@@ -469,7 +570,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                 DrawContent();
             }
 
-            DrawVariation();
             DrawFooter();
 
             _rootView.DrawComboBox();
@@ -478,6 +578,20 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 GUI.DragWindow();
             }
+        }
+
+        private void DrawVariationWindow(int id)
+        {
+            DrawVariation();
+            _variationView.DrawComboBox();
+            GUI.DragWindow();
+        }
+
+        private void DrawColorSetWindow(int id)
+        {
+            DrawColorSet();
+            _colorSetView.DrawComboBox();
+            GUI.DragWindow();
         }
 
         private void DrawHeader()
@@ -999,6 +1113,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     item =>
                     {
                         _mouseOverItem = item as ModItemBase;
+                        _mouseOverFrameCount = Time.frameCount;
                     },
                     item =>
                     {
@@ -1176,6 +1291,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void OnItemSelected(ModItemBase item)
         {
+            if (config.GetKey(KeyBindType.OpenExplorer))
+            {
+                if (!string.IsNullOrEmpty(item.fullPath))
+                {
+                    MTEUtils.OpenDirectory(item.fullPath);
+                }
+                return;
+            }
+
             if (item.isDir)
             {
                 SetCurrentDirItem(item as DirItem);
@@ -1196,19 +1320,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                     }
                 }
 
-                if (config.GetKey(KeyBindType.OpenExplorer))
+                if (_contentMode == ContentMode.メイド)
                 {
-                    if (!string.IsNullOrEmpty(item.fullPath))
-                    {
-                        MTEUtils.OpenDirectory(item.fullPath);
-                    }
-                }
-                else
-                {
-                    if (_contentMode == ContentMode.メイド)
-                    {
-                        modItemManager.ApplyItem(item);
-                    }
+                    modItemManager.ApplyItem(item);
                 }
             }
         }
@@ -1240,26 +1354,19 @@ namespace COM3D2.ModItemExplorer.Plugin
                     return;
                 }
 
-                if (selectedMenuItem.colorSet != null)
+                if (selectedMenuItem.menuList?.Count > 0)
                 {
-                    var colorSet = selectedMenuItem.colorSet;
-                    foreach (var menu in colorSet.colorMenuList)
-                    {
-                        DrawColorSetMenu(colorSet, menu);
-                    }
-                }
-                else if (selectedMenuItem.menuList?.Count > 0)
-                {
+                    var selectedMenu = selectedMenuItem.variationMenu;
                     foreach (var menu in selectedMenuItem.menuList)
                     {
-                        DrawVariationMenu(menu);
+                        DrawVariationMenu(menu, selectedMenu);
                     }
                 }
             }
             view.EndScrollView();
         }
 
-        private void DrawVariationMenu(MenuInfo menu)
+        private void DrawVariationMenu(MenuInfo menu, MenuInfo selectedMenu)
         {
             var view = _variationView;
 
@@ -1279,26 +1386,58 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             var thum = textureManager.GetTexture(menu.iconName, menu.iconData);
-            if (view.DrawTextureButton(thum, drawRect.width, drawRect.height, 10f, !selectedMenuItem.IsValiationSelected(menu)))
+            if (view.DrawTextureButton(thum, drawRect.width, drawRect.height, 10f, selectedMenu != menu))
             {
-                selectedMenuItem.UpdateVariation(menu);
+                selectedMenuItem.variationMenu = menu;
                 OnItemSelected(selectedItem);
             }
 
-            if (selectedMenuItem.IsValiationSelected(menu))
+            if (selectedMenu == menu)
             {
                 view.DrawRectInternal(drawRect, Color.green, 2);
             }
 
             if (drawRect.Contains(Event.current.mousePosition))
             {
-                _mouseOverItem = selectedMenuItem;
+                _mouseOverMenu = menu;
+                _mouseOverFrameCount = Time.frameCount;
             }
         }
 
-        private void DrawColorSetMenu(ColorSetInfo colorSet, MenuInfo menu)
+        private void DrawColorSet()
         {
-            var view = _variationView;
+            var view = _colorSetView;
+            view.ResetLayout();
+            view.SetEnabled(!view.IsComboBoxFocused());
+
+            view.padding = Vector2.zero;
+            view.margin = 0;
+
+            view.BeginScrollView();
+            {
+                var selectedMenuItem = this.selectedMenuItem;
+                if (modItemManager.isLoading || selectedMenuItem == null)
+                {
+                    view.EndScrollView();
+                    return;
+                }
+
+                if (selectedMenuItem.colorSet != null)
+                {
+                    var colorSet = selectedMenuItem.colorSet;
+                    var selectedMenu = colorSet.selectedMenu;
+                    foreach (var menu in colorSet.colorMenuList)
+                    {
+                        DrawColorSetMenu(colorSet, menu, selectedMenu);
+                    }
+                }
+            }
+            view.EndScrollView();
+        }
+
+        private void DrawColorSetMenu(ColorSetInfo colorSet, MenuInfo menu, MenuInfo selectedMenu)
+        {
+            var view = _colorSetView;
 
             var selectedMenuItem = this.selectedMenuItem;
             if (selectedMenuItem == null)
@@ -1306,7 +1445,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            var drawRect = view.GetDrawRect(VARIATION_WIDTH - 20, VARIATION_WIDTH - 20);
+            var drawRect = view.GetDrawRect(COLOR_SET_WIDTH - 20, COLOR_SET_WIDTH - 20);
 
             if (drawRect.position.y + drawRect.height < view.scrollPosition.y ||
                 drawRect.position.y > view.scrollPosition.y + view.scrollViewRect.height)
@@ -1316,20 +1455,21 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             var thum = textureManager.GetTexture(menu.iconName, menu.iconData);
-            if (view.DrawTextureButton(thum, drawRect.width, drawRect.height, 10f, menu != colorSet.selectedMenu))
+            if (view.DrawTextureButton(thum, drawRect.width, drawRect.height, 10f, menu != selectedMenu))
             {
                 colorSet.selectedMenu = menu;
                 modItemManager.ApplyColorSet(colorSet);
             }
 
-            if (menu == colorSet.selectedMenu)
+            if (menu == selectedMenu)
             {
                 view.DrawRectInternal(drawRect, Color.green, 2);
             }
 
             if (drawRect.Contains(Event.current.mousePosition))
             {
-                _mouseOverItem = selectedMenuItem;
+                _mouseOverMenu = menu;
+                _mouseOverFrameCount = Time.frameCount;
             }
         }
 
@@ -1346,9 +1486,19 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.DrawBox(-1, 20);
 
-            if (_mouseOverItem != null)
+            if (_mouseOverMenu != null)
             {
-                if (_mouseOverItem.itemType == ModItemType.Dir || _mouseOverItem.itemType == ModItemType.Preset)
+                var text = $"{_mouseOverMenu.name} {_mouseOverMenu.setumei}".Replace("\n", " ");
+                view.DrawLabel(text, -1, 20);
+            }
+            else if (_mouseOverItem != null)
+            {
+                if (_mouseOverItem is MenuItem menuItem)
+                {
+                    var text = $"{menuItem.name} {menuItem.setumei}".Replace("\n", " ");
+                    view.DrawLabel(text, -1, 20);
+                }
+                else if (_mouseOverItem.itemType == ModItemType.Dir || _mouseOverItem.itemType == ModItemType.Preset)
                 {
                     view.DrawLabel(_mouseOverItem.itemPath, -1, 20);
                 }

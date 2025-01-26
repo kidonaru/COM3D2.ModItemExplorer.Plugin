@@ -22,22 +22,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public MenuInfo selectedMenu
         {
-            get
-            {
-                if (colorMenuList == null || colorMenuList.Count == 0)
-                {
-                    return null;
-                }
-                return colorMenuList[index % colorMenuList.Count];
-            }
+            get => colorMenuList?.GetOrDefault(index);
             set
             {
-                if (colorMenuList == null || colorMenuList.Count == 0)
+                if (colorMenuList?.Count > 0)
                 {
-                    return;
+                    index = colorMenuList.IndexOf(value);
+                    index = Mathf.Clamp(index, 0, colorMenuList.Count - 1);
                 }
-                index = colorMenuList.IndexOf(value);
-                index = Mathf.Clamp(index, 0, colorMenuList.Count - 1);
             }
         }
 
@@ -190,9 +182,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public static readonly int menuCapacity = 1024 * 16;
 
-        private Dictionary<string, MenuInfo> _menuMap = new Dictionary<string, MenuInfo>(menuCapacity);
-        private Dictionary<string, ModItemBase> _itemPathMap = new Dictionary<string, ModItemBase>(menuCapacity);
-        private Dictionary<string, ModItemBase> _itemNameMap = new Dictionary<string, ModItemBase>(menuCapacity);
+        private Dictionary<string, MenuInfo> _menuMap = new Dictionary<string, MenuInfo>(menuCapacity, StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, ModItemBase> _itemPathMap = new Dictionary<string, ModItemBase>(menuCapacity, StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, ModItemBase> _itemNameMap = new Dictionary<string, ModItemBase>(menuCapacity, StringComparer.OrdinalIgnoreCase);
         private List<string> _officialMenuFileNameList = new List<string>(menuCapacity);
 
         private ModItemManager()
@@ -324,7 +316,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 return null;
             }
-            return _itemNameMap.GetOrDefault(name.ToLower()) as T;
+            return _itemNameMap.GetOrDefault(name) as T;
         }
 
         public void ApplyItem(ModItemBase item)
@@ -371,15 +363,16 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void ApplyMenuItem(MenuItem item)
         {
-            if (currentMaid == null || item == null || item.menu == null)
+            if (currentMaid == null || item == null)
             {
                 return;
             }
 
-            var menu = item.menu;
-            if (item.menuList?.Count > 0 && item.variationNumber > 0)
+            var menu = item.variationMenu;
+            if (menu == null)
             {
-                menu = item.menuList[item.variationNumber % item.menuList.Count];
+                MTEUtils.LogWarning("Menuが見つかりません。" + item.itemPath);
+                return;
             }
 
             currentMaid.SetProp(menu.mpn, menu.fileName, menu.rid, false, false);
@@ -426,7 +419,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void CreateModel(MenuItem item, string pluginName)
         {
-            if (item == null || item.menu == null || string.IsNullOrEmpty(pluginName))
+            if (item == null || string.IsNullOrEmpty(pluginName))
             {
                 return;
             }
@@ -435,7 +428,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 var group = 0;
                 var modelList = modelHackManager.modelList;
-                var menu = item.menuList[item.variationNumber % item.menuList.Count];
+                var menu = item.variationMenu;
+
+                if (menu == null)
+                {
+                    MTEUtils.LogWarning("Menuが見つかりません。" + item.itemPath);
+                    return;
+                }
 
                 foreach (var model in modelList)
                 {
@@ -522,34 +521,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return false;
             }
 
-            if (!MaidPartUtils.IsEquippableType(item.maidPartType))
-            {
-                return false;
-            }
+            var itemName = GetEquippedItemName(item.maidPartType);
+            var equippedItem = GetItemByName<MenuItem>(itemName);
 
-            var strFileName = currentMaid.GetProp(item.menu.mpn)?.strFileName;
-            if (string.IsNullOrEmpty(strFileName))
-            {
-                return false;
-            }
-
-            var equippedMenu = GetMenu(strFileName);
-            if (equippedMenu == null)
-            {
-                return false;
-            }
-
-            if (item.menu == equippedMenu)
-            {
-                return true;
-            }
-
-            if (item.menu.fileName == equippedMenu.variationBaseFileName)
-            {
-                return true;
-            }
-
-            return false;
+            return item.menu == equippedItem?.menu;
         }
 
         public MenuItem GetEquippedItem(MaidPartType maidPartType)
@@ -579,7 +554,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (!string.IsNullOrEmpty(menu.variationBaseFileName))
             {
-                return GetItemByName<MenuItem>(menu.variationBaseFileName);
+                var baseItem = GetItemByName<MenuItem>(menu.variationBaseFileName);
+                if (baseItem != null)
+                {
+                    baseItem.variationMenu = menu;
+                    return baseItem;
+                }
             }
 
             return GetItemByName<MenuItem>(prop.strFileName);
@@ -720,7 +700,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private Dictionary<string, string> _officialNameMap = new Dictionary<string, string>(128);
+        private Dictionary<string, string> _officialNameMap = new Dictionary<string, string>(128, StringComparer.OrdinalIgnoreCase);
 
         private void LoadOfficialNameCsv()
         {
@@ -868,7 +848,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (config.groupOfficialItemsByMPN)
             {
-                return MTEUtils.CombinePaths(OfficialDirName, menu.maidPartType.ToString(), menu.fileName);
+                var partName = MaidPartUtils.GetMaidPartName(menu.maidPartType);
+                return MTEUtils.CombinePaths(OfficialDirName, partName, menu.fileName);
             }
             return MTEUtils.CombinePaths(OfficialDirName, menu.path);
         }
@@ -946,10 +927,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             string[] menuFilePaths = Directory.GetFiles(MTEUtils.ModDirPath, searchPattern, SearchOption.AllDirectories);
 
-            var duplicatedModMap = new Dictionary<string, List<string>>(menuFilePaths.Length);
+            var duplicatedModMap = new Dictionary<string, List<string>>(menuFilePaths.Length, StringComparer.OrdinalIgnoreCase);
             foreach (var menuFilePath in menuFilePaths)
             {
-                duplicatedModMap.GetOrCreate(Path.GetFileName(menuFilePath).ToLower()).Add(menuFilePath);
+                duplicatedModMap.GetOrCreate(Path.GetFileName(menuFilePath)).Add(menuFilePath);
             }
 
             foreach (var pair in duplicatedModMap)
@@ -969,7 +950,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (config.groupModItemsByMPN)
             {
-                return MTEUtils.CombinePaths(ModDirName, menu.maidPartType.ToString(), menu.fileName);
+                var partName = MaidPartUtils.GetMaidPartName(menu.maidPartType);
+                return MTEUtils.CombinePaths(ModDirName, partName, menu.fileName);
             }
             return MTEUtils.CombinePaths(ModDirName, filePath);
         }
@@ -1078,7 +1060,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 return null;
             }
-            return _menuMap.GetOrDefault(menuFileName.ToLower());
+            return _menuMap.GetOrDefault(menuFileName);
         }
 
         private MenuInfo GetOrLoadOfficialMenu(string menuFileName)
@@ -1093,14 +1075,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (menu != null)
             {
-                _menuMap[menuFileName.ToLower()] = menu;
+                _menuMap[menuFileName] = menu;
             }
             return menu;
         }
 
         private MenuInfo GetOrLoadModMenu(string menuFilePath, long lastWriteAt)
         {
-            var menuFileName = Path.GetFileName(menuFilePath).ToLower();
+            var menuFileName = Path.GetFileName(menuFilePath);
             var menu = GetMenu(menuFileName);
             if (menu != null && menu.lastWriteAt == lastWriteAt)
             {
@@ -1339,7 +1321,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private string GetEquippedItemName(MaidPartType maidPartType)
         {
-            return "Equipped_" + maidPartType.ToString();
+            return "equipped_" + MaidPartUtils.GetMaidPartName(maidPartType);
         }
 
         public void UpdateEquippedItems()
@@ -1464,24 +1446,31 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             MTEUtils.LogDebug("[ModMenuItemManager] UpdateModelItems");
 
-            if (!modelHackManager.IsValid())
+            try
             {
-                return;
-            }
+                if (!modelHackManager.IsValid())
+                {
+                    return;
+                }
 
-            var modelList = modelHackManager.modelList;
-            foreach (var model in modelList)
+                var modelList = modelHackManager.modelList;
+                foreach (var model in modelList)
+                {
+                    UpdateModelItem(model);
+                }
+
+                ValidateItemChildren(modelRootItem);
+                SortItemChildren(modelRootItem);
+            }
+            catch (Exception e)
             {
-                UpdateModelItem(model);
+                MTEUtils.LogException(e);
             }
-
-            ValidateItemChildren(modelRootItem);
-            SortItemChildren(modelRootItem);
         }
 
         private string GetModelItemName(StudioModelStatWrapper model)
         {
-            return "Model_" + model.name;
+            return "model_" + model.name;
         }
 
         public void UpdateModelItem(StudioModelStatWrapper model)
@@ -1611,7 +1600,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
-            var itemName = Path.GetFileName(itemPath).ToLower();
+            var itemName = Path.GetFileName(itemPath);
 
             item = new MenuItem
             {
@@ -1654,7 +1643,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
-            var itemName = Path.GetFileName(itemPath).ToLower();
+            var itemName = Path.GetFileName(itemPath);
 
             item = new RefMenuItem
             {
@@ -1698,7 +1687,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
-            var itemName = Path.GetFileName(itemPath).ToLower();
+            var itemName = Path.GetFileName(itemPath);
 
             item = new ModelMenuItem
             {
@@ -1741,7 +1730,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
-            var itemName = Path.GetFileName(itemPath).ToLower();
+            var itemName = Path.GetFileName(itemPath);
             var maidName = GetPresetMaidName(Path.GetFileName(presetFilePath));
 
             item = new PresetItem
@@ -1787,7 +1776,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
-            var itemName = Path.GetFileName(itemPath).ToLower();
+            var itemName = Path.GetFileName(itemPath);
             var maidName = GetPresetMaidName(Path.GetFileName(itemPath));
 
             item = new PresetItem

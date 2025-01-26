@@ -64,7 +64,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override string tag
         {
-            get => menu != null ? MaidPartUtils.GetMaidPartName(menu.maidPartType) : string.Empty;
+            get => menu != null ? MaidPartUtils.GetMaidPartJpName(menu.maidPartType) : string.Empty;
         }
 
         public override Color tagColor
@@ -108,6 +108,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public virtual List<MenuInfo> menuList { get; set; }
         public virtual int variationNumber { get; set; }
         public virtual ColorSetInfo colorSet { get; set; }
+        public virtual Vector2 scrollPosition { get; set; }
 
         public MenuInfo menu
         {
@@ -138,6 +139,19 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        public MenuInfo variationMenu
+        {
+            get => menuList?.GetOrDefault(variationNumber);
+            set
+            {
+                if (menuList != null && menuList.Count > 0)
+                {
+                    variationNumber = menuList.IndexOf(value);
+                    variationNumber = Mathf.Clamp(variationNumber, 0, menuList.Count - 1);
+                }
+            }
+        }
+
         public void AddMenu(MenuInfo menu)
         {
             if (menuList == null)
@@ -149,29 +163,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 menuList.Add(menu);
             }
-        }
-
-        public void UpdateVariation(MenuInfo menu)
-        {
-            if (menuList != null)
-            {
-                var index = menuList.IndexOf(menu);
-                if (index >= 0)
-                {
-                    variationNumber = index;
-                }
-            }
-        }
-
-        public bool IsValiationSelected(MenuInfo menu)
-        {
-            if (menuList != null)
-            {
-                var index = menuList.IndexOf(menu);
-                return index == variationNumber;
-            }
-
-            return false;
         }
     }
 
