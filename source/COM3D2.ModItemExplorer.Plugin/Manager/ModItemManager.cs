@@ -602,9 +602,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         private void SaveMenuCache()
         {
             MTEUtils.LogDebug("[ModMenuItemManager] SaveMenuCache");
+
+            var tempPath = PluginUtils.MenuCachePath + ".tmp";
             try
             {
-                using (var binaryWriter = new BinaryWriter(File.OpenWrite(PluginUtils.MenuCachePath)))
+                // 一時ファイルに書き込み
+                using (var binaryWriter = new BinaryWriter(File.Open(tempPath, FileMode.Create)))
                 {
                     binaryWriter.Write(MenuInfo.CacheVersion);
                     foreach (var menu in _menuMap.Values)
@@ -612,10 +615,30 @@ namespace COM3D2.ModItemExplorer.Plugin
                         menu?.Serialize(binaryWriter);
                     }
                 }
+
+                // 書き込みが成功したら、既存のファイルを置き換え
+                if (File.Exists(PluginUtils.MenuCachePath))
+                {
+                    File.Delete(PluginUtils.MenuCachePath);
+                }
+                File.Move(tempPath, PluginUtils.MenuCachePath);
             }
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
+
+                // エラー時は一時ファイルを削除
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch (Exception e2)
+                {
+                    MTEUtils.LogException(e2);
+                }
             }
         }
 
