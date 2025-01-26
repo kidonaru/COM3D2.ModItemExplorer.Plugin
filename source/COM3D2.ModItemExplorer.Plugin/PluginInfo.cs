@@ -7,7 +7,7 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         public const string PluginName = "ModItemExplorer";
         public const string PluginFullName = "COM3D2." + PluginName + ".Plugin";
-        public const string PluginVersion = "1.0.0.2";
+        public const string PluginVersion = "1.1.0.0";
         public const string WindowName = PluginName + " " + PluginVersion;
 
         public readonly static byte[] Icon = Convert.FromBase64String(
