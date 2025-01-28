@@ -697,6 +697,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            if (view.DrawButton("サムネ更新", 80, 20))
+            {
+                modItemManager.ThumShot();
+            }
+
             view.DrawLabel("マスク", 50, 20, style: GUIView.gsLabelRight);
 
             _maskModeComboBox.DrawButton(view);

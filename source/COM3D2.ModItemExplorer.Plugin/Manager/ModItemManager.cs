@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1873,6 +1874,51 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 dirItem.ResetFlatView();
             }
+        }
+
+        public void ThumShot()
+        {
+            GameMain.Instance.StartCoroutine(ThumShotInternal());
+        }
+
+        public IEnumerator ThumShotInternal()
+        {
+            var maid = currentMaid;
+            if (maid == null)
+            {
+                yield break;
+            }
+
+            if (isLoading)
+            {
+                yield break;
+            }
+
+            isLoading = true;
+
+            maid.body0.SetMaskMode(TBody.MaskMode.None);
+            maid.status.UpdateBodyParam();
+            GameMain.Instance.SysDlg.Close();
+            UICamera.InputEnable = false;
+
+            var savedLookTarget = maid.body0.trsLookTarget;
+
+            maid.ThumShotCamMove();
+            maid.body0.trsLookTarget = GameMain.Instance.ThumCamera.transform;
+            maid.boMabataki = false;
+
+            for (int nF = 0; nF < 60; nF++)
+            {
+                yield return null;
+            }
+
+            GameMain.Instance.SoundMgr.PlaySe("SE022.ogg", false);
+            maid.ThumShot();
+            maid.boMabataki = true;
+            maid.body0.trsLookTarget = savedLookTarget;
+            UICamera.InputEnable = true;
+
+            isLoading = false;
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
