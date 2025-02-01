@@ -69,6 +69,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     texture = textureFile.CreateTexture2D();
                 }
                 _textureCache[fileName] = texture;
+                MTEUtils.LogDebug("[TextureManager] CreateTexture: " + fileName);
                 return texture;
             }
 

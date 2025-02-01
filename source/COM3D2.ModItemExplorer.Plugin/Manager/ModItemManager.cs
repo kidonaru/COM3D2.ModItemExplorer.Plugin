@@ -399,6 +399,19 @@ namespace COM3D2.ModItemExplorer.Plugin
             MTEUtils.LogDebug("[ModMenuItemManager] ApplyColorSet {0} {1}", colorSet.colorSetMPN, menu.fileName);
             currentMaid.SetProp(colorSet.colorSetMPN, menu.fileName, menu.rid, false, false);
             currentMaid.AllProcPropSeqStart();
+
+            // 色パレットの表示
+            {
+                var partsColorId = menu.partsColorId;
+                if (partsColorId != MaidParts.PARTS_COLOR.NONE)
+                {
+                    windowManager.colorPaletteWindow.Call(currentMaid, menu.partsColorId);
+                }
+                else
+                {
+                    windowManager.colorPaletteWindow.Close();
+                }
+            }
         }
 
         public void ApplyPresetItem(PresetItem item)
@@ -1230,7 +1243,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // ColorSetで使用しているMenuを収集
             var menuList = _menuMap.Values.ToList();
-            foreach (var colorSet in colorSetList)
+            ParallelHelper.ForEach(colorSetList, colorSet =>
             {
                 colorSet.colorMenuList = new List<MenuInfo>(16);
 
@@ -1251,7 +1264,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 colorSet.colorMenuList.Sort(CompareMenu);
-            }
+            });
         }
 
         public static void SortItemChildren(ITileViewContent item)
@@ -1557,7 +1570,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     item = new DirItem
                     {
                         name = name,
-                        maidPartType = MaidPartUtils.GetMaidPartType(itemName),
+                        maidPartType = itemName.ToMaidPartType(),
                         itemType = ModItemType.Dir,
                         itemName = itemName,
                         itemPath = itemPath,

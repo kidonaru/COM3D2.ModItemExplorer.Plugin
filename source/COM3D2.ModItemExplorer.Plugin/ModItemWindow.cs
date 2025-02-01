@@ -28,6 +28,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static MaidPresetManager maidPresetManager => MaidPresetManager.instance;
         private static TempPresetManager maidTempPresetManager => TempPresetManager.instance;
+        private static WindowManager windowManager => WindowManager.instance;
         private static ModelHackManagerWrapper modelHackManager => ModelHackManagerWrapper.instance;
         private static ConfigManager configManager => ConfigManager.instance;
         private static Config config => ConfigManager.instance.config;
@@ -84,6 +85,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     _variationView.scrollPosition = selectedMenuItem.scrollPosition;
                 }
+
+                windowManager.colorPaletteWindow.Close();
             }
         }
 
@@ -103,11 +106,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private GUIView _variationView = new GUIView();
         private GUIView _colorSetView = new GUIView();
 
-        public GUIStyle gsWin = new GUIStyle("box")
-        {
-            fontSize = 12,
-            alignment = TextAnchor.UpperLeft,
-        };
+        public GUIStyle gsWin => GUIView.gsWin;
+
         private GUIStyle gsHiddenButton = new GUIStyle("button")
         {
             fontSize = 12,
@@ -233,19 +233,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
             _initializedGUI = true;
-
-            {
-                var windowHoverColor = config.windowHoverColor;
-                var hoverTex = GUIView.CreateColorTexture(windowHoverColor);
-                gsWin.onHover.background = hoverTex;
-                gsWin.hover.background = hoverTex;
-                gsWin.onFocused.background = hoverTex;
-                gsWin.focused.background = hoverTex;
-                gsWin.onHover.textColor = Color.white;
-                gsWin.hover.textColor = Color.white;
-                gsWin.onFocused.textColor = Color.white;
-                gsWin.focused.textColor = Color.white;
-            }
 
             ResetCurrentDirItem();
 

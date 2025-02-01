@@ -24,6 +24,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 config.dirty = true;
             }
         }
+        public override Color windowHoverColor => config.windowHoverColor;
         public override Texture2D changeIcon => null;
         public override Texture2D favoriteOffIcon => PluginInfo.FavoriteOffIconTexture;
         public override Texture2D favoriteOnIcon => PluginInfo.FavoriteOnIconTexture;

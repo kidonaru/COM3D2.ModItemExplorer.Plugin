@@ -14,6 +14,7 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class WindowManager : ManagerBase
     {
         public ModItemWindow modItemWindow = null;
+        public ColorPaletteWindow colorPaletteWindow = null;
         private int _screenWidth = 0;
         private int _screenHeight = 0;
 
@@ -38,6 +39,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             modItemWindow = new ModItemWindow();
             modItemWindow.Init();
+
+            colorPaletteWindow = new ColorPaletteWindow();
+            colorPaletteWindow.Init();
         }
 
         public override void Update()
@@ -46,6 +50,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (isScreenSizeChanged)
             {
                 modItemWindow.OnScreenSizeChanged();
+                colorPaletteWindow.OnScreenSizeChanged();
 
                 _screenWidth = Screen.width;
                 _screenHeight = Screen.height;
@@ -55,16 +60,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         public override void OnLoad()
         {
             modItemWindow.OnLoad();
+            colorPaletteWindow.OnLoad();
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             modItemWindow.OnChangedSceneLevel(scene, sceneMode);
+            colorPaletteWindow.OnChangedSceneLevel(scene, sceneMode);
         }
 
         public void OnGUI()
         {
             modItemWindow.OnGUI();
+            colorPaletteWindow.OnGUI();
         }
     }
 }
