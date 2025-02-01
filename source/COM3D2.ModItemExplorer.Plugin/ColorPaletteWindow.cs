@@ -150,12 +150,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             TextureUtils.ClearTexture(_colorGradationTex, Color.clear);
 
-            for (int y = 0; y < 150; y++)
+            for (int y = 0; y < 50; y++)
             {
-                for (int x = 0; x < 150; x++)
+                for (int x = 0; x < 50; x++)
                 {
-                    var chroma = x / 150f;
-                    var brightness = y / 150f * 510f / 255f;
+                    var chroma = x / 50f;
+                    var brightness = y / 50f * 510f / 255f;
 
                     var color = Color.HSVToRGB(
                         commonItem.hue / 255f,
@@ -181,7 +181,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (_colorGradationTex == null)
             {
-                _colorGradationTex = new Texture2D(150, 150);
+                _colorGradationTex = new Texture2D(50, 50);
             }
 
             if (_colorPickerTex == null)
@@ -303,7 +303,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
             );
 
-            view.DrawTexture(_colorGradationTex);
+            view.DrawTexture(_colorGradationTex, 150, 150);
 
             {
                 var commonItem = _colorData.GetItem(_category);
