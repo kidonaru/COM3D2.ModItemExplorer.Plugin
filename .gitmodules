@@ -1,0 +1,3 @@
+[submodule "source/COM3D2.ModItemExplorer.Plugin/MTEUtils"]
+	path = source/COM3D2.ModItemExplorer.Plugin/MTEUtils
+	url = https://github.com/kidonaru/COM3D2.MTEUtils.git
