@@ -27,7 +27,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-copy %OUTPUT_DIR%\%PLUGIN_NAME%.dll ..\..\..\UnityInjector
+copy %OUTPUT_DIR%\%PLUGIN_NAME%.dll ..\..\..\..\BepInEx\plugins
 if %ERRORLEVEL% neq 0 (
     echo dllのコピーに失敗しました
     exit /b 1

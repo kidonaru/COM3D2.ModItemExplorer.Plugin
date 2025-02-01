@@ -1,8 +1,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityInjector;
-using UnityInjector.Attributes;
+//using UnityInjector;
+//using UnityInjector.Attributes;
+using BepInEx;
 using System.Collections;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -32,12 +33,18 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static Config config => ConfigManager.instance.config;
     }
 
-    [
+    /*[
         PluginFilter("COM3D2x64"),
         PluginName(PluginInfo.PluginFullName),
         PluginVersion(PluginInfo.PluginVersion)
     ]
-    public class ModItemExplorer : PluginBase
+    public class ModItemExplorer : PluginBase*/
+    [BepInPlugin(
+        PluginInfo.PluginFullName,
+        PluginInfo.PluginFullName,
+        PluginInfo.PluginVersion
+    )]
+    public class ModItemExplorer : BaseUnityPlugin
     {
         private bool _isEnable = false;
         public bool isEnable

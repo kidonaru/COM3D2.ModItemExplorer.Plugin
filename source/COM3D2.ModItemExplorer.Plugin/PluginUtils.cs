@@ -7,7 +7,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     public static class PluginUtils
     {
-        public static readonly string UserDataPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Config");
+        //public static readonly string UserDataPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Config");
+        public static readonly string UserDataPath = BepInEx.Paths.ConfigPath;
 
         public const string PluginVersion = PluginInfo.PluginVersion;
 

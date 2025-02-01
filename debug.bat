@@ -7,7 +7,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-copy .\UnityInjector\Config\*.csv ..\UnityInjector\Config
+copy .\UnityInjector\Config\*.csv ..\..\BepInEx\config
 if %ERRORLEVEL% neq 0 (
     echo Failed to copy csv
     exit /b 1
