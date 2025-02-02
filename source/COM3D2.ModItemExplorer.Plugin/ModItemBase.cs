@@ -136,6 +136,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     menuList.Add(value);
                 }
+
+                nameHeight = -1f;
             }
         }
 
@@ -174,6 +176,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             get => sourceItem?.name;
             set => sourceItem.name = value;
+        }
+
+        public override float nameHeight
+        {
+            get => sourceItem?.nameHeight ?? -1f;
+            set => sourceItem.nameHeight = value;
         }
 
         public override string fullPath

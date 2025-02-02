@@ -1601,7 +1601,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             var item = GetItemByPath<MenuItem>(itemPath);
             if (item != null)
             {
-                item.name = menu.name;
                 item.menu = menu;
                 return item;
             }
