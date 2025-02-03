@@ -386,6 +386,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             currentMaid.AllProcPropSeqStart();
 
             UpdateEquippedItem(menu.maidPartType);
+
+            // カスタムパーツの表示
+            windowManager.customPartsWindow.Call(currentMaid, menu.maidPartType);
         }
 
         public void ApplyColorSet(ColorSetInfo colorSet)

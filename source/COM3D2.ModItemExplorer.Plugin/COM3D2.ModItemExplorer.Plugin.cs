@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
+using System.Reflection;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {

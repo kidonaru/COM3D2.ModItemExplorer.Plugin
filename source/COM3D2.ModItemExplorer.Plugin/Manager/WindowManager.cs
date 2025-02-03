@@ -15,6 +15,8 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         public ModItemWindow modItemWindow = null;
         public ColorPaletteWindow colorPaletteWindow = null;
+        public CustomPartsWindow customPartsWindow = null;
+
         private int _screenWidth = 0;
         private int _screenHeight = 0;
 
@@ -42,6 +44,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             colorPaletteWindow = new ColorPaletteWindow();
             colorPaletteWindow.Init();
+
+            customPartsWindow = new CustomPartsWindow();
+            customPartsWindow.Init();
         }
 
         public override void Update()
@@ -51,28 +56,40 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 modItemWindow.OnScreenSizeChanged();
                 colorPaletteWindow.OnScreenSizeChanged();
+                customPartsWindow.OnScreenSizeChanged();
 
                 _screenWidth = Screen.width;
                 _screenHeight = Screen.height;
             }
+
+            customPartsWindow.Update();
         }
 
         public override void OnLoad()
         {
             modItemWindow.OnLoad();
             colorPaletteWindow.OnLoad();
+            customPartsWindow.OnLoad();
+        }
+
+        public override void OnPluginDisable()
+        {
+            colorPaletteWindow.Close();
+            customPartsWindow.Close();
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             modItemWindow.OnChangedSceneLevel(scene, sceneMode);
             colorPaletteWindow.OnChangedSceneLevel(scene, sceneMode);
+            customPartsWindow.OnChangedSceneLevel(scene, sceneMode);
         }
 
         public void OnGUI()
         {
             modItemWindow.OnGUI();
             colorPaletteWindow.OnGUI();
+            customPartsWindow.OnGUI();
         }
     }
 }

@@ -87,6 +87,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 windowManager.colorPaletteWindow.Close();
+                windowManager.customPartsWindow.Close();
             }
         }
 
@@ -1203,6 +1204,32 @@ namespace COM3D2.ModItemExplorer.Plugin
                         onChanged = newValue =>
                         {
                             config.flatViewItemCount = (int) newValue;
+                            config.dirty = true;
+                        },
+                    });
+                }
+                view.EndLayout();
+
+                view.DrawToggle("カスタムパーツ選択時の自動編集", config.customPartsAutoEditMode, 200, 20, newValue =>
+                {
+                    config.customPartsAutoEditMode = newValue;
+                    config.dirty = true;
+                });
+
+                view.BeginHorizontal();
+                {
+                    view.DrawLabel("カスタムパーツの移動範囲", 200, 20);
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        min = 0.1f,
+                        max = 10f,
+                        step = 0.1f,
+                        defaultValue = 1f,
+                        value = config.customPartsPositionRange,
+                        onChanged = newValue =>
+                        {
+                            config.customPartsPositionRange = newValue;
                             config.dirty = true;
                         },
                     });

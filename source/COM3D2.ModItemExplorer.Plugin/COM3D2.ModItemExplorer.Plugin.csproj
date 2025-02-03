@@ -103,6 +103,8 @@
     <Compile Include="ColorPaletteWindow.cs" />
     <Compile Include="COM3D2.ModItemExplorer.Plugin.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="CustomPartsData.cs" />
+    <Compile Include="CustomPartsWindow.cs" />
     <Compile Include="ModItemBase.cs" />
     <Compile Include="ModItemWindow.cs" />
     <Compile Include="PluginInfo.cs" />

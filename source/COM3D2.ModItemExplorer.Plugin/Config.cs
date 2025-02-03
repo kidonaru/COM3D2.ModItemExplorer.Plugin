@@ -40,6 +40,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         public float tagBGAlpha = 0.9f;
         public int colorPaletteWindowPosX = -1;
         public int colorPaletteWindowPosY = -1;
+        public int customPartsWindowPosX = -1;
+        public int customPartsWindowPosY = -1;
+        public float customPartsPositionRange = 1f;
+        public bool customPartsAutoEditMode = false;
 
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
