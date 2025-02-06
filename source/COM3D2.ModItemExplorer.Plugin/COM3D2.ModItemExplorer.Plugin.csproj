@@ -105,6 +105,8 @@
     <Compile Include="Config.cs" />
     <Compile Include="CustomPartsData.cs" />
     <Compile Include="CustomPartsWindow.cs" />
+    <Compile Include="HairLengthData.cs" />
+    <Compile Include="HairLengthWindow.cs" />
     <Compile Include="ModItemBase.cs" />
     <Compile Include="ModItemWindow.cs" />
     <Compile Include="PluginInfo.cs" />

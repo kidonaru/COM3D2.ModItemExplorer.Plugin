@@ -389,6 +389,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // カスタムパーツの表示
             windowManager.customPartsWindow.Call(currentMaid, menu.maidPartType);
+
+            // 髪の長さの表示
+            windowManager.hairLengthWindow.Call(currentMaid, menu.mpn);
         }
 
         public void ApplyColorSet(ColorSetInfo colorSet)

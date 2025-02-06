@@ -64,6 +64,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        public bool initialEnabled;
         public Vector3 initialLocalPosition;
         public Quaternion initialLocalRotation;
         public Vector3 initialLocalScale;
@@ -102,6 +103,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             UpdateLocalTransform();
             UpdateWorldTransform();
 
+            initialEnabled = enabled;
             initialLocalPosition = localPosition;
             initialLocalRotation = localRotation;
             initialLocalScale = localScale;
@@ -110,6 +112,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void Reset()
         {
+            enabled = initialEnabled;
             localPosition = initialLocalPosition;
             localRotation = initialLocalRotation;
             localScale = initialLocalScale;

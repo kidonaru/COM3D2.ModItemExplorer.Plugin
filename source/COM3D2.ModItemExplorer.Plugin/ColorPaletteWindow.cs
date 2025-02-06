@@ -117,6 +117,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
         }
 
+        public void Update()
+        {
+        }
+
         public void OnLoad()
         {
             MTEUtils.AdjustWindowPosition(ref _windowRect);

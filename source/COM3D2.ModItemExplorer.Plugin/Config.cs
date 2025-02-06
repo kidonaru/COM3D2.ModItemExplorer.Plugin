@@ -44,6 +44,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int customPartsWindowPosY = -1;
         public float customPartsPositionRange = 1f;
         public bool customPartsAutoEditMode = false;
+        public int hairLengthWindowPosX = -1;
+        public int hairLengthWindowPosY = -1;
 
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);
