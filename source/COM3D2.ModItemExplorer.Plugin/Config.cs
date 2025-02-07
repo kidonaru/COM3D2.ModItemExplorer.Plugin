@@ -29,6 +29,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool groupModItemsByMPN = false;
         public int flatViewItemCount = 32;
         public bool dumpItemInfo = false;
+        public bool setumeiSerch = false;
 
         // 表示設定
         public int windowWidth = 960;

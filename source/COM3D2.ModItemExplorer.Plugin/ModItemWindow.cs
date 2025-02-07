@@ -1156,6 +1156,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                     config.dirty = true;
                 });
 
+                view.DrawToggle("メニューの説明欄も検索する", config.setumeiSerch, 200, 20, newValue =>
+                {
+                    config.setumeiSerch = newValue;
+                    config.dirty = true;
+                });
+
                 view.BeginHorizontal();
                 {
                     view.DrawLabel("アイテム名 背景透過度", 200, 20);

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -48,6 +49,21 @@ namespace COM3D2.ModItemExplorer.Plugin
         protected static TextureManager textureManager => TextureManager.instance;
         protected static MaidPresetManager maidPresetManager => MaidPresetManager.instance;
         protected static Config config => ConfigManager.instance.config;
+
+        public virtual bool IsMatch(Regex pattern)
+        {
+            if (!string.IsNullOrEmpty(this.name) && pattern.IsMatch(this.name))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(this.itemName) && pattern.IsMatch(this.itemName))
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 
     public class MenuItem : ModItemBase
@@ -165,6 +181,31 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 menuList.Add(menu);
             }
+        }
+
+        public override bool IsMatch(Regex pattern)
+        {
+            foreach (var menu in menuList)
+            {
+                if (menu == null)
+                {
+                    continue;
+                }
+                if (!string.IsNullOrEmpty(menu.name) && pattern.IsMatch(menu.name))
+                {
+                    return true;
+                }
+                if (!string.IsNullOrEmpty(menu.fileName) && pattern.IsMatch(menu.fileName))
+                {
+                    return true;
+                }
+                if (config.setumeiSerch && !string.IsNullOrEmpty(menu.setumei) && pattern.IsMatch(menu.setumei))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

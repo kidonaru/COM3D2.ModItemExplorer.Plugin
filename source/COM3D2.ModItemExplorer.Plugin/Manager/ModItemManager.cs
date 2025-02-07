@@ -1421,21 +1421,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             foreach (ModItemBase item in _searchTempItems)
             {
-                if (item == null)
-                {
-                    continue;
-                }
-
-                if (pattern.IsMatch(item.name))
+                if (item != null && item.IsMatch(pattern))
                 {
                     searchRootItem.AddChild(item);
-                    continue;
-                }
-
-                if (pattern.IsMatch(item.itemName))
-                {
-                    searchRootItem.AddChild(item);
-                    continue;
                 }
             }
 
