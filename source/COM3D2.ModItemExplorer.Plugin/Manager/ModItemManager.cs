@@ -467,9 +467,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                     }
                 }
 
+                var fileName = menu.fileName;
+                if (pluginName == "StudioMode")
+                {
+                    fileName = Path.GetFileNameWithoutExtension(fileName);
+                }
+
                 modelHackManager.CreateModel(
-                    menu.fileName,
-                    menu.fileName,
+                    fileName,
+                    fileName,
                     group,
                     pluginName,
                     true);
