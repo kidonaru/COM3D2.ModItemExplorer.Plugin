@@ -11,6 +11,7 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         public CharacterMgr.Preset preset;
         public XmlDocument xmlMemory;
+        public long lastWriteAt;
     }
 
     public class TempPresetManager : ManagerBase
@@ -48,12 +49,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             var preset = characterMgr.PresetLoad(binaryReader, string.Empty);
             binaryReader.Close();
 
-            preset.strFileName = DateTime.Now.ToString("MM-dd HH.mm.ss");
+            var now = DateTime.Now;
+
+            preset.strFileName = now.ToString("MM-dd HH.mm.ss");
+            var lastWriteAt = now.Ticks;
 
             var tempPreset = new TempPreset
             {
                 preset = preset,
-                xmlMemory = xmlMemory
+                xmlMemory = xmlMemory,
+                lastWriteAt = lastWriteAt
             };
 
             MTEUtils.LogDebug("SavePresetCache: strFileName={0} xmlMemory={1}", preset.strFileName, xmlMemory);

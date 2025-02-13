@@ -44,6 +44,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public virtual string fullPath { get; set; }
         public virtual MaidPartType maidPartType { get; set; }
         public virtual float priority { get; set; }
+        public virtual long lastWriteAt { get; set; }
 
         protected static ModItemManager modItemManager => ModItemManager.instance;
         protected static TextureManager textureManager => TextureManager.instance;
@@ -120,6 +121,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override MaidPartType maidPartType => menu?.maidPartType ?? MaidPartType.null_mpn;
         public override float priority => menu?.priority ?? 0f;
+        public override long lastWriteAt => menu?.lastWriteAt ?? 0;
 
         public virtual List<MenuInfo> menuList { get; set; }
         public virtual int variationNumber { get; set; }
@@ -397,7 +399,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if (_preset == null)
                 {
-                    _preset = maidPresetManager.GetPreset(fullPath);
+                    var presetData = maidPresetManager.GetOrLoadPreset(fullPath);
+                    if (presetData != null)
+                    {
+                        _preset = presetData.preset;
+                        lastWriteAt = presetData.lastWriteAt;
+                    }
                 }
                 return _preset;
             }

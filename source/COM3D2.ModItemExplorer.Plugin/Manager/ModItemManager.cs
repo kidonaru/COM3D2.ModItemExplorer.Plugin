@@ -187,6 +187,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         private Dictionary<string, ModItemBase> _itemPathMap = new Dictionary<string, ModItemBase>(menuCapacity, StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, ModItemBase> _itemNameMap = new Dictionary<string, ModItemBase>(menuCapacity, StringComparer.OrdinalIgnoreCase);
         private List<string> _officialMenuFileNameList = new List<string>(menuCapacity);
+        private Dictionary<int, string> _variationMenuPathMap = new Dictionary<int, string>(menuCapacity); // rid -> path
+        private Dictionary<string, List<MenuInfo>> _variationMenuMap = new Dictionary<string, List<MenuInfo>>(1024);
+
+        public static Config config => ConfigManager.instance.config;
 
         private ModItemManager()
         {
@@ -244,6 +248,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             modMenuLoadedIndex = 0;
             modMenuTotalCount = 0;
 
+            _officialMenuFileNameList.Clear();
+            _variationMenuPathMap.Clear();
+            _variationMenuMap.Clear();
+
             LoadOfficialMenuFileNameList();
 
             ThreadPool.QueueUserWorkItem(_ =>
@@ -285,6 +293,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                     UpdateSearchItems();
                     UpdateFavoriteItems();
                     ResetFlatView();
+
+                    _officialMenuFileNameList.Clear();
+                    _variationMenuPathMap.Clear();
+                    _variationMenuMap.Clear();
 
                     MTEUtils.EnqueueAction(() =>
                     {
@@ -651,8 +663,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         public void ResetItems()
         {
             _menuMap.Clear();
-            _officialMenuFileNameList.Clear();
-
             InitItemCache();
         }
 
@@ -824,6 +834,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                         continue;
                     }
 
+                    if (!string.IsNullOrEmpty(menu.variationBaseFileName))
+                    {
+                        _variationMenuPathMap[menu.rid] = menuFileName;
+                        _variationMenuMap.GetOrCreate(
+                            menu.variationBaseFileName,
+                            () => new List<MenuInfo>(8)).Add(menu);
+                        continue;
+                    }
+
                     var item = GetItemByName<MenuItem>(menuFileName);
                     if (item == null)
                     {
@@ -904,6 +923,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     if (!IsVisibleMenu(menu))
                     {
+                        continue;
+                    }
+
+                    if (!string.IsNullOrEmpty(menu.variationBaseFileName))
+                    {
+                        _variationMenuPathMap[menu.rid] = menuFilePath;
+                        _variationMenuMap.GetOrCreate(
+                            menu.variationBaseFileName,
+                            () => new List<MenuInfo>(8)).Add(menu);
                         continue;
                     }
 
@@ -1043,10 +1071,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     try
                     {
-                        var preset = tempPreset.preset;
-                        var xmlMemory = tempPreset.xmlMemory;
-                        var itemPath = MTEUtils.CombinePaths(TempPresetDirName, maidName, preset.strFileName);
-                        GetOrCreatePresetItem(itemPath, preset, ModItemType.TempPreset, xmlMemory);
+                        if (tempPreset?.preset == null)
+                        {
+                            continue;
+                        }
+
+                        var itemPath = MTEUtils.CombinePaths(TempPresetDirName, maidName, tempPreset.preset.strFileName);
+                        GetOrCreatePresetItem(itemPath, tempPreset, ModItemType.TempPreset);
                     }
                     catch (Exception e)
                     {
@@ -1086,6 +1117,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 return null;
             }
+
+            // 拡張子がない場合は.menuとして扱う
+            if (!menuFileName.EndsWith(".menu", StringComparison.OrdinalIgnoreCase) &&
+                !menuFileName.EndsWith(".mod", StringComparison.OrdinalIgnoreCase))
+            {
+                menuFileName += ".menu";
+            }
+
             return _menuMap.GetOrDefault(menuFileName);
         }
 
@@ -1156,14 +1195,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                         RemoveItem(item);
                     }
                 }
-
-                if (item is ModelMenuItem modelItem)
-                {
-                    if (modelItem.model.obj == null)
-                    {
-                        RemoveItem(item);
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -1196,19 +1227,52 @@ namespace COM3D2.ModItemExplorer.Plugin
             MTEUtils.LogDebug("[ModMenuItemManager] CollectVariationMenu");
             loadState = LoadState.CollectVariationMenu;
 
-            var menuList = _menuMap.Values.ToList();
-            foreach (var menu in menuList)
+            foreach (var kvp in _variationMenuMap)
             {
                 try
                 {
-                    if (string.IsNullOrEmpty(menu.variationBaseFileName))
+                    var baseFileName = kvp.Key;
+                    var variationMenuList = kvp.Value;
+
+                    if (variationMenuList.Count == 0)
                     {
                         continue;
                     }
 
-                    var baseItem = GetItemByName<MenuItem>(menu.variationBaseFileName);
-                    if (baseItem != null)
+                    variationMenuList.Sort(CompareMenu);
+
+                    var baseItem = GetItemByName<MenuItem>(baseFileName);
+
+                    // バリエーション元がない場合、最初のメニューをベースとして表示
+                    if (baseItem == null)
                     {
+                        var baseMenu = variationMenuList[0];
+                        if (baseMenu.isOfficial)
+                        {
+                            MTEUtils.LogWarning("バリエーション元が見つかりません。" + baseFileName);
+                            continue;
+                        }
+
+                        if (_variationMenuPathMap.TryGetValue(baseMenu.rid, out var menuFilePath))
+                        {
+                            MTEUtils.LogDebug("バリエーション元として表示: {0} {1}", baseMenu.name, baseMenu.fileName);
+                            var itemPath = GetModItemPath(baseMenu, GetRelativePath(MTEUtils.ModDirPath, menuFilePath));
+                            baseItem = GetOrCreateMenuItem(itemPath, baseMenu, ModItemType.Mod, menuFilePath);
+                        }
+                    }
+
+                    if (baseItem == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var menu in variationMenuList)
+                    {
+                        if (menu == baseItem.menu)
+                        {
+                            continue;
+                        }
+
                         baseItem.AddMenu(menu);
                     }
                 }
@@ -1297,7 +1361,26 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private static int CompareItem(ITileViewContent a, ITileViewContent b)
+        public void SortAllItems()
+        {
+            foreach (var child in rootItem.children)
+            {
+                SortItemChildren(child);
+            }
+        }
+
+        public static int CompareItem(ITileViewContent a, ITileViewContent b)
+        {
+            if (config.itemSortType == ItemSortType.DefaultAsc ||
+                config.itemSortType == ItemSortType.NameAsc ||
+                config.itemSortType == ItemSortType.LastWriteAtAsc)
+            {
+                return _CompareItem(a, b);
+            }
+            return _CompareItem(b, a);
+        }
+
+        private static int _CompareItem(ITileViewContent a, ITileViewContent b)
         {
             if (a.isDir && !b.isDir)
             {
@@ -1311,6 +1394,24 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             var aItem = a as ModItemBase;
             var bItem = b as ModItemBase;
+
+            if (config.itemSortType == ItemSortType.LastWriteAtAsc ||
+                config.itemSortType == ItemSortType.LastWriteAtDesc)
+            {
+                if (aItem.lastWriteAt != bItem.lastWriteAt)
+                {
+                    return aItem.lastWriteAt.CompareTo(bItem.lastWriteAt);
+                }
+            }
+
+            if (config.itemSortType == ItemSortType.NameAsc ||
+                config.itemSortType == ItemSortType.NameDesc)
+            {
+                if (aItem.name != bItem.name)
+                {
+                    return string.Compare(aItem.name, bItem.name, StringComparison.Ordinal);
+                }
+            }
 
             if (aItem.maidPartType != bItem.maidPartType)
             {
@@ -1456,6 +1557,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             SortItemChildren(favoriteRootItem);
         }
 
+        private List<ITileViewContent> _modelTempItems = new List<ITileViewContent>(16);
+
         public void UpdateModelItems()
         {
             MTEUtils.LogDebug("[ModMenuItemManager] UpdateModelItems");
@@ -1473,7 +1576,17 @@ namespace COM3D2.ModItemExplorer.Plugin
                     UpdateModelItem(model);
                 }
 
-                ValidateItemChildren(modelRootItem);
+                _modelTempItems.Clear();
+                _modelTempItems.AddRange(modelRootItem.children);
+
+                foreach (ModelMenuItem item in _modelTempItems)
+                {
+                    if (!modelList.Contains(item.model))
+                    {
+                        RemoveItem(item);
+                    }
+                }
+
                 SortItemChildren(modelRootItem);
             }
             catch (Exception e)
@@ -1765,11 +1878,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private PresetItem GetOrCreatePresetItem(
             string itemPath,
-            CharacterMgr.Preset preset,
-            ModItemType itemType,
-            XmlDocument xmlMemory = null)
+            TempPreset tempPreset,
+            ModItemType itemType)
         {
-            if (preset == null)
+            if (tempPreset == null || tempPreset.preset == null)
             {
                 return null;
             }
@@ -1777,7 +1889,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             var item = GetItemByPath<PresetItem>(itemPath);
             if (item != null)
             {
-                item.preset = preset;
+                item.preset = tempPreset.preset;
+                item.xmlMemory = tempPreset.xmlMemory;
+                item.lastWriteAt = tempPreset.lastWriteAt;
                 return item;
             }
 
@@ -1798,8 +1912,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 setumei = itemName,
                 itemName = itemName,
                 itemPath = itemPath,
-                preset = preset,
-                xmlMemory = xmlMemory,
+                preset = tempPreset.preset,
+                xmlMemory = tempPreset.xmlMemory,
+                lastWriteAt = tempPreset.lastWriteAt,
                 itemType = itemType,
             };
 

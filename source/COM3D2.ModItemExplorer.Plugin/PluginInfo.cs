@@ -217,5 +217,145 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return _favoriteOnIconTexture;
             }
         }
+
+        public readonly static byte[] SortDefaultAscIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "E0lEQVRYhe1W2w3CMAw8IwboCIzACGUT2AAmoEwAI3QDRoANYARG6AbHBxFN3BpSqS9QT4qanuz4" +
+            "1Di5CkkMidmg1ScBkwAAc4NPAGzd/AEgj11QRN5zkpnjMo8LE0jWjTNDrI24ylBrk4rU8dYWJOp9" +
+            "EfsFmmK0PXDw5gWAU1cCpO2rWDUhHSceF8QPvgWjFXAEwA8j7VrA8kte5wJ6gyXg/iXv2paA6Ri2" +
+            "LoDkTZuQZ2o3HW9tQQpgH1mzALBxT+B1gi6oGloBYAXdX4atXtgMmW/Hzr411nX1OukBEckR/sTk" +
+            "jqvAcsOiYc1HDbdDeaHtrESrBxKUv2QxxfP3guExXDru7nFRAnrD/90Dk4CfE/AEPIsfdUBobsUA" +
+            "AAAASUVORK5CYII=");
+
+        private static Texture2D _sortDefaultAscIconTexture = null;
+        public static Texture2D SortDefaultAscIconTexture
+        {
+            get
+            {
+                if (_sortDefaultAscIconTexture == null)
+                {
+                    _sortDefaultAscIconTexture = new Texture2D(1, 1);
+                    _sortDefaultAscIconTexture.LoadImage(SortDefaultAscIcon);
+                }
+                return _sortDefaultAscIconTexture;
+            }
+        }
+
+        public readonly static byte[] SortDefaultDescIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "D0lEQVRYhe1W2xGCMBDcOBZACZZgCdgJdmAHagWUgB1YAnYAJVACHaw/pxNCDoIDhg925oaw3GOH" +
+            "XG5iSCImdlGrbwLWIGA/d0JjzHdN8ihcbXFdf+UUJAAusm4APKYKIJkAKIU+GWNanwCQ9NmTXWSK" +
+            "X8+svIUVX2j1tB5InPdD6B+QIhmAzKIy4XqYvQll33PPp/zTE26Az1KSpdiTZBK6BSQr6qhcf60J" +
+            "f4ZzCiicsbiOf/Q5sFoBOQAOWLq0gONI3OIC/gZNQD0S95pLwHYMowvQ7gMpgGtgjhbAWZ7Toczz" +
+            "cmCe+3D7xDq5SYd0a612C9qJeRqFv48FhlzJQoo/An2DBfwN0XtgE7AJeAO3N3IABO7FNAAAAABJ" +
+            "RU5ErkJggg==");
+
+        private static Texture2D _sortDefaultDescIconTexture = null;
+        public static Texture2D SortDefaultDescIconTexture
+        {
+            get
+            {
+                if (_sortDefaultDescIconTexture == null)
+                {
+                    _sortDefaultDescIconTexture = new Texture2D(1, 1);
+                    _sortDefaultDescIconTexture.LoadImage(SortDefaultDescIcon);
+                }
+                return _sortDefaultDescIconTexture;
+            }
+        }
+
+        public readonly static byte[] SortNameAscIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "PElEQVRYhe2WzW3CQBCF36AUkG2BCiyRBiLRAndOtOAr11TB3WkhUhoAkQbSgqGDx2UM44n/iP8E" +
+            "8kgjed8Ou9887yILSYwZs1F3nwAmAAAvXS8oItdnklvVtkbL13d9DR0AVROj5epHfwUPBZACoGY8" +
+            "NMAKQHDjQQGWbrzQHAQg4Nbxh9G7cYFkXW54iwXJRJ/Tonq3NulEX9/EgazTg+aXjq0z/4+a7uem" +
+            "+1i1YLSkrQN1ALGzP9MTo4c+Afasj00bgKoz0PSqtToHVQB24TcA4vJT55YA5lkhyaPv3Lh1/LNL" +
+            "hf2p/mhfMm+vZ2z0iOSp4FWddK7RGViVLG4zGMhfewZIrgsA1kUNN/kjuiuNszuz+a7M8d4+SEi+" +
+            "AvhW+V1EzhlArr4vAN0sUu3HaP0C3BsP9UU0ATwnwAXJes1ji+FkZwAAAABJRU5ErkJggg==");
+
+        private static Texture2D _sortNameAscIconTexture = null;
+        public static Texture2D SortNameAscIconTexture
+        {
+            get
+            {
+                if (_sortNameAscIconTexture == null)
+                {
+                    _sortNameAscIconTexture = new Texture2D(1, 1);
+                    _sortNameAscIconTexture.LoadImage(SortNameAscIcon);
+                }
+                return _sortNameAscIconTexture;
+            }
+        }
+
+        public readonly static byte[] SortNameDescIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "OklEQVRYhe2WzQ3CMAyFbcQAdAUmQIIFkFihd05doWeOTMG9rIDEAiBYgBWADR4XB4zpH2lKOfRJ" +
+            "UdNXK/niumkYAHWpQaez9wD/ADAMPSAzP/sAJuKdlfceH/orcAAARkS0F3vOzPc8AAIQtKlxN3hp" +
+            "UzRfKwAAlvjU8icAACYAbjkAN3nmDXBVg6UlcaecyZ1OvgCxGehQFGvqCzCmja+7DyzM/VRaY9UB" +
+            "iIgolv5a+XFO7Peqkf5EpX4KIJP+9VevwK30KG0n9zoz/qpY/Vit3lV+pLysaQaqAFKTfudnyo/a" +
+            "BDigWkkTgLIaqPupNaqDMgA98IyI2LStPFsQ0bgNgESurvqtdqrvn4WCd6+33qJ9P8Lr/3DxrYHW" +
+            "DiQOQDxW3lt88COZ0aoqIHgGvlXnp+IeoAfoHOABNCKz42myiaMAAAAASUVORK5CYII=");
+
+        private static Texture2D _sortNameDescIconTexture = null;
+        public static Texture2D SortNameDescIconTexture
+        {
+            get
+            {
+                if (_sortNameDescIconTexture == null)
+                {
+                    _sortNameDescIconTexture = new Texture2D(1, 1);
+                    _sortNameDescIconTexture.LoadImage(SortNameDescIcon);
+                }
+                return _sortNameDescIconTexture;
+            }
+        }
+
+        public readonly static byte[] SortTimeAscIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "VUlEQVRYhe2W4W2DMBCFn6sOwAiMwAqdAEZghIzAJu4IZQKaCdwRukGyweuPnpvDMQ4QI1SJJ50g" +
+            "x8P+YvtOGJLYUy+7zn4AHAAAXnMPaIz5uyfZSa5TubE/dxkGAJScUbmR/19tQQOgBlDK728APYCP" +
+            "pwhIPoqKpONNg4SXE8/d8npDar45k18kTiQLko1EITn/vNoCwOnBJfwKhJAuN0Aj75+CfAgA8ZBk" +
+            "sxQgVQW1XN8THi/vqVOmmFJVUAL4BHCNPKsADHJ/BtCJt8wJMKXzinemlTgDVraweHBQIR6StMHY" +
+            "T52BXq7tjP/hPX3KFNWKMpzqFdnLcKoR6WW/a0Qcd81QbimAh9CDDky0YgUd6sLISs4B0I3JKgAr" +
+            "ufGAv8vcRgDaNVuwONReWzW5nToDm32QkCxwa1ZvxpirBxj5twKQySrJfanctgBLtfsn2QFwAPwA" +
+            "c0nIHehOUa0AAAAASUVORK5CYII=");
+
+        private static Texture2D _sortTimeAscIconTexture = null;
+        public static Texture2D SortTimeAscIconTexture
+        {
+            get
+            {
+                if (_sortTimeAscIconTexture == null)
+                {
+                    _sortTimeAscIconTexture = new Texture2D(1, 1);
+                    _sortTimeAscIconTexture.LoadImage(SortTimeAscIcon);
+                }
+                return _sortTimeAscIconTexture;
+            }
+        }
+
+        public readonly static byte[] SortTimeDescIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAB" +
+            "V0lEQVRYhe1W0XWEIBAc8lIAJVgCLVwFWoIlXAlJJaaEWIG5CrgS0kGug8lHlpPbKB4XfObDeW8f" +
+            "ug7LsMCKIYkt8bTp6LuA/yDguXRAY8z1maQT3zny3fJLn4IggKQFMIj7YIy5TAkAyaIWxe04opsb" +
+            "bxUBJFv+RjslIGcJGgA1gErePwH0AN4Vz0nqrfJfABwAnHOXwJH00UwGsQAvnMCPuRo+dwkcyS+x" +
+            "I0lLshGz4gvfnc5mGDU14SUBPg4uFjKgRfrSAhrpf1R+LQDCIckmV0CqEtbSviU4AYFTp0hTSFXC" +
+            "CsAHfnavhsNYZE4AXoRblRQwh9MDfeaR2AOdLKFd2KgQDhlVPIn9pz3QS9veMY/A6VOkSTxwDOdq" +
+            "RfFjOFeI4rSvXoiCCM8RAxOlOFdA8Z+RupBQfCby3QRd7UJyr4DiVzKF1yVC8QzkYvNb8S5gF7C5" +
+            "gG+je7gULprntwAAAABJRU5ErkJggg==");
+
+        private static Texture2D _sortTimeDescIconTexture = null;
+        public static Texture2D SortTimeDescIconTexture
+        {
+            get
+            {
+                if (_sortTimeDescIconTexture == null)
+                {
+                    _sortTimeDescIconTexture = new Texture2D(1, 1);
+                    _sortTimeDescIconTexture.LoadImage(SortTimeDescIcon);
+                }
+                return _sortTimeDescIconTexture;
+            }
+        }
     }
 }

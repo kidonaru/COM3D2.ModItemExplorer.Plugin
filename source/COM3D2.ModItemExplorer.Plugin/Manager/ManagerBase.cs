@@ -5,7 +5,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     public class ManagerBase : IManager
     {
-        public virtual Config config => ConfigManager.instance.config;
         protected static ModItemExplorer plugin => ModItemExplorer.instance;
         protected static ConfigManager configManager => ConfigManager.instance;
         protected static WindowManager windowManager => WindowManager.instance;

@@ -539,6 +539,36 @@ namespace COM3D2.ModItemExplorer.Plugin
             contentSize = new Vector2(120, 300),
         };
 
+        private readonly static List<string> _itemSortTypeNames = new List<string>
+        {
+            "基本昇順",
+            "基本降順",
+            "名前昇順",
+            "名前降順",
+            "更新日時昇順",
+            "更新日時降順",
+        };
+
+        private readonly static List<Texture2D> _itemSortTypeTextures = new List<Texture2D>
+        {
+            PluginInfo.SortDefaultAscIconTexture,
+            PluginInfo.SortDefaultDescIconTexture,
+            PluginInfo.SortNameAscIconTexture,
+            PluginInfo.SortNameDescIconTexture,
+            PluginInfo.SortTimeAscIconTexture,
+            PluginInfo.SortTimeDescIconTexture,
+        };
+
+        private GUIComboBox<ItemSortType> _itemSortTypeComboBox = new GUIComboBox<ItemSortType>
+        {
+            items = MTEUtils.GetEnumValues<ItemSortType>(),
+            getName = (sortType, index) => _itemSortTypeNames.GetOrDefault(index, string.Empty),
+            getTexture = (sortType, index) => _itemSortTypeTextures.GetOrDefault(index),
+            buttonSize = new Vector2(20, 20),
+            contentSize = new Vector2(120, 300),
+            showArrow = false,
+        };
+
         private GUIView.DraggableInfo _windowSizeDraggableInfo = new GUIView.DraggableInfo();
         private GUIView.DraggableInfo _naviWidthDraggableInfo = new GUIView.DraggableInfo();
 
@@ -839,7 +869,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 var searchWidth = 170;
                 var pathWidth = _windowWidth - view.padding.x * 2 - view.currentPos.x - searchWidth;
-                var pathButtonWidth = 20 * 2 + 10;
+                var pathButtonWidth = 20 * 3 + 10;
 
                 // パスバー
                 {
@@ -903,6 +933,16 @@ namespace COM3D2.ModItemExplorer.Plugin
                     {
                         currentDirItem.isFlatView = !currentDirItem.isFlatView;
                     }
+
+                    _itemSortTypeComboBox.currentItem = config.itemSortType;
+                    _itemSortTypeComboBox.onSelected = (sortType, _) =>
+                    {
+                        config.itemSortType = sortType;
+                        config.dirty = true;
+                        modItemManager.SortAllItems();
+                        _flatViewItem.itemPath = "";
+                    };
+                    _itemSortTypeComboBox.DrawTextureButton(view);
                 }
 
                 // 検索バー

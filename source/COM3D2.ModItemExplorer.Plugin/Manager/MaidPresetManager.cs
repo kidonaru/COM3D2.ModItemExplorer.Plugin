@@ -11,7 +11,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     public class MaidPresetManager : ManagerBase
     {
-        private Dictionary<string, CharacterMgr.Preset> _presetCache = new Dictionary<string, CharacterMgr.Preset>();
         private Dictionary<string, PresetData> _presetDataCache = new Dictionary<string, PresetData>();
 
         private static MaidPresetManager _instance;
@@ -27,42 +26,34 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public CharacterMgr.Preset GetPreset(string filePath)
+        public PresetData GetOrLoadPreset(string filePath)
         {
             if (string.IsNullOrEmpty(filePath))
             {
                 return null;
             }
-            if (_presetCache.TryGetValue(filePath, out var preset))
-            {
-                return preset;
-            }
 
             PresetData presetData = null;
-            bool dataLoaded = false;
 
-            // ロード済みか確認
+            // ロード済みのPreset取得
             lock (_presetDataCache)
             {
-                if (_presetDataCache.TryGetValue(filePath, out presetData))
-                {
-                    dataLoaded = true;
-                    _presetDataCache.Remove(filePath);
-                }
+                _presetDataCache.TryGetValue(filePath, out presetData);
             }
 
-            // ロード済みの場合はPreset生成
-            if (dataLoaded)
+            if (presetData != null && presetData.preset != null)
             {
-                if (presetData != null)
+                var preset = presetData.preset;
+
+                // テクスチャ生成前の場合は生成
+                if (preset.texThum == null && presetData.textureBytes != null)
                 {
-                    preset = presetData.preset;
                     preset.texThum = new Texture2D(1, 1);
                     preset.texThum.LoadImage(presetData.textureBytes);
                     preset.texThum.wrapMode = TextureWrapMode.Clamp;
+                    presetData.textureBytes = null;
                 }
-                _presetCache[filePath] = preset;
-                return preset;
+                return presetData;
             }
 
             // ロードされていない場合はロードリクエスト
@@ -159,18 +150,16 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             lock (_presetDataCache)
             {
+                foreach (var presetData in _presetDataCache.Values)
+                {
+                    if (presetData.preset != null && presetData.preset.texThum != null)
+                    {
+                        UnityEngine.Object.Destroy(presetData.preset.texThum);
+                        presetData.preset.texThum = null;
+                    }
+                }
                 _presetDataCache.Clear();
             }
-
-            foreach (var preset in _presetCache.Values)
-            {
-                if (preset.texThum != null)
-                {
-                    UnityEngine.Object.Destroy(preset.texThum);
-                }
-            }
-
-            _presetCache.Clear();
         }
     }
 }

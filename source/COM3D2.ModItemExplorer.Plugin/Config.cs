@@ -13,6 +13,16 @@ namespace COM3D2.ModItemExplorer.Plugin
         OpenExplorer,
     }
 
+    public enum ItemSortType
+    {
+        DefaultAsc,
+        DefaultDesc,
+        NameAsc,
+        NameDesc,
+        LastWriteAtAsc,
+        LastWriteAtDesc,
+    }
+
     public class Config
     {
         public static readonly int CurrentVersion = 1;
@@ -30,6 +40,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int flatViewItemCount = 32;
         public bool dumpItemInfo = false;
         public bool setumeiSerch = false;
+        public ItemSortType itemSortType = ItemSortType.DefaultAsc;
 
         // 表示設定
         public int windowWidth = 960;

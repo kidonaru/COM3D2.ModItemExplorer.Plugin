@@ -9,7 +9,7 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class ConfigManager : ManagerBase
     {
         private Config _config = new Config();
-        public override Config config => _config;
+        public Config config => _config;
 
         private static ConfigManager _instance = null;
         public static ConfigManager instance

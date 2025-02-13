@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 1行目 -->
+  <rect x="4" y="5" width="3" height="3" rx="1" fill="white"/>
+  
+  <!-- 2行目 -->
+  <rect x="4" y="10.5" width="6" height="3" rx="1" fill="white"/>
+  
+  <!-- 3行目 -->
+  <rect x="4" y="16" width="9" height="3" rx="1" fill="white"/>
+
+  <!-- 下向き矢印 -->
+  <rect x="17.25" y="5" width="1.5" height="10" fill="white"/>
+  <path d="M18 19L21 15L15 15L18 19Z" fill="white"/>
+</svg>
