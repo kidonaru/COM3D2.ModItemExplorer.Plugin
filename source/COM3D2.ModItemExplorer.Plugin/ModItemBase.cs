@@ -81,7 +81,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override string tag
         {
-            get => menu != null ? MaidPartUtils.GetMaidPartJpName(menu.maidPartType) : string.Empty;
+            get => menu != null ? menu.maidPartType.ToJpName() : string.Empty;
         }
 
         public override Color tagColor

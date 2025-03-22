@@ -893,7 +893,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (config.groupOfficialItemsByMPN)
             {
-                var partName = MaidPartUtils.GetMaidPartName(menu.maidPartType);
+                var partName = menu.maidPartType.ToName();
                 return MTEUtils.CombinePaths(OfficialDirName, partName, menu.fileName);
             }
             return MTEUtils.CombinePaths(OfficialDirName, menu.path);
@@ -1004,7 +1004,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (config.groupModItemsByMPN)
             {
-                var partName = MaidPartUtils.GetMaidPartName(menu.maidPartType);
+                var partName = menu.maidPartType.ToName();
                 return MTEUtils.CombinePaths(ModDirName, partName, menu.fileName);
             }
             return MTEUtils.CombinePaths(ModDirName, filePath);
@@ -1448,7 +1448,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private string GetEquippedItemName(MaidPartType maidPartType)
         {
-            return "equipped_" + MaidPartUtils.GetMaidPartName(maidPartType);
+            return "equipped_" + maidPartType.ToName();
         }
 
         public void UpdateEquippedItems()
