@@ -272,7 +272,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 || _category == ColorPaletteManager.Category.Shadow;
         }
 
-        private GUIView.DraggableInfo _colorPickerInfo = new GUIView.DraggableInfo();
+        private GUIView.DragInfo _colorPickerInfo = new GUIView.DragInfo();
 
         private void DrawColorPicker()
         {
@@ -288,12 +288,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             pos.x -= drawRect.x;
             pos.y -= drawRect.y;
 
-            view.InvokeActionOnDragging(
-                150,
-                150,
+            view.InvokeActionOnDragStart(
+                drawRect,
                 _colorPickerInfo,
                 pos,
-                (_, newPos) =>
+                null
+            );
+
+            view.InvokeActionOnDragging(
+                _colorPickerInfo,
+                newPos =>
                 {
                     var horizon = newPos.x / 150f;
                     var vertical = 1f - newPos.y / 150f;
@@ -303,7 +307,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     commonItem.brightness = (int) (vertical * 510);
 
                     _colorData.SetItem(_category, commonItem);
-                    ColorPaletteManager.ColorData.Apply(_maid, _colorData);
+                    ApplyColorData();
                 }
             );
 
@@ -326,15 +330,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-
         private void DrawContent()
         {
             var view = _contentView;
             view.ResetLayout();
             view.SetEnabled(!view.IsComboBoxFocused());
 
-            var maid = modItemManager.currentMaid;
-            if (maid == null)
+            if (_maid == null)
             {
                 return;
             }
@@ -495,15 +497,20 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (updated)
             {
                 _colorData.SetItem(_category, commonItem);
-                ColorPaletteManager.ColorData.Apply(maid, _colorData);
+                ApplyColorData();
+            }
+        }
 
-                if ((_colorData.colorType == MaidParts.PARTS_COLOR.EYE_L || _colorData.colorType == MaidParts.PARTS_COLOR.EYE_R)
-                    && _selectEyeType == MaidStatus.EyePartsTab.LR)
-                {
-                    var data = ColorPaletteManager.ColorData.Create(maid, MaidParts.PARTS_COLOR.EYE_L);
-                    data.colorType = MaidParts.PARTS_COLOR.EYE_R;
-                    ColorPaletteManager.ColorData.Apply(maid, data);
-                }
+        private void ApplyColorData()
+        {
+            ColorPaletteManager.ColorData.Apply(_maid, _colorData);
+
+            if ((_colorData.colorType == MaidParts.PARTS_COLOR.EYE_L || _colorData.colorType == MaidParts.PARTS_COLOR.EYE_R)
+                && _selectEyeType == MaidStatus.EyePartsTab.LR)
+            {
+                var data = ColorPaletteManager.ColorData.Create(_maid, MaidParts.PARTS_COLOR.EYE_L);
+                data.colorType = MaidParts.PARTS_COLOR.EYE_R;
+                ColorPaletteManager.ColorData.Apply(_maid, data);
             }
         }
 

@@ -570,8 +570,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             showArrow = false,
         };
 
-        private GUIView.DraggableInfo _windowSizeDraggableInfo = new GUIView.DraggableInfo();
-        private GUIView.DraggableInfo _naviWidthDraggableInfo = new GUIView.DraggableInfo();
+        private GUIView.DragInfo _windowSizeDragInfo = new GUIView.DragInfo();
+        private GUIView.DragInfo _naviWidthDragInfo = new GUIView.DragInfo();
 
         private enum ContentMode
         {
@@ -601,7 +601,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _rootView.DrawComboBox();
 
-            if (!_windowSizeDraggableInfo.isDragging)
+            if (!_windowSizeDragInfo.isDragging)
             {
                 GUI.DragWindow();
             }
@@ -1595,36 +1595,38 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             var footerRect = view.GetDrawRect(-1, 20);
             if (footerRect.Contains(Event.current.mousePosition) ||
-                _naviWidthDraggableInfo.isDragging)
+                _naviWidthDragInfo.isDragging)
             {
                 view.currentPos.x = config.naviWidth - 20;
 
                 view.DrawDraggableButton("□", 20, 20,
-                    _naviWidthDraggableInfo,
+                    _naviWidthDragInfo,
                     new Vector2(_naviWidth, 0f),
-                    (delta, value) =>
-                {
-                    config.naviWidth = (int)value.x;
-                    config.naviWidth = Mathf.Clamp(config.naviWidth, MIN_NAVI_WIDTH, MAX_NAVI_WIDTH);
-                    config.dirty = true;
-                });
+                    null,
+                    value =>
+                    {
+                        config.naviWidth = (int)value.x;
+                        config.naviWidth = Mathf.Clamp(config.naviWidth, MIN_NAVI_WIDTH, MAX_NAVI_WIDTH);
+                        config.dirty = true;
+                    });
             }
 
             view.currentPos.x = _windowWidth - 20;
 
             view.DrawDraggableButton("□", 20, 20,
-                _windowSizeDraggableInfo,
+                _windowSizeDragInfo,
                 new Vector2(_windowWidth, _windowHeight),
-                (delta, value) =>
-            {
-                config.windowWidth = (int)value.x;
-                config.windowHeight = (int)value.y;
+                null,
+                value =>
+                {
+                    config.windowWidth = (int)value.x;
+                    config.windowHeight = (int)value.y;
 
-                config.windowWidth = Mathf.Clamp(config.windowWidth, MIN_WINDOW_WIDTH, Screen.width);
-                config.windowHeight = Mathf.Clamp(config.windowHeight, MIN_WINDOW_HEIGHT, Screen.height);
+                    config.windowWidth = Mathf.Clamp(config.windowWidth, MIN_WINDOW_WIDTH, Screen.width);
+                    config.windowHeight = Mathf.Clamp(config.windowHeight, MIN_WINDOW_HEIGHT, Screen.height);
 
-                config.dirty = true;
-            });
+                    config.dirty = true;
+                });
         }
 
         public void OnScreenSizeChanged()
