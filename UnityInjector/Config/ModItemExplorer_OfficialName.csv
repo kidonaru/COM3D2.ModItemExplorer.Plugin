@@ -538,3 +538,6 @@ set_maidwear,メイド服セット
 set_mywear,私服セット
 set_underwear,下着セット
 set_body,身体セット
+
+motion,モーション
+mypose,マイポーズ

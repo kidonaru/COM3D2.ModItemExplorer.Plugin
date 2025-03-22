@@ -109,6 +109,7 @@
     <Compile Include="HairLengthWindow.cs" />
     <Compile Include="ModItemBase.cs" />
     <Compile Include="ModItemWindow.cs" />
+    <Compile Include="MotionWindow.cs" />
     <Compile Include="PluginInfo.cs" />
     <Compile Include="PluginUtils.cs" />
   </ItemGroup>

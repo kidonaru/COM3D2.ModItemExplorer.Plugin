@@ -25,6 +25,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public ColorPaletteWindow colorPaletteWindow = null;
         public CustomPartsWindow customPartsWindow = null;
         public HairLengthWindow hairLengthWindow = null;
+        public MotionWindow motionWindow = null;
 
         public List<IWindow> windows = new List<IWindow>();
 
@@ -61,6 +62,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             hairLengthWindow = new HairLengthWindow();
             AddWindow(hairLengthWindow);
+
+            motionWindow = new MotionWindow();
+            AddWindow(motionWindow);
         }
 
         public void AddWindow(IWindow window)

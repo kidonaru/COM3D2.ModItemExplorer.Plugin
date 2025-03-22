@@ -16,6 +16,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         Preset,
         TempPreset,
         Model,
+        Anm,
     }
 
     public abstract class ModItemBase : TileViewContentBase
@@ -430,6 +431,31 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 return null;
+            }
+            set => _thum = value;
+        }
+    }
+
+    public class AnmItem : ModItemBase
+    {
+        public override string tag => "アニメ";
+
+        public override Color tagColor =>
+            new Color(0.4f, 0.4f, 0.4f, config.tagBGAlpha);
+
+        public override bool canFavorite => true;
+
+        public override Texture2D thum
+        {
+            get
+            {
+                if (_thum != null)
+                {
+                    return _thum;
+                }
+
+                _thum = textureManager.GetTexture("cm3d2_poseicon01.tex");
+                return _thum;
             }
             set => _thum = value;
         }

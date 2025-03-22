@@ -172,8 +172,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             None,
             LoadOfficialNameCsv,
-            LoadOfficialItems,
+            LoadOfficialMenuItems,
+            LoadOfficialAnmItems,
             LoadModItems,
+            UpdateModPresetItems,
+            UpdateModAnmItems,
             UpdatePresetItems,
             CollectVariationMenu,
             CollectColorSetMenu,
@@ -275,12 +278,18 @@ namespace COM3D2.ModItemExplorer.Plugin
                         LoadMenuCache();
                     }
 
-                    LoadOfficialItems();
+                    LoadOfficialMenuItems();
+                    LoadOfficialAnmItems();
+                    ValidateItemChildren(officialRootItem);
+                    SortItemChildren(officialRootItem);
+
                     LoadModItems("*.menu");
                     LoadModItems("mod_*.mod");
                     UpdateModPresetItems();
+                    UpdateModAnmItems();
                     ValidateItemChildren(modRootItem);
                     SortItemChildren(modRootItem);
+
                     SaveMenuCache();
 
                     UpdatePresetItems();
@@ -346,6 +355,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             else if (item is PresetItem presetItem)
             {
                 ApplyPresetItem(presetItem);
+            }
+            else if (item is AnmItem anmItem)
+            {
+                ApplyAnmItem(anmItem);
             }
         }
 
@@ -447,6 +460,60 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
             }
+        }
+
+        public void ApplyAnmItem(AnmItem item)
+        {
+            if (currentMaid == null || item == null)
+            {
+                return;
+            }
+
+            var animationState = currentMaid.GetAnimationState();
+            if (animationState == null)
+            {
+                return;
+            }
+
+            var isPlaying = animationState.enabled;
+
+            GameMain.Instance.ScriptMgr.StopMotionScript();
+
+            if (string.IsNullOrEmpty(item.fullPath))
+            {
+                currentMaid.CrossFade(item.itemName, false, true, false, 0f, 1f);
+            }
+            else
+            {
+                byte[] anmData = new byte[0];
+                try
+                {
+                    using (FileStream fileStream = new FileStream(item.fullPath, FileMode.Open, FileAccess.Read))
+                    {
+                        anmData = new byte[fileStream.Length];
+                        fileStream.Read(anmData, 0, anmData.Length);
+                    }
+                }
+                catch
+                {
+                }
+
+                if (anmData.Length > 0)
+                {
+                    var anmTag = item.itemName.ToLower();
+                    currentMaid.body0.CrossFade(anmTag, anmData, false, true, false, 0f, 1f);
+                    currentMaid.SetAutoTwistAll(true);
+                }
+            }
+
+            if (!isPlaying)
+            {
+                currentMaid.GetAnimation().Sample();
+                currentMaid.GetAnimationState().enabled = false;
+            }
+
+            // モーションウィンドウの表示
+            windowManager.motionWindow.Call(currentMaid);
         }
 
         public void CreateModel(MenuItem item, string pluginName)
@@ -809,10 +876,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private void LoadOfficialItems()
+        private void LoadOfficialMenuItems()
         {
-            MTEUtils.LogDebug("[ModMenuItemManager] LoadOfficialItems");
-            loadState = LoadState.LoadOfficialItems;
+            MTEUtils.LogDebug("[ModMenuItemManager] LoadOfficialMenuItems");
+            loadState = LoadState.LoadOfficialMenuItems;
 
             officialMenuTotalCount = _officialMenuFileNameList.Count;
 
@@ -855,9 +922,40 @@ namespace COM3D2.ModItemExplorer.Plugin
                     MTEUtils.LogException(e);
                 }
             }
+        }
 
-            ValidateItemChildren(officialRootItem);
-            SortItemChildren(officialRootItem);
+        public void LoadOfficialAnmItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] LoadOfficialAnmItems");
+            loadState = LoadState.LoadOfficialAnmItems;
+
+            if (PhotoMotionData.data == null)
+            {
+                PhotoMotionData.Create();
+            }
+
+            foreach (var motionData in PhotoMotionData.data)
+            {
+                try
+                {
+                    if (!motionData.direct_file.EndsWith(".anm", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    if (motionData.is_man_pose)
+                    {
+                        continue;
+                    }
+
+                    var itemPath = GetOfficialItemPath(motionData);
+                    var fullPath = (motionData.is_mod || motionData.is_mypose) ? motionData.direct_file : null;
+                    GetOrCreateAnmItem(itemPath, fullPath, motionData.name, ModItemType.Anm);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+            }
         }
 
         private bool IsVisibleMenu(MenuInfo menu)
@@ -897,6 +995,27 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return MTEUtils.CombinePaths(OfficialDirName, partName, menu.fileName);
             }
             return MTEUtils.CombinePaths(OfficialDirName, menu.path);
+        }
+
+        private string GetOfficialItemPath(PhotoMotionData motionData)
+        {
+            if (motionData.is_mod || motionData.is_mypose)
+            {
+                var fileName = Path.GetFileName(motionData.direct_file);
+                return MTEUtils.CombinePaths(
+                        OfficialDirName,
+                        "motion",
+                        "mypose",
+                        fileName);
+            }
+            else
+            {
+                return MTEUtils.CombinePaths(
+                        OfficialDirName,
+                        "motion",
+                        motionData.category,
+                        motionData.direct_file);
+            }
         }
 
         private void LoadModItems(string searchPattern)
@@ -1093,6 +1212,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public void UpdateModPresetItems()
         {
             MTEUtils.LogDebug("[ModMenuItemManager] UpdateModPresetItems");
+            loadState = LoadState.UpdateModPresetItems;
 
             string[] presetFilePaths = Directory.GetFiles(MTEUtils.ModDirPath, "*.preset", SearchOption.AllDirectories);
 
@@ -1103,6 +1223,29 @@ namespace COM3D2.ModItemExplorer.Plugin
                     var relativePath = GetRelativePath(MTEUtils.ModDirPath, presetFilePath);
                     var itemPath = MTEUtils.CombinePaths(ModDirName, relativePath);
                     GetOrCreatePresetItem(itemPath, presetFilePath, ModItemType.Preset);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+            }
+        }
+
+        public void UpdateModAnmItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] UpdateModAnmItems");
+            loadState = LoadState.UpdateModAnmItems;
+
+            string[] anmFilePaths = Directory.GetFiles(MTEUtils.ModDirPath, "*.anm", SearchOption.AllDirectories);
+
+            foreach (var anmFilePath in anmFilePaths)
+            {
+                try
+                {
+                    var relativePath = GetRelativePath(MTEUtils.ModDirPath, anmFilePath);
+                    var itemPath = MTEUtils.CombinePaths(ModDirName, relativePath);
+                    var name = Path.GetFileNameWithoutExtension(anmFilePath);
+                    GetOrCreateAnmItem(itemPath, null, name, ModItemType.Anm);
                 }
                 catch (Exception e)
                 {
@@ -1916,6 +2059,49 @@ namespace COM3D2.ModItemExplorer.Plugin
                 xmlMemory = tempPreset.xmlMemory,
                 lastWriteAt = tempPreset.lastWriteAt,
                 itemType = itemType,
+            };
+
+            parentItem.AddChild(item);
+            _itemPathMap[itemPath] = item;
+            _itemNameMap[itemName] = item;
+
+            return item;
+        }
+
+        private AnmItem GetOrCreateAnmItem(
+            string itemPath,
+            string fullPath,
+            string name,
+            ModItemType itemType)
+        {
+            if (string.IsNullOrEmpty(itemPath))
+            {
+                return null;
+            }
+
+            var item = GetItemByPath<AnmItem>(itemPath);
+            if (item != null)
+            {
+                return item;
+            }
+
+            var parentPath = Path.GetDirectoryName(itemPath);
+            var parentItem = GetOrCreateDirItem(parentPath);
+            if (parentItem == null)
+            {
+                MTEUtils.LogWarning("親ディレクトリが見つかりません。" + parentPath);
+                return null;
+            }
+
+            var itemName = Path.GetFileName(itemPath);
+
+            item = new AnmItem
+            {
+                name = name,
+                itemName = itemName,
+                itemPath = itemPath,
+                itemType = itemType,
+                fullPath = fullPath,
             };
 
             parentItem.AddChild(item);

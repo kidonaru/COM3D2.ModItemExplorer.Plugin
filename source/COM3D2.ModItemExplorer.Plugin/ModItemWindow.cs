@@ -88,6 +88,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 windowManager.colorPaletteWindow.Close();
                 windowManager.customPartsWindow.Close();
+                windowManager.motionWindow.Close();
             }
         }
 
@@ -682,7 +683,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 foreach (var item in rootItem.children)
                 {
                     var color = item == currentDirItem ? Color.green : Color.white;
-                    if (view.DrawButton(item.name, 70, 20, color: color, enabled: item.children?.Count > 0))
+                    if (view.DrawButton(item.name, 70, 20, color: color))
                     {
                         SetCurrentDirItem(item as DirItem);
                     }
@@ -1076,11 +1077,20 @@ namespace COM3D2.ModItemExplorer.Plugin
                 case ModItemManager.LoadState.LoadOfficialNameCsv:
                     view.DrawLabel("Loading Official Name CSV...", -1, 20);
                     break;
-                case ModItemManager.LoadState.LoadOfficialItems:
-                    view.DrawLabel("Loading Official Items... " + officialMenuLoadedIndex + "/" + officialMenuTotalCount, -1, 20);
+                case ModItemManager.LoadState.LoadOfficialMenuItems:
+                    view.DrawLabel("Loading Official Menu Items... " + officialMenuLoadedIndex + "/" + officialMenuTotalCount, -1, 20);
+                    break;
+                case ModItemManager.LoadState.LoadOfficialAnmItems:
+                    view.DrawLabel("Loading Official Anm Items...", -1, 20);
                     break;
                 case ModItemManager.LoadState.LoadModItems:
                     view.DrawLabel("Loading Mod Items... " + modMenuLoadedIndex + "/" + modMenuTotalCount, -1, 20);
+                    break;
+                case ModItemManager.LoadState.UpdateModPresetItems:
+                    view.DrawLabel("Updating Mod Preset Items...", -1, 20);
+                    break;
+                case ModItemManager.LoadState.UpdateModAnmItems:
+                    view.DrawLabel("Updating Mod Anm Items...", -1, 20);
                     break;
                 case ModItemManager.LoadState.CollectVariationMenu:
                     view.DrawLabel("Collecting Variation Menu...", -1, 20);
@@ -1571,7 +1581,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                     var text = $"{menuItem.name} {menuItem.setumei}".Replace("\n", " ");
                     view.DrawLabel(text, -1, 20);
                 }
-                else if (_mouseOverItem.itemType == ModItemType.Dir || _mouseOverItem.itemType == ModItemType.Preset)
+                else if (_mouseOverItem.itemType == ModItemType.Dir ||
+                        _mouseOverItem.itemType == ModItemType.Preset ||
+                        _mouseOverItem.itemType == ModItemType.Anm)
                 {
                     view.DrawLabel(_mouseOverItem.itemPath, -1, 20);
                 }
