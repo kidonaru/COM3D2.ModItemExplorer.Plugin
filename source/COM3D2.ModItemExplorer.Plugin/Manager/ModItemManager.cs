@@ -64,6 +64,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         public static readonly string TempPresetDirName = "TempPreset";
         public static readonly string SearchDirName = "Search";
         public static readonly string FavoriteDirName = "Favorite";
+        public static readonly int MinLayerIndex = 2;
+        public static readonly int MaxLayerIndex = 8;
 
         private static ModItemManager _instance;
         public static ModItemManager instance
@@ -194,10 +196,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         private Dictionary<int, string> _variationMenuPathMap = new Dictionary<int, string>(menuCapacity); // rid -> path
         private Dictionary<string, List<MenuInfo>> _variationMenuMap = new Dictionary<string, List<MenuInfo>>(1024);
 
+        public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
+        public List<AnimationState> animationStates = new List<AnimationState>();
+
         public static Config config => ConfigManager.instance.config;
+        private static MaidManagerWrapper maidManagerWrapper => MaidManagerWrapper.instance;
 
         private ModItemManager()
         {
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                animationLayerInfos.Add(new AnimationLayerInfo(i));
+                animationStates.Add(null);
+            }
         }
 
         public override void Init()
@@ -482,11 +493,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             GameMain.Instance.ScriptMgr.StopMotionScript();
 
             var layer = 0;
-            var weight = 1f;
-
             if (config.animationExtend)
             {
                 layer = animationLayer;
+            }
+
+            var info = animationLayerInfos.GetOrDefault(layer);
+            if (info == null)
+            {
+                MTEUtils.LogWarning("レイヤー情報が見つかりません。layer=" + layer);
+                return;
             }
 
             var anmTag = item.itemName.ToLower();
@@ -508,7 +524,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     true,
                     false,
                     0f,
-                    weight);
+                    info.weight);
             }
             else
             {
@@ -527,7 +543,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 if (anmData.Length > 0)
                 {
-                    animationState = currentMaid.body0.CrossFadeLayer(anmTag, anmData, layer, false, true, false, 0f, weight);
+                    animationState = currentMaid.body0.CrossFadeLayer(anmTag, anmData, layer, false, true, false, 0f, info.weight);
                     currentMaid.SetAutoTwistAll(true);
                 }
             }
@@ -2276,6 +2292,64 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (_menuMap.Count > 0 && !isLoading)
             {
                 ResetItems();
+            }
+        }
+
+        public void UpdateAnimationLayerInfos()
+        {
+            if (currentMaid == null)
+            {
+                return;
+            }
+
+            if (maidManagerWrapper.IsValid())
+            {
+                var maidCaches = maidManagerWrapper.maidCaches;
+                var maidCache = maidCaches.FirstOrDefault(x => x.maid == currentMaid);
+                if (maidCache != null)
+                {
+                    animationLayerInfos = maidCache.animationLayerInfos;
+                }
+            }
+
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                animationStates[i] = null;
+            }
+
+            var animation = currentMaid.GetAnimation();
+
+            foreach (AnimationState state in animation)
+            {
+                if (state == null)
+                {
+                    continue;
+                }
+
+                if (state.layer > 0 && state.enabled && state.layer < animationStates.Count)
+                {
+                    animationStates[state.layer] = state;
+                }
+            }
+
+            // レイヤー0は直取得
+            animationStates[0] = currentMaid.body0.GetAnist();
+
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                var info = animationLayerInfos.GetOrDefault(i);
+                if (info == null)
+                {
+                    continue;
+                }
+
+                var state = animationStates.GetOrDefault(i);
+                if (state != info.state)
+                {
+                    info.anmName = state != null ? state.name : "";
+                    info.state = state;
+                    info.ApplyToObject();
+                }
             }
         }
     }

@@ -42,15 +42,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private Maid _maid;
         private Animation _animation;
-        private List<AnimationLayerInfo> _animationLayerInfos = new List<AnimationLayerInfo>();
-        private List<AnimationState> _animationStates = new List<AnimationState>();
 
         public GUIStyle gsWin => GUIView.gsWin;
-
-        public static readonly int MinLayerIndex = 2;
-        public static readonly int MaxLayerIndex = 8;
-
-        private static MaidManagerWrapper maidManagerWrapper => MaidManagerWrapper.instance;
 
         public MotionWindow()
         {
@@ -62,12 +55,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _windowWidth,
                 _windowHeight
             );
-
-            for (int i = 0; i <= MaxLayerIndex; i++)
-            {
-                _animationLayerInfos.Add(new AnimationLayerInfo(i));
-                _animationStates.Add(null);
-            }
         }
 
         public void Call(Maid maid)
@@ -80,59 +67,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             isShowWnd = true;
             _maid = maid;
             _animation = maid.GetAnimation();
-
-            UpdateAnimationLayerInfos();
-        }
-
-        public void UpdateAnimationLayerInfos()
-        {
-            if (maidManagerWrapper.IsValid())
-            {
-                var maidCaches = maidManagerWrapper.maidCaches;
-                var maidCache = maidCaches.FirstOrDefault(x => x.maid == _maid);
-                if (maidCache != null)
-                {
-                    _animationLayerInfos = maidCache.animationLayerInfos;
-                }
-            }
-
-            for (int i = 0; i <= MaxLayerIndex; i++)
-            {
-                _animationStates[i] = null;
-            }
-
-            foreach (AnimationState state in _animation)
-            {
-                if (state == null)
-                {
-                    continue;
-                }
-
-                if (state.layer > 0 && state.enabled && state.layer < _animationStates.Count)
-                {
-                    _animationStates[state.layer] = state;
-                }
-            }
-
-            // レイヤー0は直取得
-            _animationStates[0] = _maid.body0.GetAnist();
-
-            for (int i = 0; i <= MaxLayerIndex; i++)
-            {
-                var info = _animationLayerInfos.GetOrDefault(i);
-                if (info == null)
-                {
-                    continue;
-                }
-
-                var state = _animationStates.GetOrDefault(i);
-                if (state != info.state)
-                {
-                    info.anmName = state != null ? state.name : "";
-                    info.state = state;
-                    info.ApplyToObject();
-                }
-            }
         }
 
         public void Close()
@@ -158,12 +92,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void Update()
         {
-            if (!isShowWnd || _maid == null || _animation == null)
+            if (!isShowWnd)
             {
                 return;
             }
 
-            UpdateAnimationLayerInfos();
+            modItemManager.UpdateAnimationLayerInfos();
         }
 
         public void OnLoad()
@@ -346,7 +280,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             var layers = new int[] { 0, 2, 3, 4, 5, 6, 7, 8 };
             foreach (var layer in layers)
             {
-                var info = _animationLayerInfos[layer];
+                var info = modItemManager.animationLayerInfos[layer];
                 if (info == null)
                 {
                     continue;
