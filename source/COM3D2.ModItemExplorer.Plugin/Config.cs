@@ -41,6 +41,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool dumpItemInfo = false;
         public bool setumeiSerch = false;
         public ItemSortType itemSortType = ItemSortType.DefaultAsc;
+        public bool animationExtend = true;
 
         // 表示設定
         public int windowWidth = 960;

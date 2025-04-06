@@ -167,6 +167,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int modMenuLoadedIndex { get; private set; }
         public int modMenuTotalCount { get; private set; }
         public Maid currentMaid { get; private set; }
+        public int animationLayer { get; set; }
 
         public enum LoadState
         {
@@ -464,24 +465,50 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void ApplyAnmItem(AnmItem item)
         {
-            if (currentMaid == null || item == null)
+            if (currentMaid == null || currentMaid.body0 == null || item == null)
             {
                 return;
             }
 
-            var animationState = currentMaid.GetAnimationState();
-            if (animationState == null)
+            var animation = currentMaid.GetAnimation();
+            var animationState = currentMaid.body0.GetAnist();
+            if (animation == null || animationState == null)
             {
                 return;
             }
 
-            var isPlaying = animationState.enabled;
+            var isPlaying = animationState.speed > 0f;
 
             GameMain.Instance.ScriptMgr.StopMotionScript();
 
+            var layer = 0;
+            var weight = 1f;
+
+            if (config.animationExtend)
+            {
+                layer = animationLayer;
+            }
+
+            var anmTag = item.itemName.ToLower();
+            if (animationState.name == anmTag && layer > 0)
+            {
+                MTEUtils.LogWarning("デフォルトレイヤーで再生中のアニメはレイヤー変更できません。" + item.itemName);
+                return;
+            }
+
+            currentMaid.body0.StopAndDestroy(item.itemName);
+
             if (string.IsNullOrEmpty(item.fullPath))
             {
-                currentMaid.CrossFade(item.itemName, false, true, false, 0f, 1f);
+                animationState = currentMaid.body0.CrossFadeLayer(
+                    item.itemName,
+                    GameUty.FileSystem,
+                    layer,
+                    false,
+                    true,
+                    false,
+                    0f,
+                    weight);
             }
             else
             {
@@ -500,16 +527,21 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 if (anmData.Length > 0)
                 {
-                    var anmTag = item.itemName.ToLower();
-                    currentMaid.body0.CrossFade(anmTag, anmData, false, true, false, 0f, 1f);
+                    animationState = currentMaid.body0.CrossFadeLayer(anmTag, anmData, layer, false, true, false, 0f, weight);
                     currentMaid.SetAutoTwistAll(true);
                 }
             }
 
+            if (animationState == null)
+            {
+                MTEUtils.LogWarning("アニメーションのロードに失敗しました。" + item.itemName);
+                return;
+            }
+
             if (!isPlaying)
             {
+                animationState.speed = 0f;
                 currentMaid.GetAnimation().Sample();
-                currentMaid.GetAnimationState().enabled = false;
             }
 
             // モーションウィンドウの表示

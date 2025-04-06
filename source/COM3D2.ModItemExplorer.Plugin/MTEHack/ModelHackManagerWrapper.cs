@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using COM3D2.MotionTimelineEditor;
 
 namespace COM3D2.ModItemExplorer.Plugin
@@ -90,12 +92,20 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public bool Init()
         {
-            if (!modelHackManagerField.Init())
+            var assemblyPath = Path.GetFullPath(MTEUtils.CombinePaths(
+                "Sybaris", "UnityInjector", "COM3D2.MotionTimelineEditor.Plugin.dll"));
+            if (!File.Exists(assemblyPath))
             {
+                MTEUtils.LogWarning("MotionTimelineEditor.Plugin" + " not found");
                 return false;
             }
 
-            var assembly = modelHackManagerField.assembly;
+            var assembly = Assembly.LoadFile(assemblyPath);
+
+            if (!modelHackManagerField.Init(assembly))
+            {
+                return false;
+            }
 
             if (!studioModelManagerField.Init(assembly))
             {

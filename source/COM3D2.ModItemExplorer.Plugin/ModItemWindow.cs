@@ -88,7 +88,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 windowManager.colorPaletteWindow.Close();
                 windowManager.customPartsWindow.Close();
-                windowManager.motionWindow.Close();
+                //windowManager.motionWindow.Close();
             }
         }
 
@@ -584,6 +584,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void DrawWindow(int id)
         {
+            _rootView.ResetLayout();
+
             DrawHeader();
             DrawInfo();
             DrawNavi();

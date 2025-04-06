@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using System.Text;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -12,8 +13,9 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class MotionWindow : IWindow
     {
         public readonly static int WINDOW_ID = 971237;
-        public readonly static int WINDOW_WIDTH = 480;
+        public readonly static int WINDOW_WIDTH = 520;
         public readonly static int WINDOW_HEIGHT = 80;
+        public readonly static int WINDOW_HEIGHT_EXTEND = 320;
         public readonly static int HEADER_HEIGHT = 20;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
@@ -40,47 +42,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private Maid _maid;
         private Animation _animation;
-        private string _anmName;
-        private AnimationState _animationState;
-        private float _animationTime;
+        private List<AnimationLayerInfo> _animationLayerInfos = new List<AnimationLayerInfo>();
+        private List<AnimationState> _animationStates = new List<AnimationState>();
 
         public GUIStyle gsWin => GUIView.gsWin;
 
-        public float animationTime
-        {
-            get => _animationTime;
-            set
-            {
-                _animationTime = value;
+        public static readonly int MinLayerIndex = 2;
+        public static readonly int MaxLayerIndex = 8;
 
-                if (_animationState != null)
-                {
-                    _animationState.time = value;
-                    _animationState.enabled = true;
-                    _animation.Sample();
-                    _animationState.enabled = false;
-                }
-            }
-        }
-
-        public bool isMotionPlaying
-        {
-            get
-            {
-                if (_animationState != null)
-                {
-                    return _animationState.enabled;
-                }
-                return false;
-            }
-            set
-            {
-                if (_animationState != null)
-                {
-                    _animationState.enabled = value;
-                }
-            }
-        }
+        private static MaidManagerWrapper maidManagerWrapper => MaidManagerWrapper.instance;
 
         public MotionWindow()
         {
@@ -92,6 +62,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _windowWidth,
                 _windowHeight
             );
+
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                _animationLayerInfos.Add(new AnimationLayerInfo(i));
+                _animationStates.Add(null);
+            }
         }
 
         public void Call(Maid maid)
@@ -104,8 +80,59 @@ namespace COM3D2.ModItemExplorer.Plugin
             isShowWnd = true;
             _maid = maid;
             _animation = maid.GetAnimation();
-            _anmName = maid.body0.LastAnimeFN.ToLower();
-            _animationState = _animation[_anmName];
+
+            UpdateAnimationLayerInfos();
+        }
+
+        public void UpdateAnimationLayerInfos()
+        {
+            if (maidManagerWrapper.IsValid())
+            {
+                var maidCaches = maidManagerWrapper.maidCaches;
+                var maidCache = maidCaches.FirstOrDefault(x => x.maid == _maid);
+                if (maidCache != null)
+                {
+                    _animationLayerInfos = maidCache.animationLayerInfos;
+                }
+            }
+
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                _animationStates[i] = null;
+            }
+
+            foreach (AnimationState state in _animation)
+            {
+                if (state == null)
+                {
+                    continue;
+                }
+
+                if (state.layer > 0 && state.enabled && state.layer < _animationStates.Count)
+                {
+                    _animationStates[state.layer] = state;
+                }
+            }
+
+            // レイヤー0は直取得
+            _animationStates[0] = _maid.body0.GetAnist();
+
+            for (int i = 0; i <= MaxLayerIndex; i++)
+            {
+                var info = _animationLayerInfos.GetOrDefault(i);
+                if (info == null)
+                {
+                    continue;
+                }
+
+                var state = _animationStates.GetOrDefault(i);
+                if (state != info.state)
+                {
+                    info.anmName = state != null ? state.name : "";
+                    info.state = state;
+                    info.ApplyToObject();
+                }
+            }
         }
 
         public void Close()
@@ -113,8 +140,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             isShowWnd = false;
             _maid = null;
             _animation = null;
-            _anmName = "";
-            _animationState = null;
         }
 
         public void InitView()
@@ -138,30 +163,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            var anmName = _maid.body0.LastAnimeFN;
-            if (anmName != _anmName)
-            {
-                _anmName = anmName.ToLower();
-            }
-
-            _animationState = _animation[_anmName];
-
-            if (_animationState != null && _animationState.enabled && _animationState.length > 0f)
-            {
-                float value = _animationState.time;
-                if (_animationState.length < _animationState.time)
-                {
-                    if (_animationState.wrapMode == WrapMode.ClampForever)
-                    {
-                        value = _animationState.length;
-                    }
-                    else
-                    {
-                        value = _animationState.time - _animationState.length * (float)((int)(_animationState.time / _animationState.length));
-                    }
-                }
-                _animationTime = value;
-            }
+            UpdateAnimationLayerInfos();
         }
 
         public void OnLoad()
@@ -205,6 +207,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             InitGUI();
 
+            _windowHeight = config.animationExtend ? WINDOW_HEIGHT_EXTEND : WINDOW_HEIGHT;
+
+            if (_windowHeight != windowRect.height)
+            {
+                _windowRect.height = _windowHeight;
+                InitView();
+            }
+
             windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "モーション", gsWin);
             MTEUtils.ResetInputOnScroll(windowRect);
 
@@ -218,8 +228,17 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void DrawWindow(int id)
         {
+            _rootView.ResetLayout();
             DrawHeader();
-            DrawContent();
+            
+            if (config.animationExtend)
+            {
+                DrawContentExtend();
+            }
+            else
+            {
+                DrawContent();
+            }
 
             _rootView.DrawComboBox();
 
@@ -235,6 +254,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.BeginLayout(GUIView.LayoutDirection.Free);
 
+            view.currentPos.x = _windowWidth - 80;
+
+            view.DrawToggle("拡張", config.animationExtend, 60, 20, newValue =>
+            {
+                config.animationExtend = newValue;
+                config.dirty = true;
+            });
+
             view.currentPos.x = _windowWidth - 20;
 
             if (view.DrawButton("x", 20, 20))
@@ -249,12 +276,19 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.ResetLayout();
             view.SetEnabled(!view.IsComboBoxFocused());
 
-            if (_maid == null || _animation == null || _animationState == null)
+            if (_maid == null || _animation == null)
             {
                 return;
             }
 
-            view.DrawLabel($"アニメ名: {_maid.body0.LastAnimeFN}", -1, 20);
+            var state = _maid.body0.GetAnist();
+            if (state == null)
+            {
+                view.DrawLabel("アニメーションがありません", -1, 20);
+                return;
+            }
+
+            view.DrawLabel($"アニメ名: {state.name}", -1, 20);
 
             view.BeginHorizontal();
             {
@@ -262,33 +296,192 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     label = "再生時間",
                     labelWidth = 50,
-                    width = _windowWidth - 50,
+                    width = _windowWidth - 70,
                     fieldType = FloatFieldType.Float,
                     min = 0f,
-                    max = _animationState.length,
+                    max = state.length,
                     step = 0.01f,
                     defaultValue = 0f,
-                    value = _animationTime,
+                    value = state.GetPlayingTime(),
                     hiddenResetButton = true,
-                    onChanged = value => animationTime = value,
+                    onChanged = value =>
+                    {
+                        _animation.SeekTime(state, value);
+                        state.speed = 0f;
+                    },
                 });
 
-                if (isMotionPlaying)
+                if (state.enabled && state.speed > 0f)
                 {
                     if (view.DrawButton("■", 20, 20))
                     {
-                        isMotionPlaying = false;
+                        state.speed = 0f;
                     }
                 }
                 else
                 {
                     if (view.DrawButton("▶", 20, 20))
                     {
-                        isMotionPlaying = true;
+                        state.enabled = true;
+                        state.speed = 1f;
                     }
                 }
             }
             view.EndLayout();
+        }
+
+        private void DrawContentExtend()
+        {
+            var view = _contentView;
+            view.ResetLayout();
+            view.SetEnabled(!view.IsComboBoxFocused());
+
+            if (_maid == null || _animation == null)
+            {
+                return;
+            }
+
+            view.BeginScrollView();
+
+            var layers = new int[] { 0, 2, 3, 4, 5, 6, 7, 8 };
+            foreach (var layer in layers)
+            {
+                var info = _animationLayerInfos[layer];
+                if (info == null)
+                {
+                    continue;
+                }
+
+                var state = info.state;
+
+                var length = 0f;
+                var playingTime = 0f;
+                var speed = 1f;
+                var enabled = false;
+
+                if (state != null)
+                {
+                    length = state.length;
+                    playingTime = state.GetPlayingTime();
+                    speed = state.speed;
+                    enabled = state.enabled;
+                }
+
+                view.SetEnabled(!view.IsComboBoxFocused());
+
+                view.BeginHorizontal();
+                {
+                    var layerActive = layer == modItemManager.animationLayer;
+                    view.DrawToggle($"{layer}: {info.anmName}", layerActive, 300, 20, newValue =>
+                    {
+                        modItemManager.animationLayer = layer;
+                    });
+
+                    view.currentPos.x = view.viewRect.width - 60;
+
+                    if (layer > 0 && view.DrawButton("削除", 50, 20, enabled: enabled))
+                    {
+                        _maid.body0.StopAndDestroy(state.name);
+                        info.anmName = "";
+                        info.state = null;
+                        info.ApplyToObject();
+                    }
+                }
+                view.EndLayout();
+
+                view.SetEnabled(!view.IsComboBoxFocused() && state != null);
+
+                view.BeginHorizontal();
+                {
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = "再生時間",
+                        labelWidth = 50,
+                        width = _windowWidth - 70,
+                        fieldType = FloatFieldType.Float,
+                        min = 0f,
+                        max = length,
+                        step = 0.01f,
+                        defaultValue = 0f,
+                        value = playingTime,
+                        hiddenResetButton = true,
+                        onChanged = value =>
+                        {
+                            info.startTime = value;
+                            info.ApplyToObject();
+                            _animation.SeekTime(state, value);
+                            state.speed = 0f;
+                        },
+                    });
+
+                    if (enabled && speed > 0f)
+                    {
+                        if (view.DrawButton("■", 20, 20))
+                        {
+                            state.speed = 0f;
+                        }
+                    }
+                    else
+                    {
+                        if (view.DrawButton("▶", 20, 20))
+                        {
+                            state.enabled = true;
+                            state.speed = info.speed;
+                        }
+                    }
+                }
+                view.EndLayout();
+
+                // レイヤー0は重み/速度の設定ができない
+                if (layer == 0) continue;
+
+                view.BeginHorizontal();
+                {
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = "重み",
+                        labelWidth = 30,
+                        width = 230f,
+                        fieldType = FloatFieldType.Float,
+                        min = 0f,
+                        max = 1f,
+                        step = 0.01f,
+                        defaultValue = 1f,
+                        value = info.weight,
+                        onChanged = value =>
+                        {
+                            info.weight = value;
+                            info.ApplyToObject();
+                            state.weight = value;
+                            _animation.Sample();
+                        },
+                    });
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        label = "速度",
+                        labelWidth = 30,
+                        width = 230f,
+                        fieldType = FloatFieldType.Float,
+                        min = 0f,
+                        max = 2f,
+                        step = 0.01f,
+                        defaultValue = 1f,
+                        value = info.speed,
+                        onChanged = value =>
+                        {
+                            info.speed = value;
+                            info.ApplyToObject();
+                            state.speed = value;
+                        },
+                    });
+                }
+                view.EndLayout();
+            }
+
+            view.SetEnabled(!view.IsComboBoxFocused());
+
+            view.EndScrollView();
         }
 
         public void OnScreenSizeChanged()

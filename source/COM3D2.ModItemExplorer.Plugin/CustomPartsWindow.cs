@@ -100,7 +100,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     return;
                 }
 
-                var animationState = _animation[_maid.body0.LastAnimeFN.ToLower()];
+                var animationState = _maid.body0.GetAnist();
                 if (animationState == null)
                 {
                     return;
@@ -378,6 +378,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void DrawWindow(int id)
         {
+            _rootView.ResetLayout();
+
             DrawHeader();
             DrawContent();
 

@@ -230,6 +230,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private void DrawWindow(int id)
         {
+            _rootView.ResetLayout();
+
             DrawHeader();
             DrawColorPicker();
             DrawContent();
