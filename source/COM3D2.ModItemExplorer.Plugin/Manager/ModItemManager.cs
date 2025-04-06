@@ -664,6 +664,17 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             currentMaid = maid;
+
+            foreach (var info in animationLayerInfos)
+            {
+                info.Reset();
+            }
+
+            for (int i = 0; i < animationStates.Count; i++)
+            {
+                animationStates[i] = null;
+            }
+
             UpdateEquippedItems();
         }
 
@@ -2297,7 +2308,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void UpdateAnimationLayerInfos()
         {
-            if (currentMaid == null)
+            if (currentMaid == null || currentMaid.body0 == null)
             {
                 return;
             }
