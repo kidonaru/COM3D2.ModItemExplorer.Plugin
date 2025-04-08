@@ -275,6 +275,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            view.DrawHorizontalLine();
+            view.AddSpace(5);
+
             view.BeginScrollView();
 
             var layers = new int[] { 0, 2, 3, 4, 5, 6, 7, 8 };
@@ -306,7 +309,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 view.BeginHorizontal();
                 {
                     var layerActive = layer == modItemManager.animationLayer;
-                    view.DrawToggle($"{layer}: {info.anmName}", layerActive, 300, 20, newValue =>
+                    view.DrawToggle($"レイヤー{layer}: {info.anmName}", layerActive, 350, 20, newValue =>
                     {
                         modItemManager.animationLayer = layer;
                     });
@@ -367,7 +370,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 view.EndLayout();
 
                 // レイヤー0は重み/速度の設定ができない
-                if (layer == 0) continue;
+                if (layer == 0) 
+                {
+                    view.DrawHorizontalLine();
+                    continue;
+                }
 
                 view.BeginHorizontal();
                 {
@@ -411,6 +418,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                     });
                 }
                 view.EndLayout();
+
+                view.DrawHorizontalLine();
             }
 
             view.SetEnabled(!view.IsComboBoxFocused());
