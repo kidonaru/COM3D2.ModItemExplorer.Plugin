@@ -310,7 +310,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                     CollectVariationMenu();
                     CollectColorSetMenu();
                     UpdateEquippedItems();
-                    UpdateModelItems();
                     UpdateSearchItems();
                     UpdateFavoriteItems();
                     ResetFlatView();
@@ -321,6 +320,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     MTEUtils.EnqueueAction(() =>
                     {
+                        UpdateModelItems();
                         GC.Collect();
                         isLoading = false;
                     });
