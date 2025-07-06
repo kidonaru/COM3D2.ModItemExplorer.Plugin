@@ -415,6 +415,11 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             currentMaid.SetProp(menu.mpn, menu.fileName, menu.rid, false, false);
 
+            if (menu.mpn == MPN.eye_hi && currentMaid.IsNewFace())
+			{
+				currentMaid.SetProp(MPN.eye_hi_r, menu.fileName, menu.rid, false, false);
+			}
+
             if (item.colorSet != null)
             {
                 ApplyColorSet(item.colorSet);
