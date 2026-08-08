@@ -1405,7 +1405,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private MenuInfo GetMenu(string menuFileName)
+        public MenuInfo GetMenu(string menuFileName)
         {
             if (string.IsNullOrEmpty(menuFileName))
             {

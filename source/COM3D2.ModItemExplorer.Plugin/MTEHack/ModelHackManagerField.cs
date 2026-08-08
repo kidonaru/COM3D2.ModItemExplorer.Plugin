@@ -13,6 +13,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public PropertyInfo instance;
         public PropertyInfo modelList;
         public PropertyInfo pluginNames;
+        public PropertyInfo studioHack;
 
         public MethodInfo DeleteModel;
         public MethodInfo CreateModel;

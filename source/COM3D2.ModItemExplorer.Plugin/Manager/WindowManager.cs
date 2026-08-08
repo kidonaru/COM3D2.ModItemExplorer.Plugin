@@ -35,6 +35,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         private int _screenHeight = 0;
         private bool _isCameraControlDisabled = false;
         private bool _isUIInputDisabled = false;
+        private bool _isGizmoLocked = false;
+        private bool _isMouseOverWindow = false;
+        private bool _isMousePressInProgress = false;
 
         /// <summary>
         /// カーソル位置以外の理由（サムネ撮影中など）でゲーム UI 入力を止めたいときに立てる。
@@ -108,6 +111,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             UpdateInputBlock();
         }
 
+        public override void LateUpdate()
+        {
+            UpdateGizmoDragSuppress();
+        }
+
         /// <summary>
         /// ウィンドウ上にカーソルがある間はゲーム側のマウス入力を止める。
         /// 止めないと右クリック（履歴を戻る）や左ドラッグでカメラが動き、
@@ -125,8 +133,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
             }
 
+            _isMouseOverWindow = isMouseOverWindow;
+
             UpdateCameraControl(isMouseOverWindow);
             UpdateUIInput(isMouseOverWindow || isExternalUIInputBlocked);
+            // hotControl は OnGUI で初めて立つため、押下フレームだけロックが 1 フレーム遅れる
+            // （OnRenderObject は同フレームの OnGUI より前に走るのでそこで奪われてしまう）。
+            // ウィンドウ上での押下はその場でロックして穴を塞ぐ
+            UpdateGizmoLock(GUIUtility.hotControl != 0
+                || (isMouseOverWindow && Input.GetMouseButton(0)));
         }
 
         private void UpdateCameraControl(bool isMouseOverWindow)
@@ -176,6 +191,66 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        /// <summary>
+        /// IMGUI が何らかのコントロールでマウスを掴んでいる間はギズモのハンドル選択を止める。
+        /// ただしこのロックだけでは軸線（X/Y/Z）のハンドル選択を防げない（詳細は UpdateGizmoDragSuppress 参照）。
+        /// カーソルがウィンドウ外へ出てもロックを維持する必要があるため、
+        /// カメラ操作・UI 入力と違い isMouseOverWindow では絞らない。
+        /// global_control_lock はゲーム本体も使う共有フラグなので、
+        /// 他と同様に「自分が立てたときだけ倒す」ガードを入れている
+        /// </summary>
+        private void UpdateGizmoLock(bool shouldLock)
+        {
+            if (shouldLock)
+            {
+                if (_isGizmoLocked || !GizmoRender.global_control_lock)
+                {
+                    GizmoRender.global_control_lock = true;
+                    _isGizmoLocked = true;
+                }
+            }
+            else if (_isGizmoLocked)
+            {
+                GizmoRender.global_control_lock = false;
+                _isGizmoLocked = false;
+            }
+        }
+
+        /// <summary>
+        /// ウィンドウ上から始まった押下は、ボタンを離すまでギズモに渡さない。
+        /// GizmoRender は押下時に NGUI のヒット判定しか見ないので、IMGUI のウィンドウ上で押しても
+        /// ドラッグ扱いになり、そのままカーソルがハンドルへ重なった瞬間に操作を奪われてしまう。
+        /// 判定は押下フレームの _isMouseOverWindow だけで行い、以降はボタンを離すまで維持する。
+        /// GizmoRender.Update より後・OnRenderObject より前に走る必要があるため LateUpdate で処理する。
+        /// 自前のモデル用ギズモは ModelGizmoRender が自分で掴み判定を絞るので、ここが効くのは
+        /// ゲーム側や他プラグインのギズモに対してのみ
+        /// </summary>
+        private void UpdateGizmoDragSuppress()
+        {
+            if (!GizmoRenderHack.isAvailable)
+            {
+                return;
+            }
+
+            if (!Input.GetMouseButton(0))
+            {
+                // GizmoRender.Update がボタン解放時に is_drag_ を戻すのでこちらは状態を捨てるだけでよい
+                _isMousePressInProgress = false;
+                return;
+            }
+
+            if (_isMousePressInProgress)
+            {
+                return;
+            }
+            _isMousePressInProgress = true;
+
+            if (_isMouseOverWindow)
+            {
+                GizmoRenderHack.isDrag = false;
+            }
+        }
+
         private void RestoreInputBlock()
         {
             isExternalUIInputBlocked = false;
@@ -196,6 +271,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _isUIInputDisabled = false;
                 UICamera.InputEnable = true;
             }
+
+            if (_isGizmoLocked)
+            {
+                _isGizmoLocked = false;
+                GizmoRender.global_control_lock = false;
+            }
+
+            _isMousePressInProgress = false;
         }
 
         public override void OnLoad()

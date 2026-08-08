@@ -19,10 +19,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         private const string ParentObjectName = "ModItemExplorer Model Parent";
 
         /// <summary>ギズモの大きさ。既定倍率では配置モデルに対して大きすぎるため縮めている</summary>
-        private const float GizmoScale = 0.25f;
+        private const float GizmoScale = 0.5f;
 
-        /// <summary>配置初期位置のカメラからの距離(m)</summary>
-        private const float DefaultDistance = 1.5f;
+        /// <summary>選択中モデルのハイライト色。元色との間を往復させる</summary>
+        private static readonly Color HighlightColor = new Color(0.4f, 1f, 0.4f, 1f);
+
+        /// <summary>ハイライトの明滅周期(秒)</summary>
+        private const float HighlightCycle = 1.2f;
 
         private static SelfModelPlacer _instance = null;
         public static SelfModelPlacer instance
@@ -95,9 +98,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         private readonly Dictionary<StudioModelStatWrapper, RotationCache> _rotationCaches
             = new Dictionary<StudioModelStatWrapper, RotationCache>();
 
-        /// <summary>ギズモの操作種別</summary>
+        /// <summary>ハイライト中のマテリアルと、書き戻し用の元の色</summary>
+        private class HighlightTarget
+        {
+            public Material material;
+            public Color originalColor;
+        }
+
+        private readonly List<HighlightTarget> _highlightTargets = new List<HighlightTarget>();
+
+        /// <summary>ギズモの操作種別。None はギズモ自体を隠す</summary>
         public enum GizmoDragType
         {
+            None,
             Move,
             Rotate,
             Scale,
@@ -120,6 +133,153 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 _dragType = value;
                 ApplyDragType();
+            }
+        }
+
+        private StudioModelStatWrapper _selectedModel = null;
+
+        /// <summary>
+        /// 操作対象として選択中のモデル。破棄済みなら null に戻す。
+        /// UI 側（ModelOperationWindow）はこの値を参照するだけにして、選択の実体をここに一元化する
+        /// </summary>
+        public StudioModelStatWrapper selectedModel
+        {
+            get
+            {
+                var go = _selectedModel?.obj as GameObject;
+                if (go == null)
+                {
+                    _selectedModel = null;
+                }
+                return _selectedModel;
+            }
+            set
+            {
+                // 他プラグイン配置分は対象外。ハイライトでマテリアルを書き換えてしまうため弾く
+                if (value != null && !Owns(value))
+                {
+                    return;
+                }
+
+                // 破棄済み判定のある getter ではなくフィールドと比べる。
+                // 破棄済みモデルから null への切替もハイライト解除として通す必要があるため
+                if (_selectedModel == value)
+                {
+                    return;
+                }
+
+                _selectedModel = value;
+                RefreshHighlight();
+            }
+        }
+
+        private bool _isModelEditMode = false;
+
+        /// <summary>
+        /// モデル編集モード中か。ModelOperationWindow が毎フレーム代入する。
+        /// ギズモの表示条件であり、ハイライトの有効条件も兼ねる。
+        /// 操作ウィンドウの開閉とは独立させる（閉じていてもギズモは操作できるべきなので）
+        /// </summary>
+        public bool isModelEditMode
+        {
+            get => _isModelEditMode;
+            set
+            {
+                if (_isModelEditMode == value)
+                {
+                    return;
+                }
+
+                _isModelEditMode = value;
+                ApplyDragType();
+                RefreshHighlight();
+            }
+        }
+
+        /// <summary>
+        /// 選択モデル配下の _Color を持つマテリアルを記録する。
+        /// マテリアルはモデルごとに生成されるため、書き換えても他モデルには波及しない
+        /// </summary>
+        private void BeginHighlight(StudioModelStatWrapper model)
+        {
+            var go = model?.obj as GameObject;
+            if (go == null)
+            {
+                return;
+            }
+
+            foreach (var renderer in go.GetComponentsInChildren<Renderer>(true))
+            {
+                // materials は複製を作ってしまうため sharedMaterials を使う
+                foreach (var material in renderer.sharedMaterials)
+                {
+                    if (material == null || !material.HasProperty("_Color"))
+                    {
+                        continue;
+                    }
+
+                    _highlightTargets.Add(new HighlightTarget
+                    {
+                        material = material,
+                        originalColor = material.GetColor("_Color"),
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 記録した元の色を書き戻す。モデル破棄が先行してマテリアルが消えている場合はスキップする
+        /// </summary>
+        private void EndHighlight()
+        {
+            foreach (var target in _highlightTargets)
+            {
+                if (target.material != null)
+                {
+                    target.material.SetColor("_Color", target.originalColor);
+                }
+            }
+
+            _highlightTargets.Clear();
+        }
+
+        /// <summary>
+        /// 選択状態と編集モードからハイライト対象を取り直す。
+        /// 旧対象の色は必ず書き戻してから張り直すので、解除漏れの経路を作らない
+        /// </summary>
+        private void RefreshHighlight()
+        {
+            EndHighlight();
+
+            if (_isModelEditMode)
+            {
+                BeginHighlight(selectedModel);
+            }
+        }
+
+        /// <summary>
+        /// ハイライト色を毎フレーム更新する。
+        /// アルファは元の値のままにする（Lighted_Trans で透明度が明滅するのを避けるため）
+        /// </summary>
+        private void UpdateHighlight()
+        {
+            if (_highlightTargets.Count == 0)
+            {
+                return;
+            }
+
+            var t = (Mathf.Sin(Time.time * Mathf.PI * 2f / HighlightCycle) + 1f) * 0.5f;
+
+            foreach (var target in _highlightTargets)
+            {
+                if (target.material == null)
+                {
+                    continue;
+                }
+
+                var color = Color.Lerp(target.originalColor, HighlightColor, t);
+                color.a = target.originalColor.a;
+                target.material.SetColor("_Color", color);
             }
         }
 
@@ -191,6 +351,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _models.Add(wrapper);
                 _disposables[wrapper] = disposables;
 
+                // 配置直後は操作対象にする（3D 上のハイライトと一覧の選択表示を一致させる）
+                selectedModel = wrapper;
+
                 return wrapper;
             }
             catch (Exception e)
@@ -244,6 +407,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 cache.rotation = Quaternion.Euler(cache.eulerAngles);
                 t.localRotation = cache.rotation;
             }
+
+            UpdateHighlight();
         }
 
         /// <summary>モデルのオイラー角（キャッシュ値）。UI 表示・編集はこれを使う</summary>
@@ -390,6 +555,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            if (selectedModel == model)
+            {
+                selectedModel = null;
+            }
+
             try
             {
                 var go = model.obj as GameObject;
@@ -420,6 +590,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         public void DeleteAll()
         {
+            selectedModel = null;
+
             foreach (var model in modelList)
             {
                 DeleteModel(model);
@@ -631,6 +803,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                     restored++;
                 }
 
+                // 復元直後はどれも選択していない状態にする
+                selectedModel = null;
+
                 // 個別失敗はスキップされるため、実際に復元できた数を報告する
                 MTEUtils.Log("配置プリセットを復元しました。{0} ({1}/{2}体)", safeName, restored, preset.items.Count);
                 return true;
@@ -798,18 +973,14 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// カメラ前方の床上（y=0）の配置初期位置を返す。原点固定だと画面外に配置されて見えないため
+        /// 配置初期位置を返す。カメラの注視点（CameraMain.GetTargetPos）の真下、床の高さに置く。
+        /// 原点固定だと画面外に配置されて見えず、カメラ前方に置くと注視点からずれるため
         /// </summary>
         private static Vector3 GetDefaultPosition()
         {
             try
             {
-                var camTransform = GameMain.Instance.MainCamera.transform;
-                var forward = camTransform.forward;
-                forward.y = 0f;
-                forward = forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward;
-
-                var pos = camTransform.position + forward * DefaultDistance;
+                var pos = GameMain.Instance.MainCamera.GetTargetPos();
                 pos.y = 0f;
                 return pos;
             }
@@ -831,15 +1002,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 操作ギズモを付ける。種別は dragType に従い排他。
-        /// GizmoRenderTarget ではなく基底の GizmoRender を使う。派生側の Update は new で基底を隠蔽していて
-        /// base.Update() を呼ばないため、ドラッグ判定フラグが立たず操作できない
+        /// GizmoRenderTarget ではなく GizmoRender 派生の ModelGizmoRender を使う。GizmoRenderTarget の Update は
+        /// new で基底を隠蔽していて base.Update() を呼ばないため、ドラッグ判定フラグが立たず操作できない
         /// </summary>
         private void AddGizmo(GameObject target)
         {
-            var gizmo = target.AddComponent<GizmoRender>();
+            var gizmo = target.AddComponent<ModelGizmoRender>();
             gizmo.offsetScale = GizmoScale;
             ApplyDragType(gizmo);
-            gizmo.Visible = true;
         }
 
         /// <summary>
@@ -865,6 +1035,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             gizmo.eAxis = _dragType == GizmoDragType.Move;
             gizmo.eRotate = _dragType == GizmoDragType.Rotate;
             gizmo.eScal = _dragType == GizmoDragType.Scale;
+
+            // GizmoRender は Visible=false で描画も操作判定も止まる。
+            // 「なし」と編集モード外はこれでまとめて切る
+            gizmo.Visible = _isModelEditMode && _dragType != GizmoDragType.None;
         }
     }
 }

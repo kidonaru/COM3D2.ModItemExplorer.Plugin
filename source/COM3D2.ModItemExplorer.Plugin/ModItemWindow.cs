@@ -817,7 +817,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 配置プラグインの選択・「配置」ボタン・プリセット保存/読込ボタンの行を描画
+        /// 配置プラグインの選択・「配置」ボタン・操作ウィンドウの開閉ボタンの行を描画
         /// </summary>
         private void DrawModelPlacementRow(GUIView view)
         {
@@ -839,6 +839,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 else if (view.DrawButton("配置", 50, 20))
                 {
                     modItemManager.CreateModel(selectedMenuItem, pluginName);
+                }
+
+                // プラグイン未選択でもウィンドウは開閉できるようにする
+                if (view.DrawButton("操作", 50, 20))
+                {
+                    windowManager.modelOperationWindow.ToggleVisible();
                 }
             }
             catch (Exception e)
@@ -946,7 +952,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                         MTEUtils.OpenDirectory(fullPath);
                     }
 
-                    if (view.DrawTextureButton(PluginInfo.ListIconTexture, 20, 20, enabled: currentDirItem.canFlatView))
+                    // フラット表示中は塗りつぶし、非表示中は輪郭のみのアイコンで状態を示す
+                    var flatViewIcon = currentDirItem.isFlatView
+                        ? PluginInfo.FlatViewOnIconTexture
+                        : PluginInfo.FlatViewOffIconTexture;
+                    if (view.DrawTextureButton(flatViewIcon, 20, 20, enabled: currentDirItem.canFlatView))
                     {
                         currentDirItem.isFlatView = !currentDirItem.isFlatView;
                     }

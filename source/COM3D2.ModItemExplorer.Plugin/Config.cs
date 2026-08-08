@@ -63,6 +63,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int motionWindowPosY = -1;
         public int modelOperationWindowPosX = -1;
         public int modelOperationWindowPosY = -1;
+        public int modelOperationWindowWidth = 380;
+        public int modelOperationWindowHeight = 420;
 
         // 色設定
         public Color windowHoverColor = new Color(48 / 255f, 48 / 255f, 48 / 255f, 224 / 255f);

@@ -150,6 +150,8 @@
     <Compile Include="MTEUtils\TextureLoader.cs" />
     <Compile Include="MTEUtils\TextureUtils.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
+    <Compile Include="ModelPlacement\GizmoRenderHack.cs" />
+    <Compile Include="ModelPlacement\ModelGizmoRender.cs" />
     <Compile Include="ModelPlacement\ModelMeshLoader.cs" />
     <Compile Include="ModelPlacement\ModelMenuScript.cs" />
     <Compile Include="ModelPlacement\ModelPlacementPreset.cs" />

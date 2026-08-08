@@ -141,25 +141,59 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public readonly static byte[] ListIcon = Convert.FromBase64String(
-            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAA" +
-            "5ElEQVRYhe2UIQoCYRSEvxUtgrhFBLvJc3gAz+ApBPEIFpPYbRZPoDewWDbZTBaLCrLPsAi2nbes" +
-            "/OUf2PaxM/DPvMTMCKlGUPcYIAYAmg52BPQc/EGizEz5tmb2Np+Oyr8T8Q5UPRZJGaB24FnB/KVA" +
-            "agcmwALoinwOrBVQfYK/KfgMgwdQOzAGZkBf5B/ABqEHagfuQEc0/w3RritA8DuwpJiWR3sF8sww" +
-            "BVqOADeE0PEOqDNMgSn6EnJgB5zLQPUJMmAomn91BQZ1BQg+w1MF84sCeU7xnKILqlYKFGcYA8QA" +
-            "H/swpNG8yEz+AAAAAElFTkSuQmCC");
+        public readonly static byte[] FlatViewOffIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAChElEQVR42sWXv2tUQRDH5x6PxyGH" +
+            "WtkcKezkKiFdsJH8AdqksBILwSZgZWEngoV2CoIIohYKgqCkCcHGwkYQggYEC8UE8UcUNATN5XLv" +
+            "YzMLw+T92ndBBxbem92Z/c7szOxsB5AJKNGxM4mCtpSKSK6bZ/8aQFc3HojIjIhsKy+egJiRAF39" +
+            "Pg1sAzlwUXmZrmmsM2bz1Ci/xW5aMGuzvQYQFHaBZcrpI9A3a/cEQFA0A/x0Gz4CbjjeH2DOyCZt" +
+            "ASTG8gvA2Gyyozwx8TA08zlw3ehJYwHYM1xwFv4Apo2FwUOHgS9u7UuzedYUQFDY1zNtotB+P68B" +
+            "XAkgnNcJPcsYl1r+NZWxRzbv9tgFINVx3wn/AmabBpWx8rjKWnoG7LMGFFXCQyLSMf9DEVk1/3nD" +
+            "GvdORLYc74CW8NJKGKw7D4wM8rGJ+rTiCEIszDv5kcuaRkF4FFh3LlwsCTz7/cTJrKuuRkEYRs98" +
+            "v3AKPwODgjTsAx8qsqbX1ANFQXbVBeYIOGfm5yqyplJ30YUjwFPgK3DEzM0Cm87ChyWl+KSRGwDf" +
+            "gCUDIqlKw9fO0rNmzUFgpeYymjLrfTCuAfttEBcBuKT3vKUHzoX3aq5jAR67+TFwW2MmrauEwW2W" +
+            "3ir6sPZMQUMSgvG9k900xSypC8Kqur6hFc6e7zEXjL+dzIoB3jgNbbG54q7iMXC5QOamyxSAuwUB" +
+            "HtWQ2Lq+4ZQvGY+9cnND7RFq+8SYjqgHvHEbrQLfHW9Ne4NGbVlMQxq+71Sk4WJsY9q2JT8FbJW0" +
+            "aFGteey7wLp1Cvikjep0TCdsR6fl2zDT11Adr5baArDPulybjFYP1EkAWCD5/3gdx7ZohfQXu5f3" +
+            "Mde5Kg8AAAAASUVORK5CYII=");
 
-        private static Texture2D _listIconTexture = null;
-        public static Texture2D ListIconTexture
+        private static Texture2D _flatViewOffIconTexture = null;
+        public static Texture2D FlatViewOffIconTexture
         {
             get
             {
-                if (_listIconTexture == null)
+                if (_flatViewOffIconTexture == null)
                 {
-                    _listIconTexture = new Texture2D(1, 1);
-                    _listIconTexture.LoadImage(ListIcon);
+                    _flatViewOffIconTexture = new Texture2D(1, 1);
+                    _flatViewOffIconTexture.LoadImage(FlatViewOffIcon);
                 }
-                return _listIconTexture;
+                return _flatViewOffIconTexture;
+            }
+        }
+
+        public readonly static byte[] FlatViewOnIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACMElEQVR42sWXv2sUQRTH3y3LcoQj" +
+            "WqUJKdJJKuG6YBP8A0yTIpWkSBmwSmEngoVlioAIohZ2FpJGgo1FGkGQJJAuoMFCoyByJObH7cfm" +
+            "DTwmc7c7c5vkCwO7szPvfffN+zUtQEZApuN8FAGpyEWkVOXFVRNoq+IZEZkVkVOdiwcQMzKgrc/3" +
+            "gVOgBB7qXKFrasuMUZ4b4c+4iA2ztmiagBPYBr4wGF+BSbO2EQJO0Czwh2ocAwtmb5ZKIDN/vgr0" +
+            "qY8SWDNy8lgC9gw3SMcno7yoS8CZfFLPdFT8BrqD/CJkdgHu6Vk2hXNgxdNxgUCu47We4WXgAzBm" +
+            "fSKUCSdEpCWXgxuawgdmQmeeB8BZg39+ppEU5YS3gcMGlB+qrFpO6EbHPG81FIaduhYIZa6nkY5p" +
+            "E9FQ2aGCI8A74Adwy3y7C/RqpuJ5s28G+AlsGhLZsDDc9pxn2ay5CexWFKMps37Fc+YDYNyGYYjA" +
+            "I63zFm88E76qKMcCvPW+94Hn6oh5VSZ0ZrPYU/Zu7VKgIXEpfN/b29MjHJoJQ4XooyfoLzDnne8d" +
+            "874AHHl7dg3x2mGYGzM98UpxH3gc2LMeiJSXAQePakgc4zn9e4tNY7HP3rcT7Rkr+8SYjqgD7HiK" +
+            "vgG/vLkDYLpuWxbTkLrnF0PC8H1sY5raki8C/7x6v5rSmsfeC6xZp4Dv2qh2YzphO1qJd8NCb0NV" +
+            "c5VIJWCvdaU2GUkX1FEIWCLlddyOxVggGf8BZY46WgnnxJcAAAAASUVORK5CYII=");
+
+        private static Texture2D _flatViewOnIconTexture = null;
+        public static Texture2D FlatViewOnIconTexture
+        {
+            get
+            {
+                if (_flatViewOnIconTexture == null)
+                {
+                    _flatViewOnIconTexture = new Texture2D(1, 1);
+                    _flatViewOnIconTexture.LoadImage(FlatViewOnIcon);
+                }
+                return _flatViewOnIconTexture;
             }
         }
 

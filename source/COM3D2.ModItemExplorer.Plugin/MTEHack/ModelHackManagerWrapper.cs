@@ -44,6 +44,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => (IList)modelHackManagerField.modelList.GetValue(modelHackManager, null);
         }
 
+        /// <summary>
+        /// MTE 側の現在のスタジオ環境。スタジオ系シーン以外では null になる
+        /// </summary>
+        public object studioHack
+        {
+            get => modelHackManagerField.studioHack.GetValue(modelHackManager, null);
+        }
+
         public List<string> pluginNames
         {
             get => (List<string>)modelHackManagerField.pluginNames.GetValue(modelHackManager, null);
@@ -55,6 +63,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 try
                 {
+                    // MTE 側の modelList は studioHack が null のとき NRE を投げるため事前に弾く
+                    if (studioHack == null)
+                    {
+                        return null;
+                    }
+
                     var modelListOriginal = this.modelListOriginal;
                     var modelList = new List<StudioModelStatWrapper>(modelListOriginal.Count);
                     foreach (var model in modelListOriginal)
