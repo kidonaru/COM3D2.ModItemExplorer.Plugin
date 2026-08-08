@@ -1,6 +1,6 @@
 # COM3D2.ModItemExplorer.Plugin
 
-v1.7.0.1
+v1.8.0.0
 
 
 - [COM3D2.ModItemExplorer.Plugin](#com3d2moditemexplorerplugin)
@@ -25,6 +25,7 @@ v1.7.0.1
     - [髪の長さウィンドウ](#髪の長さウィンドウ)
     - [モーションウィンドウ](#モーションウィンドウ)
   - [変更履歴](#変更履歴)
+    - [2026/08/08 v1.8.0.0](#20260808-v1800)
     - [2025/07/06 v1.7.0.1](#20250706-v1701)
     - [2025/06/07 v1.7.0.0](#20250607-v1700)
     - [2025/04/09 v1.6.0.1](#20250409-v1601)
@@ -58,7 +59,12 @@ https://github.com/user-attachments/assets/7ae1772f-b8cf-4d72-8587-7fb77fd6707b
 [Releases](https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/releases)
 から最新の`COM3D2.ModItemExplorer.Plugin-vX.X.X.zip`をダウンロードします。
 
-zip解凍後、`UnityInjector`フォルダの中身を、`Sybaris\UnityInjector`フォルダに配置してください。
+zip解凍後、お使いのゲームに対応したフォルダの中身を、`Sybaris\UnityInjector`フォルダに配置してください。
+
+- COM3D2 の場合: `UnityInjector`フォルダ
+- COM3D2.5 の場合: `UnityInjector (COM3D2.5)`フォルダ
+
+※両方を同時に配置しないでください。dllの内容が異なるだけで、ファイル構成は同じです。
 
 各ファイルの説明:
 - `COM3D2.ModItemExplorer.Plugin.dll`
@@ -66,7 +72,7 @@ zip解凍後、`UnityInjector`フォルダの中身を、`Sybaris\UnityInjector`
 - `Config/ModItemExplorer_OfficialName.csv`
   - 公式のフォルダ名称一覧ファイル
 
-COM3D2 Ver.2.38.0で動作確認済みです。
+COM3D2 Ver.2.38.0、COM3D2.5 Ver.3.49.0で動作確認済みです。
 
 
 ## 起動方法
@@ -288,6 +294,13 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 
 
 ## 変更履歴
+
+
+### 2026/08/08 v1.8.0.0
+
+- COM3D2.5に対応
+- COM3D2.5でボタン等の見た目が崩れる問題を修正
+- モデルファイルが欠けたMODの適用でエラーになる問題を修正
 
 
 ### 2025/07/06 v1.7.0.1

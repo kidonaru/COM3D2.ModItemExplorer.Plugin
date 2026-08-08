@@ -15,25 +15,13 @@ set PLUGIN_NAME=COM3D2.ModItemExplorer.Plugin
 
 if exist output rmdir /s /q output
 
-rem ============ COM3D2 版パッケージ ============
+rem ============ COM3D2 版 / COM3D2.5 版を同梱したパッケージ ============
 md output\%PLUGIN_NAME%
 xcopy UnityInjector output\%PLUGIN_NAME%\UnityInjector /E /I
 
-set README_TXT=output\%PLUGIN_NAME%\README.txt
-echo このテキストはWeb上で見ることを推奨しています。 > %README_TXT%
-echo https://github.com/kidonaru/COM3D2.ModItemExplorer.Plugin/blob/master/README.md >> %README_TXT%
-echo. >> %README_TXT%
-echo. >> %README_TXT%
-type README.md >> %README_TXT%
-
-powershell Compress-Archive -Path "output\%PLUGIN_NAME%" -DestinationPath "output\%PLUGIN_NAME%-v%VERSION%.zip" -Force
-
-rmdir /s /q output\%PLUGIN_NAME%
-
-rem ============ COM3D2.5 版パッケージ (dll のみ差し替え) ============
-md output\%PLUGIN_NAME%
-xcopy UnityInjector output\%PLUGIN_NAME%\UnityInjector /E /I
-copy /y UnityInjector25\%PLUGIN_NAME%.dll output\%PLUGIN_NAME%\UnityInjector\
+rem COM3D2.5 版は dll のみ差し替えた別フォルダとして同梱する
+xcopy UnityInjector "output\%PLUGIN_NAME%\UnityInjector (COM3D2.5)" /E /I
+copy /y UnityInjector25\%PLUGIN_NAME%.dll "output\%PLUGIN_NAME%\UnityInjector (COM3D2.5)\"
 if %ERRORLEVEL% neq 0 (
     echo COM3D2.5 版 dll のコピーに失敗しました
     exit /b 1
@@ -46,7 +34,7 @@ echo. >> %README_TXT%
 echo. >> %README_TXT%
 type README.md >> %README_TXT%
 
-powershell Compress-Archive -Path "output\%PLUGIN_NAME%" -DestinationPath "output\%PLUGIN_NAME%-v%VERSION%-COM3D25.zip" -Force
+powershell Compress-Archive -Path "output\%PLUGIN_NAME%" -DestinationPath "output\%PLUGIN_NAME%-v%VERSION%.zip" -Force
 
 rmdir /s /q output\%PLUGIN_NAME%
 
