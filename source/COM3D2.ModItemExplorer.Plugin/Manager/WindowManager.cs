@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -119,6 +120,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void OnGUI()
         {
+            // 組み込み GUIStyle の複製は OnGUI 内でしか行えないためここで初期化する
+            GUIView.InitStyles();
+
             foreach (var window in windows)
             {
                 window.OnGUI();

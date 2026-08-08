@@ -12,6 +12,13 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <!-- GameVersion: COM3D2 (既定) または COM3D25。build.bat から /p:GameVersion= で指定する -->
+    <GameVersion Condition=" '$(GameVersion)' == '' ">COM3D2</GameVersion>
+    <!-- ゲームのインストール先。.env から build.bat 経由で渡される。未指定時は従来の相対パス -->
+    <COM3D2_DIR Condition=" '$(COM3D2_DIR)' == '' ">..\..\..\..</COM3D2_DIR>
+    <COM3D25_DIR Condition=" '$(COM3D25_DIR)' == '' ">..\..\..\..</COM3D25_DIR>
+    <GameDir Condition=" '$(GameVersion)' == 'COM3D2' ">$(COM3D2_DIR)</GameDir>
+    <GameDir Condition=" '$(GameVersion)' == 'COM3D25' ">$(COM3D25_DIR)</GameDir>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,28 +37,37 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <!-- COM3D2.5 向けの上書き設定 (構成別 PropertyGroup より後に置くこと) -->
+  <PropertyGroup Condition=" '$(GameVersion)' == 'COM3D25' ">
+    <!-- COM3D2.5 の Managed は .NET 4.x のため v3.5 では参照解決できない -->
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
+    <DefineConstants>$(DefineConstants);COM3D25</DefineConstants>
+    <OutputPath>$(OutputPath)COM3D25\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Accessibility" />
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-UnityScript-firstpass">
-      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\Assembly-UnityScript-firstpass.dll</HintPath>
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\Assembly-UnityScript-firstpass.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\..\COM3D2x64_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
+    <!-- UnityInjector.dll は COM3D2.5 側に実体がない (BepInEx.UnityInjectorLoader がランタイム提供)
+         ため、どちらのビルドでも COM3D2 側の DLL を参照する -->
     <Reference Include="UnityInjector">
-      <HintPath>..\..\..\..\Sybaris\lib\UnityInjector.dll</HintPath>
+      <HintPath>$(COM3D2_DIR)\Sybaris\lib\UnityInjector.dll</HintPath>
     </Reference>
     <Reference Include="ExternalPreset">
-      <HintPath>..\..\..\..\Sybaris\COM3D2.ExternalPreset.Managed.dll</HintPath>
+      <HintPath>$(GameDir)\Sybaris\COM3D2.ExternalPreset.Managed.dll</HintPath>
     </Reference>
     <Reference Include="ExternalSaveData">
-      <HintPath>..\..\..\..\Sybaris\COM3D2.ExternalSaveData.Managed.dll</HintPath>
+      <HintPath>$(GameDir)\Sybaris\COM3D2.ExternalSaveData.Managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -60,6 +76,36 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <!-- COM3D2.5 (Unity 2022) では UnityEngine がモジュール分割されているため個別参照が必要 -->
+  <ItemGroup Condition=" '$(GameVersion)' == 'COM3D25' ">
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Manager\ConfigManager.cs" />

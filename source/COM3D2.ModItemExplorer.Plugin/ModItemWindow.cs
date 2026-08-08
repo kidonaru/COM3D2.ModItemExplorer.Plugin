@@ -110,16 +110,41 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public GUIStyle gsWin => GUIView.gsWin;
 
-        private GUIStyle gsHiddenButton = new GUIStyle("button")
+        // 組み込みスタイルの複製は OnGUI 内でしか行えないため遅延生成する (GUIView.InitStyles 参照)。
+        // 参照箇所はすべて OnGUI 経由の描画パスなので GUIView.InitStyles のような OnGUI 外ガードは持たない
+        private GUIStyle _gsHiddenButton = null;
+        private GUIStyle gsHiddenButton
         {
-            fontSize = 12,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        private GUIStyle gsNaviButton = new GUIStyle("button")
+            get
+            {
+                if (_gsHiddenButton == null)
+                {
+                    _gsHiddenButton = new GUIStyle("button")
+                    {
+                        fontSize = 12,
+                        alignment = TextAnchor.MiddleCenter,
+                    };
+                }
+                return _gsHiddenButton;
+            }
+        }
+
+        private GUIStyle _gsNaviButton = null;
+        private GUIStyle gsNaviButton
         {
-            fontSize = 12,
-            alignment = TextAnchor.MiddleLeft,
-        };
+            get
+            {
+                if (_gsNaviButton == null)
+                {
+                    _gsNaviButton = new GUIStyle("button")
+                    {
+                        fontSize = 12,
+                        alignment = TextAnchor.MiddleLeft,
+                    };
+                }
+                return _gsNaviButton;
+            }
+        }
 
         private MenuItem selectedMenuItem => selectedItem as MenuItem;
         private ColorSetInfo selectedColorSet => selectedMenuItem?.colorSet;

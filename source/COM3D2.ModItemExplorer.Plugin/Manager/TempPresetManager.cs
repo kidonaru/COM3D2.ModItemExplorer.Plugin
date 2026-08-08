@@ -46,7 +46,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             byte[] buffer = characterMgr.PresetSaveNotWriteFile(maid, presetType);
             var xmlMemory = ExPresetWrapper.xmlMemory;
             var binaryReader = new BinaryReader(new MemoryStream(buffer));
+#if COM3D25
+            // COM3D2.5 で PresetLoad(BinaryReader, string) は static メソッドに変更された
+            var preset = CharacterMgr.PresetLoad(binaryReader, string.Empty);
+#else
             var preset = characterMgr.PresetLoad(binaryReader, string.Empty);
+#endif
             binaryReader.Close();
 
             var now = DateTime.Now;
