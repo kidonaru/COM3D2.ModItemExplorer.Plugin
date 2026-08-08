@@ -36,6 +36,65 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private GameObject _parentGo = null;
 
+        /// <summary>アタッチ先ボーンの定義</summary>
+        public class AttachPoint
+        {
+            public string displayName;
+
+            /// <summary>アタッチ先のボーン名。null は「なし」（ワールド配置）</summary>
+            public string boneName;
+        }
+
+        /// <summary>アタッチ中のモデルの状態。復元用にスロット番号とボーン名を持つ</summary>
+        public class AttachState
+        {
+            public int maidSlotNo;
+            public string boneName;
+        }
+
+        /// <summary>
+        /// 定番のアタッチポイント。ボーン名は COM3D2.5 実機で GetBone が解決することを確認済み
+        /// </summary>
+        public static readonly List<AttachPoint> AttachPoints = new List<AttachPoint>
+        {
+            new AttachPoint { displayName = "なし", boneName = null },
+            new AttachPoint { displayName = "頭", boneName = "Bip01 Head" },
+            new AttachPoint { displayName = "首", boneName = "Bip01 Neck" },
+            new AttachPoint { displayName = "胸", boneName = "Bip01 Spine1a" },
+            new AttachPoint { displayName = "骨盤", boneName = "Bip01 Pelvis" },
+            new AttachPoint { displayName = "左肩", boneName = "Bip01 L UpperArm" },
+            new AttachPoint { displayName = "右肩", boneName = "Bip01 R UpperArm" },
+            new AttachPoint { displayName = "左肘", boneName = "Bip01 L Forearm" },
+            new AttachPoint { displayName = "右肘", boneName = "Bip01 R Forearm" },
+            new AttachPoint { displayName = "左手", boneName = "Bip01 L Hand" },
+            new AttachPoint { displayName = "右手", boneName = "Bip01 R Hand" },
+            new AttachPoint { displayName = "左腿", boneName = "Bip01 L Thigh" },
+            new AttachPoint { displayName = "右腿", boneName = "Bip01 R Thigh" },
+            new AttachPoint { displayName = "左膝", boneName = "Bip01 L Calf" },
+            new AttachPoint { displayName = "右膝", boneName = "Bip01 R Calf" },
+            new AttachPoint { displayName = "左足", boneName = "Bip01 L Foot" },
+            new AttachPoint { displayName = "右足", boneName = "Bip01 R Foot" },
+        };
+
+        private readonly Dictionary<StudioModelStatWrapper, AttachState> _attachStates
+            = new Dictionary<StudioModelStatWrapper, AttachState>();
+
+        /// <summary>
+        /// モデルごとのオイラー角キャッシュ。
+        /// ギズモは回転をローカル軸で右から合成するため、Unity のオイラー合成順(Z→X→Y)では
+        /// Z 軸ハンドル以外の操作で全成分が変動して見える。そこで1フレーム分の回転差分を
+        /// 軸単位でオイラー角に足し込み、その値を正として書き戻すことで
+        /// 「X ハンドルの操作は X の数値だけを動かす」挙動にする
+        /// </summary>
+        private class RotationCache
+        {
+            public Quaternion rotation;
+            public Vector3 eulerAngles;
+        }
+
+        private readonly Dictionary<StudioModelStatWrapper, RotationCache> _rotationCaches
+            = new Dictionary<StudioModelStatWrapper, RotationCache>();
+
         /// <summary>ギズモの操作種別</summary>
         public enum GizmoDragType
         {
@@ -155,6 +214,145 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// 毎フレーム呼ぶ。ギズモ操作による回転をオイラー角キャッシュに軸単位で足し込み、
+        /// 正規化した回転を書き戻す
+        /// </summary>
+        public void Update()
+        {
+            foreach (var model in _models)
+            {
+                var go = model.obj as GameObject;
+                if (go == null)
+                {
+                    continue;
+                }
+
+                var t = go.transform;
+                var cache = GetOrCreateRotationCache(model, t);
+
+                // 前フレームから変わっていなければ何もしない（== は近似比較）
+                if (t.localRotation == cache.rotation)
+                {
+                    continue;
+                }
+
+                // ギズモの軸ハンドルは1フレームでは単一ローカル軸の微小回転を右から掛けるため、
+                // ローカル差分のオイラー角はほぼ該当軸成分のみになる。これを足し込むことで
+                // ±90°を跨いでも数値が飛ばない連続的なオイラー角が得られる
+                var delta = (Quaternion.Inverse(cache.rotation) * t.localRotation).eulerAngles;
+                cache.eulerAngles += NormalizeEuler(delta);
+                cache.rotation = Quaternion.Euler(cache.eulerAngles);
+                t.localRotation = cache.rotation;
+            }
+        }
+
+        /// <summary>モデルのオイラー角（キャッシュ値）。UI 表示・編集はこれを使う</summary>
+        public Vector3 GetEulerAngles(StudioModelStatWrapper model)
+        {
+            var go = model?.obj as GameObject;
+            if (go == null)
+            {
+                return Vector3.zero;
+            }
+            return GetOrCreateRotationCache(model, go.transform).eulerAngles;
+        }
+
+        /// <summary>モデルのオイラー角を設定し、Transform に反映する</summary>
+        public void SetEulerAngles(StudioModelStatWrapper model, Vector3 eulerAngles)
+        {
+            var go = model?.obj as GameObject;
+            if (go == null)
+            {
+                return;
+            }
+
+            var cache = GetOrCreateRotationCache(model, go.transform);
+            cache.eulerAngles = eulerAngles;
+            cache.rotation = Quaternion.Euler(eulerAngles);
+            go.transform.localRotation = cache.rotation;
+        }
+
+        private RotationCache GetOrCreateRotationCache(StudioModelStatWrapper model, Transform t)
+        {
+            RotationCache cache;
+            if (!_rotationCaches.TryGetValue(model, out cache))
+            {
+                cache = new RotationCache
+                {
+                    rotation = t.localRotation,
+                    eulerAngles = t.localEulerAngles,
+                };
+                _rotationCaches[model] = cache;
+            }
+            return cache;
+        }
+
+        /// <summary>各成分を -180〜180 に正規化する</summary>
+        private static Vector3 NormalizeEuler(Vector3 euler)
+        {
+            euler.x = Mathf.DeltaAngle(0f, euler.x);
+            euler.y = Mathf.DeltaAngle(0f, euler.y);
+            euler.z = Mathf.DeltaAngle(0f, euler.z);
+            return euler;
+        }
+
+        /// <summary>
+        /// モデルのアタッチ状態を返す。未アタッチなら null
+        /// </summary>
+        public AttachState GetAttachState(StudioModelStatWrapper model)
+        {
+            AttachState state;
+            return model != null && _attachStates.TryGetValue(model, out state) ? state : null;
+        }
+
+        /// <summary>
+        /// モデルをメイドのボーンにアタッチする。point.boneName が null ならワールドに戻す。
+        /// 切替時はローカル位置・回転をリセットしてボーン直上に置く
+        /// </summary>
+        public void Attach(StudioModelStatWrapper model, Maid maid, AttachPoint point)
+        {
+            if (!Owns(model))
+            {
+                return;
+            }
+
+            var go = model.obj as GameObject;
+            if (go == null)
+            {
+                return;
+            }
+
+            Transform parent;
+            if (point != null && point.boneName != null)
+            {
+                var bone = maid != null ? maid.body0.GetBone(point.boneName) : null;
+                if (bone == null)
+                {
+                    MTEUtils.LogWarning("アタッチ先ボーンが見つかりません。{0}", point.boneName);
+                    return;
+                }
+
+                parent = bone;
+                _attachStates[model] = new AttachState
+                {
+                    maidSlotNo = maid.ActiveSlotNo,
+                    boneName = point.boneName,
+                };
+            }
+            else
+            {
+                parent = GetOrCreateParent().transform;
+                _attachStates.Remove(model);
+            }
+
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+            // 拡縮はアタッチ後も見た目を保ちたいため維持する
+            // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
+            SetEulerAngles(model, Vector3.zero);
+        }
+
+        /// <summary>
         /// 自前で配置したモデルかどうか
         /// </summary>
         public bool Owns(StudioModelStatWrapper model)
@@ -213,6 +411,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _models.Remove(model);
+            _attachStates.Remove(model);
+            _rotationCaches.Remove(model);
         }
 
         /// <summary>
@@ -227,6 +427,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _models.Clear();
             _disposables.Clear();
+            _attachStates.Clear();
+            _rotationCaches.Clear();
 
             if (_parentGo != null)
             {
@@ -235,11 +437,90 @@ namespace COM3D2.ModItemExplorer.Plugin
             _parentGo = null;
         }
 
-        /// <summary>
-        /// 自前配置分の配置内容をプリセット XML に保存する
-        /// </summary>
-        public void SavePreset()
+        private static string GetPresetPath(string name)
+            => MTEUtils.CombinePaths(PluginUtils.ModelPresetDirPath, name + ".xml");
+
+        /// <summary>ファイル名に使えない文字を除去する</summary>
+        private static string SanitizePresetName(string name)
         {
+            if (name == null)
+            {
+                return string.Empty;
+            }
+
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                name = name.Replace(c.ToString(), "");
+            }
+
+            return name.Trim();
+        }
+
+        /// <summary>
+        /// 保存済みプリセット名の一覧（拡張子なし・名前順）
+        /// </summary>
+        public List<string> GetPresetNames()
+        {
+            try
+            {
+                var names = new List<string>();
+                foreach (var path in Directory.GetFiles(PluginUtils.ModelPresetDirPath, "*.xml"))
+                {
+                    names.Add(Path.GetFileNameWithoutExtension(path));
+                }
+
+                names.Sort();
+                return names;
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+                return new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// 名前付きプリセットを削除する
+        /// </summary>
+        public void DeletePreset(string name)
+        {
+            try
+            {
+                var safeName = SanitizePresetName(name);
+                if (safeName.Length == 0)
+                {
+                    return;
+                }
+
+                var path = GetPresetPath(safeName);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    MTEUtils.Log("配置プリセットを削除しました。{0}", safeName);
+                }
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("配置プリセットの削除に失敗しました");
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>
+        /// 自前配置分の配置内容を名前付きプリセットとして保存する
+        /// </summary>
+        public void SavePreset(string name)
+        {
+            var safeName = SanitizePresetName(name);
+            if (safeName.Length == 0)
+            {
+                MTEUtils.LogWarning("プリセット名が空です");
+                return;
+            }
+
+            var path = GetPresetPath(safeName);
+            var tempPath = path + ".tmp";
+
             try
             {
                 var preset = new ModelPlacementPreset();
@@ -253,44 +534,70 @@ namespace COM3D2.ModItemExplorer.Plugin
                     }
 
                     var t = go.transform;
+                    var attach = GetAttachState(model);
+                    // 回転はキャッシュ値を保存し、UI に表示している数値と一致させる
+                    var euler = GetEulerAngles(model);
                     preset.items.Add(new ModelPlacementPresetItem
                     {
                         fileName = model.infoWrapper?.fileName,
                         group = model.group,
                         visible = model.visible,
-                        posX = t.position.x, posY = t.position.y, posZ = t.position.z,
-                        rotX = t.eulerAngles.x, rotY = t.eulerAngles.y, rotZ = t.eulerAngles.z,
+                        // UI・アタッチと揃えるためローカル系で保存する
+                        posX = t.localPosition.x, posY = t.localPosition.y, posZ = t.localPosition.z,
+                        rotX = euler.x, rotY = euler.y, rotZ = euler.z,
                         sclX = t.localScale.x, sclY = t.localScale.y, sclZ = t.localScale.z,
+                        attachMaidSlotNo = attach != null ? attach.maidSlotNo : -1,
+                        attachBoneName = attach?.boneName,
                     });
                 }
 
+                // 書き込み途中の例外で既存ファイルを壊さないよう、一時ファイル経由で置き換える
                 var serializer = new XmlSerializer(typeof(ModelPlacementPreset));
-                using (var stream = new FileStream(PluginUtils.ModelPresetPath, FileMode.Create))
+                using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     serializer.Serialize(stream, preset);
                 }
 
-                MTEUtils.Log("配置プリセットを保存しました。{0}体", preset.items.Count);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+                File.Move(tempPath, path);
+
+                MTEUtils.Log("配置プリセットを保存しました。{0} ({1}体)", safeName, preset.items.Count);
             }
             catch (Exception e)
             {
                 MTEUtils.LogWarning("配置プリセットの保存に失敗しました");
                 MTEUtils.LogException(e);
+
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch (Exception e2)
+                {
+                    MTEUtils.LogException(e2);
+                }
             }
         }
 
         /// <summary>
-        /// プリセット XML から配置を復元する。既存の自前配置分は置き換える
+        /// 名前付きプリセットから配置を復元する。既存の自前配置分は置き換える
         /// </summary>
-        public void LoadPreset()
+        public bool LoadPreset(string name)
         {
             try
             {
-                var path = PluginUtils.ModelPresetPath;
-                if (!File.Exists(path))
+                var safeName = SanitizePresetName(name);
+                var path = GetPresetPath(safeName);
+                if (safeName.Length == 0 || !File.Exists(path))
                 {
                     MTEUtils.LogWarning("配置プリセットがありません。{0}", path);
-                    return;
+                    return false;
                 }
 
                 ModelPlacementPreset preset;
@@ -313,21 +620,48 @@ namespace COM3D2.ModItemExplorer.Plugin
                         continue;
                     }
 
+                    RestoreAttach(wrapper, item);
+
+                    // Attach はローカル位置・回転をリセットするため、必ずアタッチの後に適用する
                     var t = go.transform;
-                    t.position = new Vector3(item.posX, item.posY, item.posZ);
-                    t.eulerAngles = new Vector3(item.rotX, item.rotY, item.rotZ);
+                    t.localPosition = new Vector3(item.posX, item.posY, item.posZ);
+                    // 回転はキャッシュ経由で適用し、保存した数値がそのまま UI に出るようにする
+                    SetEulerAngles(wrapper, new Vector3(item.rotX, item.rotY, item.rotZ));
                     t.localScale = new Vector3(item.sclX, item.sclY, item.sclZ);
                     restored++;
                 }
 
                 // 個別失敗はスキップされるため、実際に復元できた数を報告する
-                MTEUtils.Log("配置プリセットを復元しました。{0}/{1}体", restored, preset.items.Count);
+                MTEUtils.Log("配置プリセットを復元しました。{0} ({1}/{2}体)", safeName, restored, preset.items.Count);
+                return true;
             }
             catch (Exception e)
             {
                 MTEUtils.LogWarning("配置プリセットの復元に失敗しました");
                 MTEUtils.LogException(e);
+                return false;
             }
+        }
+
+        /// <summary>
+        /// プリセットのアタッチ情報を復元する。メイド不在時はワールド配置のままにする
+        /// </summary>
+        private void RestoreAttach(StudioModelStatWrapper wrapper, ModelPlacementPresetItem item)
+        {
+            if (item.attachMaidSlotNo < 0 || string.IsNullOrEmpty(item.attachBoneName))
+            {
+                return;
+            }
+
+            var maid = GameMain.Instance.CharacterMgr.GetMaid(item.attachMaidSlotNo);
+            var point = AttachPoints.Find(p => p.boneName == item.attachBoneName);
+            if (maid == null || point == null)
+            {
+                MTEUtils.LogWarning("アタッチ先が見つからないためワールド配置に戻します。{0}", item.attachBoneName);
+                return;
+            }
+
+            Attach(wrapper, maid, point);
         }
 
         /// <summary>

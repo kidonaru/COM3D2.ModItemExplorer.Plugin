@@ -14,6 +14,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public float posX, posY, posZ;
         public float rotX, rotY, rotZ;
         public float sclX = 1f, sclY = 1f, sclZ = 1f;
+
+        /// <summary>アタッチ先メイドのスロット番号。-1 は未アタッチ</summary>
+        public int attachMaidSlotNo = -1;
+
+        /// <summary>アタッチ先ボーン名。null/空 は未アタッチ</summary>
+        public string attachBoneName = null;
     }
 
     /// <summary>

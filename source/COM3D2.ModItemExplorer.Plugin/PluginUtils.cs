@@ -21,11 +21,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_OfficialName.csv");
         }
 
-        public static string ModelPresetPath
-        {
-            get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_ModelPlacementPreset.xml");
-        }
-
         public static string MenuCachePath
         {
             get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_MenuCache.dat");
@@ -36,6 +31,21 @@ namespace COM3D2.ModItemExplorer.Plugin
             get
             {
                 var path = MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName);
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+
+                return path;
+            }
+        }
+
+        /// <summary>配置プリセットの保存先フォルダ。名前ごとに1ファイル置く</summary>
+        public static string ModelPresetDirPath
+        {
+            get
+            {
+                var path = MTEUtils.CombinePaths(PluginConfigDirPath, "ModelPresets");
                 if (!Directory.Exists(path))
                 {
                     Directory.CreateDirectory(path);
