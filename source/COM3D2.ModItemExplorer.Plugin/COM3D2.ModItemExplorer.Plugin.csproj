@@ -152,6 +152,7 @@
     <Compile Include="MTEUtils\TransformCache.cs" />
     <Compile Include="ModelPlacement\ModelMeshLoader.cs" />
     <Compile Include="ModelPlacement\ModelMenuScript.cs" />
+    <Compile Include="ModelPlacement\ModelPlacementPreset.cs" />
     <Compile Include="ModelPlacement\ModelPlacerManager.cs" />
     <Compile Include="ModelPlacement\SelfModelPlacer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

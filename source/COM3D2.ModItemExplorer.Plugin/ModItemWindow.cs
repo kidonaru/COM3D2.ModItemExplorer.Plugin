@@ -50,6 +50,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private int _windowWidth = 960;
         private int _windowHeight = 480;
         private int _naviWidth = 200;
+        private int _lastInfoHeight = -1;
         private bool _initializedGUI = false;
 
         private ModItemBase _selectedItem = null;
@@ -148,6 +149,40 @@ namespace COM3D2.ModItemExplorer.Plugin
         private MenuItem selectedMenuItem => selectedItem as MenuItem;
         private ColorSetInfo selectedColorSet => selectedMenuItem?.colorSet;
 
+        /// <summary>選択中の自前配置モデル。MTE 配置分や未選択時は null</summary>
+        private StudioModelStatWrapper selectedSelfModel
+        {
+            get
+            {
+                var modelItem = selectedItem as ModelMenuItem;
+                var model = modelItem?.model;
+                if (!SelfModelPlacer.instance.Owns(model))
+                {
+                    return null;
+                }
+
+                // プリセット読込やシーン遷移で破棄済みのモデルを掴んだままになることがある
+                var go = model.obj as GameObject;
+                return go != null ? model : null;
+            }
+        }
+
+        // モデル編集モードでのみ Transform 編集行を出す（他モードでは情報ペインを広げない）
+        private bool isSelfModelSelected
+            => _contentMode == ContentMode.モデル && selectedSelfModel != null;
+
+        /// <summary>Transform 編集で追加される行数。行を増減したらこの定数だけを更新する</summary>
+        private const int MODEL_TRANSFORM_ROW_COUNT = 4;
+        private const int MODEL_TRANSFORM_ROW_HEIGHT = 20;
+
+        /// <summary>
+        /// 情報ペインの高さ。Transform 編集行を出すときだけ広げる。
+        /// 1行の占有高は行間マージン込み（INFO_HEIGHT の (20 + 5) * 3 と同じ数え方）
+        /// </summary>
+        private int infoHeight => isSelfModelSelected
+            ? INFO_HEIGHT + (MODEL_TRANSFORM_ROW_HEIGHT + (int)GUIView.defaultMargin) * MODEL_TRANSFORM_ROW_COUNT
+            : INFO_HEIGHT;
+
         private bool isVariationVisible
         {
             get
@@ -205,12 +240,14 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             _rootView.Init(0, 0, _windowWidth, _windowHeight);
             _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _infoView.Init(0, HEADER_HEIGHT, _windowWidth, INFO_HEIGHT);
+            var infoHeight = this.infoHeight;
+            _lastInfoHeight = infoHeight;
+            _infoView.Init(0, HEADER_HEIGHT, _windowWidth, infoHeight);
 
-            var contentHeight = _windowHeight - HEADER_HEIGHT - INFO_HEIGHT - FOOTER_HEIGHT;
-            _naviView.Init(0, HEADER_HEIGHT + INFO_HEIGHT, _naviWidth, contentHeight);
-            _contentView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth, contentHeight);
-            _contentSettingView.Init(_naviWidth, HEADER_HEIGHT + INFO_HEIGHT, _windowWidth - _naviWidth, contentHeight);
+            var contentHeight = _windowHeight - HEADER_HEIGHT - infoHeight - FOOTER_HEIGHT;
+            _naviView.Init(0, HEADER_HEIGHT + infoHeight, _naviWidth, contentHeight);
+            _contentView.Init(_naviWidth, HEADER_HEIGHT + infoHeight, _windowWidth - _naviWidth, contentHeight);
+            _contentSettingView.Init(_naviWidth, HEADER_HEIGHT + infoHeight, _windowWidth - _naviWidth, contentHeight);
             _footerView.Init(0, _windowHeight - FOOTER_HEIGHT, _windowWidth, FOOTER_HEIGHT);
 
             _variationView.Init(0, 0, VARIATION_WIDTH, _windowHeight);
@@ -310,6 +347,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (_naviWidth != config.naviWidth)
             {
                 _naviWidth = config.naviWidth;
+                InitView();
+            }
+
+            if (infoHeight != _lastInfoHeight)
+            {
                 InitView();
             }
 
@@ -809,6 +851,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _infoView;
 
+            DrawModelPlacementRow(view);
+
+            if (isSelfModelSelected)
+            {
+                DrawModelTransform(view);
+            }
+        }
+
+        /// <summary>
+        /// 配置プラグインの選択・「配置」ボタン・プリセット保存/読込ボタンの行を描画
+        /// </summary>
+        private void DrawModelPlacementRow(GUIView view)
+        {
             view.BeginHorizontal();
 
             try
@@ -822,14 +877,25 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 if (pluginName == null)
                 {
-                    view.DrawLabel("プラグインを選択してください", -1, 20, textColor: Color.yellow);
-                    view.EndLayout();
-                    return;
+                    view.DrawLabel("プラグインを選択してください", 200, 20, textColor: Color.yellow);
                 }
-
-                if (view.DrawButton("配置", 50, 20))
+                else if (view.DrawButton("配置", 50, 20))
                 {
                     modItemManager.CreateModel(selectedMenuItem, pluginName);
+                }
+
+                // プリセットは自前配置分だけが対象で配置プラグインの選択とは無関係のため、未選択でも操作できる
+                view.DrawLabel("プリセット", 70, 20, style: GUIView.gsLabelRight);
+
+                if (view.DrawButton("保存", 50, 20))
+                {
+                    SelfModelPlacer.instance.SavePreset();
+                }
+
+                if (view.DrawButton("読込", 50, 20))
+                {
+                    SelfModelPlacer.instance.LoadPreset();
+                    modItemManager.UpdateModelItems();
                 }
             }
             catch (Exception e)
@@ -837,6 +903,98 @@ namespace COM3D2.ModItemExplorer.Plugin
                 MTEUtils.LogException(e);
             }
 
+            view.EndLayout();
+        }
+
+        /// <summary>
+        /// 選択中の自前配置モデルの位置・回転・拡縮を数値編集する行を描画
+        /// </summary>
+        private void DrawModelTransform(GUIView view)
+        {
+            var model = selectedSelfModel;
+            var go = model?.obj as GameObject;
+            if (go == null)
+            {
+                return;
+            }
+
+            var transform = go.transform;
+            var placer = SelfModelPlacer.instance;
+
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("ギズモ", 50, MODEL_TRANSFORM_ROW_HEIGHT, style: GUIView.gsLabelRight);
+
+                view.DrawToggle("移動", placer.dragType == SelfModelPlacer.GizmoDragType.Move,
+                    60, MODEL_TRANSFORM_ROW_HEIGHT,
+                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Move);
+                view.DrawToggle("回転", placer.dragType == SelfModelPlacer.GizmoDragType.Rotate,
+                    60, MODEL_TRANSFORM_ROW_HEIGHT,
+                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Rotate);
+                view.DrawToggle("拡縮", placer.dragType == SelfModelPlacer.GizmoDragType.Scale,
+                    60, MODEL_TRANSFORM_ROW_HEIGHT,
+                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Scale);
+
+                view.DrawToggle("表示", model.visible, 60, MODEL_TRANSFORM_ROW_HEIGHT,
+                    value => placer.SetVisible(model, value));
+            }
+            view.EndLayout();
+
+            DrawVector3Row(view, "位置", transform.position,
+                value => transform.position = value,
+                () => transform.position = Vector3.zero);
+
+            DrawVector3Row(view, "回転", transform.eulerAngles,
+                value => transform.eulerAngles = value,
+                () => transform.rotation = Quaternion.identity);
+
+            DrawVector3Row(view, "拡縮", transform.localScale,
+                value => transform.localScale = value,
+                () => transform.localScale = Vector3.one);
+        }
+
+        /// <summary>
+        /// ラベル + XYZ 数値入力 + リセットボタンの1行を描画
+        /// </summary>
+        private void DrawVector3Row(
+            GUIView view,
+            string label,
+            Vector3 value,
+            Action<Vector3> onChanged,
+            Action onReset)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel(label, 50, MODEL_TRANSFORM_ROW_HEIGHT, style: GUIView.gsLabelRight);
+
+                for (var i = 0; i < 3; i++)
+                {
+                    var index = i;
+
+                    // FloatFieldOption.label はフィールド左のラベル描画も兼ねるため、
+                    // XYZ を並べるここでは label を渡さずキャッシュだけ自前で取る
+                    var fieldCache = view.GetFieldCache(label + index, FloatFieldType.F3);
+                    fieldCache.UpdateValue(value[index]);
+
+                    view.DrawFloatField(new GUIView.FloatFieldOption
+                    {
+                        value = value[index],
+                        width = 70,
+                        height = MODEL_TRANSFORM_ROW_HEIGHT,
+                        fieldCache = fieldCache,
+                        onChanged = newValue =>
+                        {
+                            value[index] = newValue;
+                            onChanged(value);
+                        },
+                    });
+                }
+
+                if (view.DrawButton("R", 20, MODEL_TRANSFORM_ROW_HEIGHT))
+                {
+                    onReset();
+                }
+            }
             view.EndLayout();
         }
 

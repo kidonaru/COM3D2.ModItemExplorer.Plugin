@@ -21,6 +21,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_OfficialName.csv");
         }
 
+        public static string ModelPresetPath
+        {
+            get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_ModelPlacementPreset.xml");
+        }
+
         public static string MenuCachePath
         {
             get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_MenuCache.dat");
