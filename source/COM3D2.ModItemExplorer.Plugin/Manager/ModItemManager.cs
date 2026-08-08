@@ -413,6 +413,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            // 参照先ファイルが欠けているとゲーム側で例外が出るため、事前に弾く
+            var missingFileName = FindMissingFileName(menu);
+            if (missingFileName != null)
+            {
+                MTEUtils.LogWarning("参照先ファイルが見つかりません。" + missingFileName + " " + item.itemPath);
+                return;
+            }
+
             currentMaid.SetProp(menu.mpn, menu.fileName, menu.rid, false, false);
 
             if (menu.mpn == MPN.eye_hi && currentMaid.IsNewFace())
@@ -434,6 +442,58 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // 髪の長さの表示
             windowManager.hairLengthWindow.Call(currentMaid, menu.mpn);
+        }
+
+        /// <summary>
+        /// メニューが参照するモデル・子メニューのうち、存在しないファイル名を返す（すべて存在する場合はnull）
+        /// </summary>
+        private string FindMissingFileName(MenuInfo menu)
+        {
+            return FindMissingFileName(menu, new HashSet<string>());
+        }
+
+        private string FindMissingFileName(MenuInfo menu, HashSet<string> checkedMenuNames)
+        {
+            if (!string.IsNullOrEmpty(menu.modelFileName) &&
+                !MTEUtils.IsExistentFile(menu.modelFileName))
+            {
+                return menu.modelFileName;
+            }
+
+            if (menu.setItemMenuNames == null)
+            {
+                return null;
+            }
+
+            // セット系は子メニューのモデルも読み込まれるため再帰的に確認する
+            foreach (var menuName in menu.setItemMenuNames)
+            {
+                // 循環参照や重複参照で再帰が膨らまないように確認済みはスキップする
+                if (!checkedMenuNames.Add(menuName))
+                {
+                    continue;
+                }
+
+                if (!MTEUtils.IsExistentFile(menuName))
+                {
+                    return menuName;
+                }
+
+                // 読み込みに失敗した場合は判定できないためスキップする
+                var childMenu = ModMenuLoader.Load(menuName);
+                if (childMenu == null)
+                {
+                    continue;
+                }
+
+                var missingFileName = FindMissingFileName(childMenu, checkedMenuNames);
+                if (missingFileName != null)
+                {
+                    return missingFileName;
+                }
+            }
+
+            return null;
         }
 
         public void ApplyColorSet(ColorSetInfo colorSet)
