@@ -32,6 +32,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private int _screenWidth = 0;
         private int _screenHeight = 0;
+        private bool _isCameraControlDisabled = false;
+        private bool _isUIInputDisabled = false;
+
+        /// <summary>
+        /// カーソル位置以外の理由（サムネ撮影中など）でゲーム UI 入力を止めたいときに立てる。
+        /// UICamera.InputEnable を直接書き換えると毎フレームの UpdateUIInput と取り合いになるため、必ずこのフラグ経由にすること
+        /// </summary>
+        public bool isExternalUIInputBlocked { get; set; }
 
         private static WindowManager _instance = null;
         public static WindowManager instance
@@ -92,6 +100,98 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 window.Update();
             }
+
+            UpdateInputBlock();
+        }
+
+        /// <summary>
+        /// ウィンドウ上にカーソルがある間はゲーム側のマウス入力を止める。
+        /// 止めないと右クリック（履歴を戻る）や左ドラッグでカメラが動き、
+        /// またウィンドウ裏に隠れたゲーム UI のボタンまで押されてしまう
+        /// </summary>
+        private void UpdateInputBlock()
+        {
+            var isMouseOverWindow = false;
+            foreach (var window in windows)
+            {
+                if (window.isShowWnd && MTEUtils.IsMouseOverWindowRect(window.windowRect))
+                {
+                    isMouseOverWindow = true;
+                    break;
+                }
+            }
+
+            UpdateCameraControl(isMouseOverWindow);
+            UpdateUIInput(isMouseOverWindow || isExternalUIInputBlocked);
+        }
+
+        private void UpdateCameraControl(bool isMouseOverWindow)
+        {
+            var mainCamera = GameMain.Instance.MainCamera;
+            if (mainCamera == null)
+            {
+                return;
+            }
+
+            if (isMouseOverWindow)
+            {
+                // 自分が無効化する前から無効なら他プラグイン等の管理下なので触らない（復帰時に誤って有効化しないため）。
+                // 無効化後に外部から有効へ戻された場合は毎フレーム無効化し直す
+                if (_isCameraControlDisabled || mainCamera.GetControl())
+                {
+                    mainCamera.SetControl(false);
+                    _isCameraControlDisabled = true;
+                }
+            }
+            else if (_isCameraControlDisabled)
+            {
+                mainCamera.SetControl(true);
+                _isCameraControlDisabled = false;
+            }
+        }
+
+        /// <summary>
+        /// ゲーム UI（NGUI）のイベント処理を止める。
+        /// UICamera.InputEnable はゲーム本体もフェード中の入力遮断に使う共有フラグなので、
+        /// カメラ操作と同様に「自分が無効化したときだけ戻す」ガードを入れている
+        /// </summary>
+        private void UpdateUIInput(bool shouldBlock)
+        {
+            if (shouldBlock)
+            {
+                if (_isUIInputDisabled || UICamera.InputEnable)
+                {
+                    UICamera.InputEnable = false;
+                    _isUIInputDisabled = true;
+                }
+            }
+            else if (_isUIInputDisabled)
+            {
+                UICamera.InputEnable = true;
+                _isUIInputDisabled = false;
+            }
+        }
+
+        private void RestoreInputBlock()
+        {
+            isExternalUIInputBlocked = false;
+
+            if (_isCameraControlDisabled)
+            {
+                _isCameraControlDisabled = false;
+
+                var mainCamera = GameMain.Instance.MainCamera;
+                if (mainCamera != null)
+                {
+                    mainCamera.SetControl(true);
+                }
+            }
+
+            if (_isUIInputDisabled)
+            {
+                _isUIInputDisabled = false;
+                UICamera.InputEnable = true;
+            }
         }
 
         public override void OnLoad()
@@ -104,6 +204,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override void OnPluginDisable()
         {
+            RestoreInputBlock();
+
             foreach (var window in windows)
             {
                 window.Close();
@@ -112,6 +214,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
+            RestoreInputBlock();
+
             foreach (var window in windows)
             {
                 window.OnChangedSceneLevel(scene, sceneMode);

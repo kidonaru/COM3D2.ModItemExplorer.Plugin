@@ -26,7 +26,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static ModItemExplorer plugin => ModItemExplorer.instance;
         private static TextureManager textureManager => TextureManager.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
-        private static MaidPresetManager maidPresetManager => MaidPresetManager.instance;
         private static TempPresetManager maidTempPresetManager => TempPresetManager.instance;
         private static WindowManager windowManager => WindowManager.instance;
         private static ModelHackManagerWrapper modelHackManager => ModelHackManagerWrapper.instance;
@@ -800,11 +799,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (view.DrawButton("ロード", 60, 20))
             {
-                var tempPreset = _tempPresetComboBox.currentItem;
-                if (tempPreset != null)
-                {
-                    maidPresetManager.ApplyPreset(maid, tempPreset.preset, xmlMemory: tempPreset.xmlMemory);
-                }
+                modItemManager.ApplyTempPreset(_tempPresetComboBox.currentItem);
             }
 
             view.EndLayout();
@@ -1155,6 +1150,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             var view = _contentView;
             view.ResetLayout();
             view.SetEnabled(!view.IsComboBoxFocused());
+
+            // アイテム一覧上の右クリックで履歴を1つ戻る（「<」ボタンと同じ挙動）。
+            // 描画途中で currentDirItem を差し替えると IMGUI のコントロールIDがずれるため次フレームに回す
+            if (view.ConsumeRightClickInView())
+            {
+                MTEUtils.ExecuteNextFrame(PrevCurrentDirItem);
+            }
 
             if (currentDirItem?.children.Count == 0)
             {

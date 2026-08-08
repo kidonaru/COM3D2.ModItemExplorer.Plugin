@@ -435,7 +435,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             currentMaid.AllProcPropSeqStart();
 
-            UpdateEquippedItem(menu.maidPartType);
+            if (menu.maidPartType.ToCategory() == MaidPartCategory.Set)
+            {
+                // セットは複数部位が書き換わるため、適用完了後に全体を更新する
+                UpdateEquippedItemsAfterProcProp();
+            }
+            else
+            {
+                UpdateEquippedItem(menu.maidPartType);
+            }
 
             // カスタムパーツの表示
             windowManager.customPartsWindow.Call(currentMaid, menu.maidPartType);
@@ -537,6 +545,22 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
             }
+
+            // プリセットは全部位が書き換わるため、適用完了後に全体を更新する
+            UpdateEquippedItemsAfterProcProp();
+        }
+
+        public void ApplyTempPreset(TempPreset tempPreset)
+        {
+            if (currentMaid == null || tempPreset == null || tempPreset.preset == null)
+            {
+                return;
+            }
+
+            maidPresetManager.ApplyPreset(currentMaid, tempPreset.preset, xmlMemory: tempPreset.xmlMemory);
+
+            // プリセットは全部位が書き換わるため、適用完了後に全体を更新する
+            UpdateEquippedItemsAfterProcProp();
         }
 
         public void ApplyAnmItem(AnmItem item)
@@ -704,6 +728,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     currentMaid.DelProp(item.menu.mpn);
                     currentMaid.AllProcPropSeqStart();
+
+                    // 脱いだ状態を反映するため、適用完了後に全体を更新する
+                    UpdateEquippedItemsAfterProcProp();
                 }
             }
             else if (item.itemType == ModItemType.Model)
@@ -1731,6 +1758,27 @@ namespace COM3D2.ModItemExplorer.Plugin
             SortItemChildren(equippedRootItem);
         }
 
+        private bool _isEquippedItemsUpdateReserved = false;
+
+        /// <summary>
+        /// メイドへの適用完了を待ってから着用中アイテムを更新する
+        /// </summary>
+        public void UpdateEquippedItemsAfterProcProp()
+        {
+            // 連続適用でコルーチンが多重起動しないよう、待機中は予約済みの更新に任せる
+            if (currentMaid == null || _isEquippedItemsUpdateReserved)
+            {
+                return;
+            }
+            _isEquippedItemsUpdateReserved = true;
+
+            MTEUtils.ExecuteAfterProcProp(currentMaid, () =>
+            {
+                _isEquippedItemsUpdateReserved = false;
+                UpdateEquippedItems();
+            });
+        }
+
         public void UpdateEquippedItem(MaidPartType maidPartType)
         {
             try
@@ -2336,7 +2384,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             maid.body0.SetMaskMode(TBody.MaskMode.None);
             maid.status.UpdateBodyParam();
             GameMain.Instance.SysDlg.Close();
-            UICamera.InputEnable = false;
+            windowManager.isExternalUIInputBlocked = true;
 
             var savedLookTarget = maid.body0.trsLookTarget;
 
@@ -2353,7 +2401,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             maid.ThumShot();
             maid.boMabataki = true;
             maid.body0.trsLookTarget = savedLookTarget;
-            UICamera.InputEnable = true;
+            windowManager.isExternalUIInputBlocked = false;
 
             isLoading = false;
         }
