@@ -308,6 +308,8 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 配置プラグインに`ModItemExplorer`を選択している場合に、モデル配置モード中に表示されます。
 配置したモデルの選択、Transform編集、プリセット管理ができます。
 
+https://github.com/user-attachments/assets/6a24b179-7dab-4570-bdf0-d7d71e2d13a1
+
 - **x**: ウィンドウを閉じます（モデル配置ヘッダーの`操作`ボタンで再表示できます）
 - **□**: 右下をドラッグしてウィンドウサイズを変更できます
 
