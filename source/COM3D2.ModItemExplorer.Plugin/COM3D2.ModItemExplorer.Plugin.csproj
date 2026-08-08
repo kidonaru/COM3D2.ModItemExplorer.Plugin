@@ -150,6 +150,10 @@
     <Compile Include="MTEUtils\TextureLoader.cs" />
     <Compile Include="MTEUtils\TextureUtils.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
+    <Compile Include="ModelPlacement\ModelMeshLoader.cs" />
+    <Compile Include="ModelPlacement\ModelMenuScript.cs" />
+    <Compile Include="ModelPlacement\ModelPlacerManager.cs" />
+    <Compile Include="ModelPlacement\SelfModelPlacer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ColorPaletteWindow.cs" />
     <Compile Include="COM3D2.ModItemExplorer.Plugin.cs" />

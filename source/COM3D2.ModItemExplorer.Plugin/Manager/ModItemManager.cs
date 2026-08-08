@@ -663,7 +663,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             try
             {
                 var group = 0;
-                var modelList = modelHackManager.modelList;
+                var modelList = modelPlacerManager.modelList;
                 var menu = item.variationMenu;
 
                 if (menu == null)
@@ -689,7 +689,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     fileName = Path.GetFileNameWithoutExtension(fileName);
                 }
 
-                modelHackManager.CreateModel(
+                modelPlacerManager.CreateModel(
                     fileName,
                     fileName,
                     group,
@@ -738,7 +738,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 try
                 {
                     var modelItem = item as ModelMenuItem;
-                    modelHackManager.DeleteModel(modelItem?.model);
+                    modelPlacerManager.DeleteModel(modelItem?.model);
                 }
                 catch (Exception e)
                 {
@@ -1880,12 +1880,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             try
             {
-                if (!modelHackManager.IsValid())
-                {
-                    return;
-                }
-
-                var modelList = modelHackManager.modelList;
+                var modelList = modelPlacerManager.modelList;
                 foreach (var model in modelList)
                 {
                     UpdateModelItem(model);
@@ -2408,6 +2403,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
+            // シーンをまたぐと配置モデルは無効になるため、UIの表示状態に関わらず自前配置分を破棄する
+            modelPlacerManager.DeleteAllSelfModels();
+            UpdateModelItems();
+
             if (plugin.isEnable)
             {
                 return;

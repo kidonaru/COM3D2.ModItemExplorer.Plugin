@@ -28,7 +28,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static TempPresetManager maidTempPresetManager => TempPresetManager.instance;
         private static WindowManager windowManager => WindowManager.instance;
-        private static ModelHackManagerWrapper modelHackManager => ModelHackManagerWrapper.instance;
+        private static ModelPlacerManager modelPlacerManager => ModelPlacerManager.instance;
         private static ConfigManager configManager => ConfigManager.instance;
         private static Config config => ConfigManager.instance.config;
         private static DirItem rootItem => modItemManager.rootItem;
@@ -813,24 +813,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             try
             {
-                if (!modelHackManager.IsValid())
-                {
-                    view.DrawLabel("モデル機能はMotionTimelineEditorのインストールが必要です", -1, 20, textColor: Color.yellow);
-                    view.EndLayout();
-                    return;
-                }
-
                 view.DrawLabel("配置プラグイン", 100, 20, style: GUIView.gsLabelRight);
 
-                var pluginNames = modelHackManager.pluginNames;
-                if (pluginNames.Count == 0)
-                {
-                    view.DrawLabel("有効なプラグインがありません", -1, 20, textColor: Color.yellow);
-                    view.EndLayout();
-                    return;
-                }
-
-                _pluginComboBox.items = pluginNames;
+                _pluginComboBox.items = modelPlacerManager.pluginNames;
                 _pluginComboBox.DrawButton(view);
 
                 var pluginName = _pluginComboBox.currentItem;
