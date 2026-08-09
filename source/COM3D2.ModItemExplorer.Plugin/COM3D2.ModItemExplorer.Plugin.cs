@@ -156,6 +156,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                     this.isEnable = false;
                 }
 
+                // ギアメニューアイコンが未追加または破棄済みなら再追加する
+                // （Unity の == オーバーロードにより破棄済みオブジェクトも null 扱いになる）
+                if (gearMenuIcon == null)
+                {
+                    AddGearMenu();
+                }
+
                 BinaryLoader.ClearCache();
                 ModMenuLoader.ClearCache();
                 TextureLoader.ClearCache();
@@ -214,7 +221,13 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public void AddGearMenu()
         {
-            gearMenuIcon = GUIExtBase.GUIExt.Add(
+            // SysShortcut 生成前に呼ばれた場合は何もしない（シーンロード時に再試行される）
+            if (!GearMenu.Buttons.IsReady)
+            {
+                return;
+            }
+
+            gearMenuIcon = GearMenu.Buttons.Add(
                 PluginInfo.PluginName,
                 PluginInfo.PluginName,
                 PluginInfo.Icon,
@@ -228,7 +241,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (gearMenuIcon != null)
             {
-                GUIExtBase.GUIExt.Destroy(gearMenuIcon);
+                GearMenu.Buttons.Remove(gearMenuIcon);
                 gearMenuIcon = null;
             }
         }
@@ -237,7 +250,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (gearMenuIcon != null)
             {
-                GUIExtBase.GUIExt.SetFrameColor(gearMenuIcon, isEnable ? Color.blue : Color.white);
+                GearMenu.Buttons.SetFrameColor(gearMenuIcon, isEnable ? Color.blue : Color.white);
             }
         }
 

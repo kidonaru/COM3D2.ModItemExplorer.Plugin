@@ -131,9 +131,9 @@
     <Compile Include="MTEUtils\BinaryLoader.cs" />
     <Compile Include="MTEUtils\BoneUtils.cs" />
     <Compile Include="MTEUtils\ColorExtensions.cs" />
-    <Compile Include="MTEUtils\COM3D2.GUIExt.cs" />
     <Compile Include="MTEUtils\CustomFieldBase.cs" />
     <Compile Include="MTEUtils\Extensions.cs" />
+    <Compile Include="MTEUtils\GearMenu.cs" />
     <Compile Include="MTEUtils\GUICache.cs" />
     <Compile Include="MTEUtils\GUIComboBox.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
