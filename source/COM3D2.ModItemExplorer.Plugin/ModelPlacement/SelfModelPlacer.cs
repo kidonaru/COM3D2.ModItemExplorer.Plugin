@@ -4,6 +4,7 @@ using System.IO;
 using System.Xml.Serialization;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
@@ -856,6 +857,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 // sharedMaterials を使う。materials は複製を作るので追跡対象とインスタンスがずれる
                 var materials = smr.sharedMaterials;
+                var nprApplied = false;
+                var nprReflectionApplied = false;
 
                 foreach (var change in script.materialChanges)
                 {
@@ -864,21 +867,33 @@ namespace COM3D2.ModItemExplorer.Plugin
                         continue;
                     }
 
-                    // LoadMaterial は欠損時に NDebug.Assert へ落ちるため、事前に存在を確かめる
-                    if (!GameUty.FileSystem.IsExistentFile(change.fileName))
+                    // LoadMaterial は欠損時に NDebug.Assert へ落ちるため、事前に存在を確かめる。
+                    // MOD の mate は GameUty.FileSystem 側には無いので Mod 側も見る MTEUtils を使う
+                    if (!MTEUtils.IsExistentFile(change.fileName))
                     {
                         MTEUtils.LogWarning("mateファイルが見つかりません。{0}", change.fileName);
                         continue;
                     }
 
-                    var material = ImportCM.LoadMaterial(change.fileName, null);
+                    // NPR 用の mate は ImportCM ではシェーダーを解決できないため NPRShader 側に投げる。
+                    // NPRShader 未導入なら null が返るので通常ロードにフォールバックする
+                    var material = NprShaderLoader.IsNprMaterial(change.fileName)
+                        ? NprShaderLoader.LoadMaterial(change.fileName)
+                        : null;
+                    var nprLoaded = material != null;
                     if (material == null)
                     {
-                        continue;
+                        material = ImportCM.LoadMaterial(change.fileName, null);
+                        if (material == null)
+                        {
+                            continue;
+                        }
                     }
 
                     materials[change.materialNo] = material;
                     disposables.Add(material);
+                    nprApplied |= nprLoaded;
+                    nprReflectionApplied |= nprLoaded && NprShaderLoader.IsReflectionMaterial(change.fileName);
                 }
 
                 foreach (var change in script.textureChanges)
@@ -907,6 +922,19 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 smr.sharedMaterials = materials;
+
+                // NPR シェーダーは接線を前提に法線を作るため、NPRShader 側の配置オブジェクト処理と同じく再計算する
+                if (nprApplied && smr.sharedMesh != null)
+                {
+                    smr.sharedMesh.RecalculateTangents();
+                }
+
+                // ModelMeshLoader は移植元に倣ってリフレクションプローブを切っているが、
+                // _Reflection_ 系の NPR シェーダーはプローブが無いと反射が出ないので有効化する
+                if (nprReflectionApplied)
+                {
+                    smr.reflectionProbeUsage = ReflectionProbeUsage.Simple;
+                }
             }
         }
 
