@@ -38,6 +38,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private bool _isGizmoLocked = false;
         private bool _isMouseOverWindow = false;
         private bool _isMousePressInProgress = false;
+        private bool _isCameraPressInProgress = false;
+        private bool _isCameraDragFromOutside = false;
 
         /// <summary>
         /// カーソル位置以外の理由（サムネ撮影中など）でゲーム UI 入力を止めたいときに立てる。
@@ -135,7 +137,11 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _isMouseOverWindow = isMouseOverWindow;
 
-            UpdateCameraControl(isMouseOverWindow);
+            UpdateCameraDragFromOutside(isMouseOverWindow);
+
+            // ウィンドウ外から始まったドラッグを逃がすのはカメラ操作だけ。
+            // UI 入力とギズモは誤操作防止を優先し、カーソルがウィンドウに乗った時点で従来どおり塞ぐ
+            UpdateCameraControl(isMouseOverWindow && !_isCameraDragFromOutside);
             UpdateUIInput(isMouseOverWindow || isExternalUIInputBlocked);
             // hotControl は OnGUI で初めて立つため、押下フレームだけロックが 1 フレーム遅れる
             // （OnRenderObject は同フレームの OnGUI より前に走るのでそこで奪われてしまう）。
@@ -144,7 +150,29 @@ namespace COM3D2.ModItemExplorer.Plugin
                 || (isMouseOverWindow && Input.GetMouseButton(0)));
         }
 
-        private void UpdateCameraControl(bool isMouseOverWindow)
+        /// <summary>
+        /// ウィンドウ外で押し始めたドラッグは、途中でカーソルがウィンドウ内へ入ってもカメラ操作を続けさせる。
+        /// 判定は押下フレームのカーソル位置だけで行い、以降はボタンをすべて離すまで維持する
+        /// </summary>
+        private void UpdateCameraDragFromOutside(bool isMouseOverWindow)
+        {
+            if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1) && !Input.GetMouseButton(2))
+            {
+                _isCameraPressInProgress = false;
+                _isCameraDragFromOutside = false;
+                return;
+            }
+
+            if (_isCameraPressInProgress)
+            {
+                return;
+            }
+            _isCameraPressInProgress = true;
+
+            _isCameraDragFromOutside = !isMouseOverWindow;
+        }
+
+        private void UpdateCameraControl(bool shouldBlock)
         {
             var mainCamera = GameMain.Instance.MainCamera;
             if (mainCamera == null)
@@ -152,7 +180,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            if (isMouseOverWindow)
+            if (shouldBlock)
             {
                 // 自分が無効化する前から無効なら他プラグイン等の管理下なので触らない（復帰時に誤って有効化しないため）。
                 // 無効化後に外部から有効へ戻された場合は毎フレーム無効化し直す
@@ -279,6 +307,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _isMousePressInProgress = false;
+            _isCameraPressInProgress = false;
+            _isCameraDragFromOutside = false;
         }
 
         public override void OnLoad()
