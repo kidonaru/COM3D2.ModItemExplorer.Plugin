@@ -8,15 +8,27 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public class ModItemWindow : IWindow
+    public class ModItemWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 582870;
         public readonly static int VARIATION_WINDOW_ID = 4474065;
         public readonly static int COLOR_SET_WINDOW_ID = 6345715;
-        public readonly static int MIN_WINDOW_WIDTH = 640;
-        public readonly static int MIN_WINDOW_HEIGHT = 480;
-        public readonly static int HEADER_HEIGHT = 20;
+        /// <summary>
+        /// ウィンドウの最小サイズ。
+        /// 幅は「ナビ最小 100 + 情報エリア1行目 (編集モード80 + 表示40 + モード切替70x3 + 余白) が
+        /// 折り返さない幅」、高さは「ヘッダー26 + 情報エリア110 (メイド選択時) + フッター20」に
+        /// 内容領域を確保できる値を下限とする
+        /// </summary>
+        public readonly static int MIN_WINDOW_WIDTH = 480;
+        public readonly static int DRAG_EDGE_WIDTH = 5; // 右端に確保するウィンドウドラッグ用余白
+        public readonly static int MIN_WINDOW_HEIGHT = 320;
         public readonly static int INFO_HEIGHT = (20 + 5) * 3 + 10;
+
+        /// <summary>メイド情報エリアの行送り（行高20 + 行間5）</summary>
+        public readonly static int MAID_INFO_ROW_OFFSET = 25;
+
+        /// <summary>メイド情報エリアのサムネの一辺。2行分（20*2 + 行間5）に合わせる</summary>
+        public readonly static int MAID_THUMB_SIZE = 45;
         public readonly static int MIN_NAVI_WIDTH = 100;
         public readonly static int MAX_NAVI_WIDTH = 400;
         public readonly static int VARIATION_WIDTH = 100;
@@ -34,15 +46,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static DirItem rootItem => modItemManager.rootItem;
         private static CharacterMgr characterMgr => GameMain.Instance.CharacterMgr;
 
-        public int windowIndex { get; set; }
-        public bool isShowWnd { get; set; }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => PluginInfo.WindowName;
+        protected override int minWidth => MIN_WINDOW_WIDTH;
+        protected override int minHeight => MIN_WINDOW_HEIGHT;
 
         private Rect _variationWindowRect;
         private Rect _colorSetWindowRect;
@@ -97,7 +104,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         private ModItemBase _focusedItem = null;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _infoView = new GUIView();
         private GUIView _naviView = new GUIView();
         private GUIView _contentView = new GUIView();
@@ -195,32 +201,58 @@ namespace COM3D2.ModItemExplorer.Plugin
         public ModItemWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = true;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                100,
-                _windowWidth,
-                _windowHeight
-            );
+        }
+
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = config.windowPosX;
+            y = config.windowPosY;
+            width = config.windowWidth;
+            height = config.windowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.windowPosX = x;
+            config.windowPosY = y;
+            config.windowWidth = width;
+            config.windowHeight = height;
+            config.dirty = true;
+        }
+
+        /// <summary>メイド編集モードは一時記録が2行目に増えるため、情報エリアを1行分高くする</summary>
+        // メイド0人時は案内1行だけなので2行分の高さを確保しない
+        private int currentInfoHeight => _contentMode == ContentMode.メイド && modItemManager.currentMaid != null
+            ? INFO_HEIGHT + MAID_INFO_ROW_OFFSET
+            : INFO_HEIGHT;
+
+        private int _infoHeight = INFO_HEIGHT;
+
+        protected override void OnSizeChanged(int width, int height)
+        {
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
         }
 
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            var infoHeight = INFO_HEIGHT;
-            _infoView.Init(0, HEADER_HEIGHT, _windowWidth, infoHeight);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            var contentHeight = _windowHeight - HEADER_HEIGHT - infoHeight - FOOTER_HEIGHT;
-            _naviView.Init(0, HEADER_HEIGHT + infoHeight, _naviWidth, contentHeight);
-            _contentView.Init(_naviWidth, HEADER_HEIGHT + infoHeight, _windowWidth - _naviWidth, contentHeight);
-            _contentSettingView.Init(_naviWidth, HEADER_HEIGHT + infoHeight, _windowWidth - _naviWidth, contentHeight);
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            var infoHeight = _infoHeight;
+            _infoView.Init(0, headerHeight, _windowWidth, infoHeight);
+
+            var contentHeight = _windowHeight - headerHeight - infoHeight - FOOTER_HEIGHT;
+            _naviView.Init(0, headerHeight + infoHeight, _naviWidth, contentHeight);
+            // アイテム一覧のスクロールビューだけ右端をドラッグ用に空けておく
+            _contentView.Init(_naviWidth, headerHeight + infoHeight, _windowWidth - _naviWidth - DRAG_EDGE_WIDTH, contentHeight);
+            _contentSettingView.Init(_naviWidth, headerHeight + infoHeight, _windowWidth - _naviWidth, contentHeight);
             _footerView.Init(0, _windowHeight - FOOTER_HEIGHT, _windowWidth, FOOTER_HEIGHT);
 
             _variationView.Init(0, 0, VARIATION_WIDTH, _windowHeight);
             _colorSetView.Init(0, 0, COLOR_SET_WIDTH, _windowHeight);
 
-            _headerView.parent = _rootView;
             _infoView.parent = _rootView;
             _naviView.parent = _rootView;
             _contentView.parent = _rootView;
@@ -228,24 +260,38 @@ namespace COM3D2.ModItemExplorer.Plugin
             _footerView.parent = _rootView;
         }
 
-        public void Init()
+        public override void Init()
         {
+            base.Init();
+
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
+            InitView();
+
+            isShowWnd = true;
         }
 
-        public void Update()
+        /// <summary>閉じるとプラグイン自体を無効化する（メイン窓のみの特別な挙動）</summary>
+        public override void Close()
         {
+            base.Close();
+
+            plugin.isEnable = false;
         }
 
-        public void Close()
+        /// <summary>
+        /// メイン窓はプラグインが有効な間は常に開いている前提のため、有効化のたびに表示へ戻す。
+        /// 無効化時の Close() で isShowWnd が落ちる一方、初期表示を担う Init() は初回しか
+        /// 呼ばれないので、ここで戻さないと再有効化しても窓が出てこなくなる
+        /// </summary>
+        public override void OnLoad()
         {
+            base.OnLoad();
+
+            isShowWnd = true;
         }
 
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
+        public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             if (plugin.isEnable)
             {
@@ -264,7 +310,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             ResetCurrentDirItem();
         }
 
-        public void InitGUI()
+        private void InitGUI()
         {
             if (_initializedGUI)
             {
@@ -276,16 +322,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             gsHiddenButton.normal.background = GUIView.CreateColorTexture(new Color(0, 0, 0, 0));
             UpdateItemLabelBGAlpha();
-
-            InitView();
-
-            if (config.windowPosX != -1 && config.windowPosY != -1)
-            {
-                _windowRect.x = config.windowPosX;
-                _windowRect.y = config.windowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
         }
 
         private void UpdateItemLabelBGAlpha()
@@ -293,40 +329,32 @@ namespace COM3D2.ModItemExplorer.Plugin
             GUIView.gsTileLabel.normal.background = GUIView.CreateColorTexture(new Color(0, 0, 0, config.itemNameBGAlpha));
         }
 
-        public void OnGUI()
+        public override void OnGUI()
         {
-            InitGUI();
-
-            if (_windowHeight != config.windowHeight)
-            {
-                _windowHeight = config.windowHeight;
-                _windowRect.height = _windowHeight;
-                InitView();
-            }
-
-            if (_windowWidth != config.windowWidth)
-            {
-                _windowWidth = config.windowWidth;
-                _windowRect.width = _windowWidth;
-                InitView();
-            }
-
             if (_naviWidth != config.naviWidth)
             {
                 _naviWidth = config.naviWidth;
                 InitView();
             }
 
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, PluginInfo.WindowName, gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.windowPosX != (int)windowRect.x ||
-                config.windowPosY != (int)windowRect.y)
+            if (_infoHeight != currentInfoHeight)
             {
-                config.windowPosX = (int)windowRect.x;
-                config.windowPosY = (int)windowRect.y;
+                _infoHeight = currentInfoHeight;
+                InitView();
             }
 
+            base.OnGUI();
+
+            // 非アクティブタブのときは本体窓が描かれないため、従属窓も描いてはいけない
+            // （描くと本体が見えないまま別タブの脇に取り残される）
+            if (!isShowWnd || !isTabVisible)
+            {
+                return;
+            }
+
+            // variation / colorSet は本体窓と同階層の兄弟ウィンドウとして描く。
+            // DrawContent 内 (= 本体窓のコールバック内) へ移すと GUI.Window の入れ子になり
+            // 入力と重なり順が壊れるため、必ずここで呼ぶこと
             Vector2 offset;
             offset.x = windowRect.x + windowRect.width;
             offset.y = windowRect.y;
@@ -341,7 +369,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 MTEUtils.ResetInputOnScroll(_variationWindowRect);
 
                 var diffPosition = _variationWindowRect.position - offset;
-                _windowRect.position += diffPosition;
+                var rect = windowRect;
+                rect.position += diffPosition;
+                windowRect = rect;
 
                 offset.x += VARIATION_WIDTH;
             }
@@ -356,7 +386,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 MTEUtils.ResetInputOnScroll(_colorSetWindowRect);
 
                 var diffPosition = _colorSetWindowRect.position - offset;
-                _windowRect.position += diffPosition;
+                var rect = windowRect;
+                rect.position += diffPosition;
+                windowRect = rect;
             }
 
             if (_mouseOverItem != null || _mouseOverMenu != null)
@@ -516,10 +548,17 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private GUIComboBox<Maid> _maidComboBox = new GUIComboBox<Maid>
         {
-            getName = (maid, _) => maid == null ? "未選択" : maid.status.fullNameJpStyle,
+            getName = (maid, _) => maid == null ? "なし" : maid.status.fullNameJpStyle,
             buttonSize = new Vector2(100, 20),
             contentSize = new Vector2(150, 300),
         };
+
+        /// <summary>メイド選択コンボ用の一覧。メイドが1体でも居れば「なし」は出さない</summary>
+        private static List<Maid> GetMaidComboItems()
+        {
+            var maids = MTEUtils.GetReadyMaidList();
+            return maids.Count > 0 ? maids : new List<Maid> { null };
+        }
 
         private GUIComboBox<TempPreset> _tempPresetComboBox = new GUIComboBox<TempPreset>
         {
@@ -598,7 +637,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             showArrow = false,
         };
 
-        private GUIView.DragInfo _windowSizeDragInfo = new GUIView.DragInfo();
         private GUIView.DragInfo _naviWidthDragInfo = new GUIView.DragInfo();
 
         private enum ContentMode
@@ -610,11 +648,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private ContentMode _contentMode = ContentMode.メイド;
 
-        private void DrawWindow(int id)
+        protected override void DrawContent()
         {
+            InitGUI();
+
             _rootView.ResetLayout();
 
-            DrawHeader();
             DrawInfo();
             DrawNavi();
 
@@ -624,48 +663,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
             else
             {
-                DrawContent();
+                DrawMainContent();
             }
 
             DrawFooter();
 
-            _rootView.DrawComboBox();
-
-            if (!_windowSizeDragInfo.isDragging)
-            {
-                GUI.DragWindow();
-            }
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
         private void DrawVariationWindow(int id)
         {
             DrawVariation();
-            _variationView.DrawComboBox();
+            ComboBoxPopupWindow.instance.ProcessFocus(
+                _variationView, this, () => _variationWindowRect);
             GUI.DragWindow();
         }
 
         private void DrawColorSetWindow(int id)
         {
             DrawColorSet();
-            _colorSetView.DrawComboBox();
+            ComboBoxPopupWindow.instance.ProcessFocus(
+                _colorSetView, this, () => _colorSetWindowRect);
             GUI.DragWindow();
-        }
-
-        private void DrawHeader()
-        {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
-            view.BeginLayout(GUIView.LayoutDirection.Free);
-
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                plugin.isEnable = false;
-            }
         }
 
         private void DrawInfo()
@@ -675,7 +694,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.padding = new Vector2(10, 5);
 
-            view.SetEnabled(!modItemManager.isLoading && !view.IsComboBoxFocused());
+            view.SetEnabled(!modItemManager.isLoading && !ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             DrawMainInfo();
             if (_contentMode == ContentMode.メイド)
@@ -712,6 +731,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 view.margin = 0;
                 foreach (var item in rootItem.children)
                 {
+                    // 検索結果は検索バーからのみ遷移するため表示タブには出さない
+                    if (item == modItemManager.searchRootItem)
+                    {
+                        continue;
+                    }
+
                     var color = item == currentDirItem ? Color.green : Color.white;
                     if (view.DrawButton(item.name, 70, 20, color: color))
                     {
@@ -728,35 +753,42 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _infoView;
 
-            view.BeginHorizontal();
+            // メイド0人でも「なし」だけのコンボを出し、行のレイアウトを崩さない
+            _maidComboBox.items = GetMaidComboItems();
 
-            view.DrawLabel("メイド", 50, 20, style: GUIView.gsLabelRight);
-
-            var maids = MTEUtils.GetReadyMaidList();
-
-            if (maids.Count == 0)
+            // 未選択（解除やメイド増減で選択位置が外れた場合）なら先頭へ寄せる
+            if (_maidComboBox.currentItem == null)
             {
-                view.DrawLabel("メイドを配置してください", -1, 20, textColor: Color.yellow);
-                view.EndLayout();
-                return;
+                _maidComboBox.currentIndex = 0;
             }
-
-            _maidComboBox.items = MTEUtils.GetReadyMaidList();
-            _maidComboBox.DrawButton(view);
 
             var maid = _maidComboBox.currentItem;
             modItemManager.SetCurrentMaid(maid);
 
+            // メイド0人時はサムネなしの1行にまとめる
             if (maid == null)
             {
-                view.DrawLabel("メイドを選択してください", -1, 20, textColor: Color.yellow);
+                view.BeginHorizontal();
+                view.DrawLabel("メイド", 50, 20, style: GUIView.gsLabelRight);
+                _maidComboBox.DrawButton(view);
+                view.DrawLabel("メイドを呼び出してください", -1, 20, textColor: Color.yellow);
                 view.EndLayout();
                 return;
             }
 
+            var startY = view.currentPos.y;
+
+            view.BeginHorizontal();
+
+            DrawSelectedMaidThumb(view, maid);
+
+            view.DrawLabel("メイド", 50, 20, style: GUIView.gsLabelRight);
+
+            _maidComboBox.DrawButton(view);
+
             if (view.DrawButton("サムネ更新", 80, 20))
             {
-                modItemManager.ThumShot();
+                modItemManager.ThumShot(maid);
             }
 
             view.DrawLabel("マスク", 50, 20, style: GUIView.gsLabelRight);
@@ -780,6 +812,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                 characterMgr.PresetSave(maid, presetType);
                 modItemManager.UpdatePresetItems();
             }
+
+            view.EndLayout();
+
+            // 2行目はサムネの右から始める
+            view.currentPos.y = startY + MAID_INFO_ROW_OFFSET;
+
+            view.BeginHorizontal();
+
+            view.currentPos.x = MAID_THUMB_SIZE + view.margin;
 
             view.DrawLabel("一時記録", 60, 20, style: GUIView.gsLabelRight);
 
@@ -807,6 +848,24 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             view.EndLayout();
+        }
+
+        /// <summary>選択中メイドのサムネ。黒boxを下地に敷き、未選択・未撮影でも列がずれないようにする</summary>
+        private void DrawSelectedMaidThumb(GUIView view, Maid maid)
+        {
+            var savedPos = view.currentPos;
+            // 下地はアイテム一覧のタイルと同じ半透明の黒
+            view.DrawTexture(GUIView.texWhite, MAID_THUMB_SIZE, MAID_THUMB_SIZE, new Color(0f, 0f, 0f, 0.5f));
+
+            var thumb = maid != null ? maid.GetThumIcon() : null;
+            if (thumb == null)
+            {
+                return;
+            }
+
+            // 下地描画でカーソルが進むため位置を戻して重ねる
+            view.currentPos = savedPos;
+            view.DrawTexture(thumb, MAID_THUMB_SIZE, MAID_THUMB_SIZE);
         }
 
         private void DrawModelInfo()
@@ -1002,7 +1061,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _naviView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.padding = Vector2.zero;
             view.margin = 0;
@@ -1090,7 +1149,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             var loadState = modItemManager.loadState;
             var officialMenuLoadedIndex = modItemManager.officialMenuLoadedIndex;
@@ -1130,7 +1189,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private void DrawContent()
+        private void DrawMainContent()
         {
             switch (_contentMode)
             {
@@ -1153,7 +1212,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             // アイテム一覧上の右クリックで履歴を1つ戻る（「<」ボタンと同じ挙動）。
             // 描画途中で currentDirItem を差し替えると IMGUI のコントロールIDがずれるため次フレームに回す
@@ -1215,7 +1274,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _contentSettingView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.BeginScrollView();
             {
@@ -1456,7 +1515,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _variationView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.padding = Vector2.zero;
             view.margin = 0;
@@ -1524,7 +1583,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _colorSetView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.padding = Vector2.zero;
             view.margin = 0;
@@ -1593,7 +1652,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _footerView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.padding = Vector2.zero;
             view.margin = 0;
@@ -1644,27 +1703,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     });
             }
 
-            view.currentPos.x = _windowWidth - 20;
-
-            view.DrawDraggableButton("□", 20, 20,
-                _windowSizeDragInfo,
-                new Vector2(_windowWidth, _windowHeight),
-                null,
-                value =>
-                {
-                    config.windowWidth = (int)value.x;
-                    config.windowHeight = (int)value.y;
-
-                    config.windowWidth = Mathf.Clamp(config.windowWidth, MIN_WINDOW_WIDTH, Screen.width);
-                    config.windowHeight = Mathf.Clamp(config.windowHeight, MIN_WINDOW_HEIGHT, Screen.height);
-
-                    config.dirty = true;
-                });
         }
 
-        public void OnScreenSizeChanged()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,27 +8,21 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public class ColorPaletteWindow : IWindow
+    public class ColorPaletteWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 4581852;
         public readonly static int WINDOW_WIDTH = 540;
         public readonly static int WINDOW_HEIGHT = 240;
-        public readonly static int HEADER_HEIGHT = 20;
         public readonly static int COLOR_PICKER_SIZE = 150;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static Config config => ConfigManager.instance.config;
 
-        public int windowIndex { get; set; }
-        public bool isShowWnd { get; set; }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => "カラーパレット";
+        protected override int minWidth => WINDOW_WIDTH;
+        protected override int minHeight => WINDOW_HEIGHT;
 
         private int _windowWidth = WINDOW_WIDTH;
         private int _windowHeight = WINDOW_HEIGHT;
@@ -36,7 +30,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         private bool _initializedGUI = false;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _contentView = new GUIView();
         private GUIView _colorPickerView = new GUIView();
 
@@ -55,13 +48,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         public ColorPaletteWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = false;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                100,
-                _windowWidth,
-                _windowHeight
-            );
+        }
+
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = config.colorPaletteWindowPosX;
+            y = config.colorPaletteWindowPosY;
+            width = config.colorPaletteWindowWidth;
+            height = config.colorPaletteWindowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.colorPaletteWindowPosX = x;
+            config.colorPaletteWindowPosY = y;
+            config.colorPaletteWindowWidth = width;
+            config.colorPaletteWindowHeight = height;
+            config.dirty = true;
         }
 
         public void Call(Maid maid, MaidParts.PARTS_COLOR colorType)
@@ -96,42 +99,32 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void Close()
+        protected override void OnSizeChanged(int width, int height)
         {
-            isShowWnd = false;
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
         }
 
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _contentView.Init(_colorPickerWindowWidth, HEADER_HEIGHT, _windowWidth - _colorPickerWindowWidth, _windowHeight - HEADER_HEIGHT);
-            _colorPickerView.Init(0, HEADER_HEIGHT, _colorPickerWindowWidth, _windowHeight - HEADER_HEIGHT);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            _headerView.parent = _rootView;
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            _contentView.Init(_colorPickerWindowWidth, headerHeight, _windowWidth - _colorPickerWindowWidth, _windowHeight - headerHeight);
+            _colorPickerView.Init(0, headerHeight, _colorPickerWindowWidth, _windowHeight - headerHeight);
+
             _contentView.parent = _rootView;
             _colorPickerView.parent = _rootView;
         }
 
-        public void Init()
+        public override void Init()
         {
-        }
+            base.Init();
 
-        public void Update()
-        {
-        }
-
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
-        {
-            if (plugin.isEnable)
-            {
-                return;
-            }
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
+            InitView();
         }
 
         private int _colorGradationHue = -1;
@@ -173,15 +166,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             _colorGradationTex.Apply();
         }
 
-        public void InitGUI()
+        private void InitGUI()
         {
             if (_initializedGUI)
             {
                 return;
             }
             _initializedGUI = true;
-
-            InitView();
 
             if (_colorGradationTex == null)
             {
@@ -198,67 +189,21 @@ namespace COM3D2.ModItemExplorer.Plugin
                 TextureUtils.DrawCircleFillTexture(_colorPickerTex, center, 5, Color.white);
                 TextureUtils.DrawCircleFillTexture(_colorPickerTex, center, 3, new Color(1f, 1f, 1f, 0f));
             }
-
-            if (config.colorPaletteWindowPosX != -1 && config.colorPaletteWindowPosY != -1)
-            {
-                _windowRect.x = config.colorPaletteWindowPosX;
-                _windowRect.y = config.colorPaletteWindowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
         }
 
-        public void OnGUI()
-        {
-            if (!isShowWnd)
-            {
-                return;
-            }
+        /// <summary>カラーピッカーのドラッグ中はウィンドウ移動と競合させない</summary>
+        protected override bool isWholeWindowDraggable => !_colorPickerInfo.isDragging;
 
+        protected override void DrawContent()
+        {
             InitGUI();
 
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "カラーパレット", gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.colorPaletteWindowPosX != (int)windowRect.x ||
-                config.colorPaletteWindowPosY != (int)windowRect.y)
-            {
-                config.colorPaletteWindowPosX = (int)windowRect.x;
-                config.colorPaletteWindowPosY = (int)windowRect.y;
-            }
-        }
-
-        private void DrawWindow(int id)
-        {
             _rootView.ResetLayout();
 
-            DrawHeader();
             DrawColorPicker();
-            DrawContent();
+            DrawMainContent();
 
-            _rootView.DrawComboBox();
-
-            if (!_colorPickerInfo.isDragging)
-            {
-                GUI.DragWindow();
-            }
-        }
-
-        private void DrawHeader()
-        {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
-            view.BeginLayout(GUIView.LayoutDirection.Free);
-
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                isShowWnd = false;
-            }
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
         private static readonly Dictionary<ColorPaletteManager.Category, string> _categoryNameMap = new Dictionary<ColorPaletteManager.Category, string>
@@ -280,7 +225,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var view = _colorPickerView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             UpdateColorGradation();
 
@@ -332,11 +277,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private void DrawContent()
+        private void DrawMainContent()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             if (_maid == null)
             {
@@ -534,9 +479,5 @@ namespace COM3D2.ModItemExplorer.Plugin
             _colorData = ColorPaletteManager.ColorData.Create(_maid, colorType);
         }
 
-        public void OnScreenSizeChanged()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
     }
 }

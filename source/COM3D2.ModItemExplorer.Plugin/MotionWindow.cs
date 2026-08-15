@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,34 +10,25 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public class MotionWindow : IWindow
+    public class MotionWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 971237;
         public readonly static int WINDOW_WIDTH = 520;
         public readonly static int WINDOW_HEIGHT = 80;
-        public readonly static int WINDOW_HEIGHT_EXTEND = 320;
-        public readonly static int HEADER_HEIGHT = 20;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static Config config => ConfigManager.instance.config;
 
-        public int windowIndex { get; set; }
-        public bool isShowWnd { get; set; }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => "モーション";
+        protected override int minWidth => WINDOW_WIDTH;
+        protected override int minHeight => WINDOW_HEIGHT;
 
         private int _windowWidth = WINDOW_WIDTH;
         private int _windowHeight = WINDOW_HEIGHT;
-        private bool _initializedGUI = false;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _contentView = new GUIView();
 
         private Maid _maid;
@@ -48,13 +39,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         public MotionWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = false;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                100,
-                _windowWidth,
-                _windowHeight
-            );
+        }
+
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = config.motionWindowPosX;
+            y = config.motionWindowPosY;
+            width = config.motionWindowWidth;
+            height = config.motionWindowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.motionWindowPosX = x;
+            config.motionWindowPosY = y;
+            config.motionWindowWidth = width;
+            config.motionWindowHeight = height;
+            config.dirty = true;
         }
 
         public void Call(Maid maid)
@@ -69,29 +70,43 @@ namespace COM3D2.ModItemExplorer.Plugin
             _animation = maid.GetAnimation();
         }
 
-        public void Close()
+        public override void Close()
         {
-            isShowWnd = false;
+            base.Close();
             _maid = null;
             _animation = null;
         }
 
+        protected override void OnSizeChanged(int width, int height)
+        {
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
+        }
+
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _contentView.Init(0, HEADER_HEIGHT, _windowWidth, _windowHeight - HEADER_HEIGHT);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            _headerView.parent = _rootView;
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            _contentView.Init(0, headerHeight, _windowWidth, _windowHeight - headerHeight);
+
             _contentView.parent = _rootView;
         }
 
-        public void Init()
+        public override void Init()
         {
+            base.Init();
+
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
+            InitView();
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update();
+
             if (!isShowWnd)
             {
                 return;
@@ -100,92 +115,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             modItemManager.UpdateAnimationLayerInfos();
         }
 
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
-        {
-            if (plugin.isEnable)
-            {
-                return;
-            }
-        }
-
-        public void InitGUI()
-        {
-            if (_initializedGUI)
-            {
-                return;
-            }
-            _initializedGUI = true;
-
-            InitView();
-
-            if (config.motionWindowPosX != -1 && config.motionWindowPosY != -1)
-            {
-                _windowRect.x = config.motionWindowPosX;
-                _windowRect.y = config.motionWindowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnGUI()
-        {
-            if (!isShowWnd)
-            {
-                return;
-            }
-
-            InitGUI();
-
-            _windowHeight = config.animationExtend ? WINDOW_HEIGHT_EXTEND : WINDOW_HEIGHT;
-
-            if (_windowHeight != windowRect.height)
-            {
-                _windowRect.height = _windowHeight;
-                InitView();
-            }
-
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "モーション", gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.motionWindowPosX != (int)windowRect.x ||
-                config.motionWindowPosY != (int)windowRect.y)
-            {
-                config.motionWindowPosX = (int)windowRect.x;
-                config.motionWindowPosY = (int)windowRect.y;
-            }
-        }
-
-        private void DrawWindow(int id)
+        protected override void DrawContent()
         {
             _rootView.ResetLayout();
-            DrawHeader();
-            
+
             if (config.animationExtend)
             {
-                DrawContentExtend();
+                DrawMainContentExtend();
             }
             else
             {
-                DrawContent();
+                DrawMainContentCompact();
             }
 
-            _rootView.DrawComboBox();
-
-            GUI.DragWindow();
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        private void DrawHeader()
+        /// <summary>
+        /// 拡張表示の切り替えトグル。ドッキング時はタブバーがヘッダーを覆って
+        /// 押せなくなるため、ヘッダーではなく内容の先頭に置く
+        /// </summary>
+        private void DrawExtendToggle(GUIView view)
         {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
             view.BeginLayout(GUIView.LayoutDirection.Free);
 
             view.currentPos.x = _windowWidth - 80;
@@ -196,19 +147,16 @@ namespace COM3D2.ModItemExplorer.Plugin
                 config.dirty = true;
             });
 
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                isShowWnd = false;
-            }
+            view.EndLayout();
         }
 
-        private void DrawContent()
+        private void DrawMainContentCompact()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
+
+            DrawExtendToggle(view);
 
             if (_maid == null || _animation == null)
             {
@@ -264,11 +212,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.EndLayout();
         }
 
-        private void DrawContentExtend()
+        private void DrawMainContentExtend()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
+
+            DrawExtendToggle(view);
 
             if (_maid == null || _animation == null)
             {
@@ -304,7 +254,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     enabled = state.enabled;
                 }
 
-                view.SetEnabled(!view.IsComboBoxFocused());
+                view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
                 view.BeginHorizontal();
                 {
@@ -326,7 +276,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
                 view.EndLayout();
 
-                view.SetEnabled(!view.IsComboBoxFocused() && state != null);
+                view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this) && state != null);
 
                 view.BeginHorizontal();
                 {
@@ -422,14 +372,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                 view.DrawHorizontalLine();
             }
 
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             view.EndScrollView();
         }
 
-        public void OnScreenSizeChanged()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
     }
 }

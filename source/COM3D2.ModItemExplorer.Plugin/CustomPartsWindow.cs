@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,52 +9,25 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public class CustomPartsWindow : IWindow
+    public class CustomPartsWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 4269465;
         public readonly static int WINDOW_WIDTH = 480;
         public readonly static int WINDOW_HEIGHT = 360;
-        public readonly static int HEADER_HEIGHT = 20;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static Config config => ConfigManager.instance.config;
 
-        public int windowIndex { get; set; }
-        
-        private bool _isShowWnd;
-        public bool isShowWnd
-        {
-            get => _isShowWnd;
-            set
-            {
-                if (_isShowWnd == value)
-                {
-                    return;
-                }
-
-                _isShowWnd = value;
-
-                if (!value)
-                {
-                    editMode = false;
-                }
-            }
-        }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => "カスタムパーツ";
+        protected override int minWidth => WINDOW_WIDTH;
+        protected override int minHeight => WINDOW_HEIGHT;
 
         private int _windowWidth = WINDOW_WIDTH;
         private int _windowHeight = WINDOW_HEIGHT;
-        private bool _initializedGUI = false;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _contentView = new GUIView();
 
         private Maid _maid;
@@ -146,13 +119,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         public CustomPartsWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = false;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                100,
-                _windowWidth,
-                _windowHeight
-            );
+        }
+
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = config.customPartsWindowPosX;
+            y = config.customPartsWindowPosY;
+            width = config.customPartsWindowWidth;
+            height = config.customPartsWindowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.customPartsWindowPosX = x;
+            config.customPartsWindowPosY = y;
+            config.customPartsWindowWidth = width;
+            config.customPartsWindowHeight = height;
+            config.dirty = true;
         }
 
         public void ResetData()
@@ -166,7 +149,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _apIndex = 0;
             _apCount = 0;
 
-            isShowWnd = false;
+            Close();
 
             _maid = null;
             _mpn = MPN.null_mpn;
@@ -203,8 +186,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             _setupRequested = true;
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update();
+
             if (_setupRequested)
             {
                 if (GameMain.Instance.CharacterMgr.IsBusy())
@@ -305,111 +290,53 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void Close()
+        /// <summary>閉じたら編集モードも解除する（メイドのアニメーションを再開させる）</summary>
+        public override void Close()
         {
-            isShowWnd = false;
+            base.Close();
+            editMode = false;
+        }
+
+        protected override void OnSizeChanged(int width, int height)
+        {
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
         }
 
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _contentView.Init(0, HEADER_HEIGHT, _windowWidth, _windowHeight - HEADER_HEIGHT);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            _headerView.parent = _rootView;
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            _contentView.Init(0, headerHeight, _windowWidth, _windowHeight - headerHeight);
+
             _contentView.parent = _rootView;
         }
 
-        public void Init()
+        public override void Init()
         {
-        }
+            base.Init();
 
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
-        {
-            if (plugin.isEnable)
-            {
-                return;
-            }
-        }
-
-        public void InitGUI()
-        {
-            if (_initializedGUI)
-            {
-                return;
-            }
-            _initializedGUI = true;
-
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
             InitView();
-
-            if (config.customPartsWindowPosX != -1 && config.customPartsWindowPosY != -1)
-            {
-                _windowRect.x = config.customPartsWindowPosX;
-                _windowRect.y = config.customPartsWindowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
         }
 
-        public void OnGUI()
-        {
-            if (!isShowWnd)
-            {
-                return;
-            }
-
-            InitGUI();
-
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "カスタムパーツ", GUIView.gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.customPartsWindowPosX != (int)windowRect.x ||
-                config.customPartsWindowPosY != (int)windowRect.y)
-            {
-                config.customPartsWindowPosX = (int)windowRect.x;
-                config.customPartsWindowPosY = (int)windowRect.y;
-            }
-        }
-
-        private void DrawWindow(int id)
+        protected override void DrawContent()
         {
             _rootView.ResetLayout();
 
-            DrawHeader();
-            DrawContent();
+            DrawMainContent();
 
-            _rootView.DrawComboBox();
-
-            GUI.DragWindow();
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        private void DrawHeader()
-        {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
-            view.BeginLayout(GUIView.LayoutDirection.Free);
-
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                isShowWnd = false;
-            }
-        }
-
-        private void DrawContent()
+        private void DrawMainContent()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             if (_apCount == 0 || _setupRequested)
             {
@@ -517,7 +444,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.DrawHorizontalLine(Color.gray);
 
-            view.SetEnabled(!view.IsComboBoxFocused() && editMode);
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this) && editMode);
 
             var updated = false;
 
@@ -680,9 +607,5 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void OnScreenSizeChanged()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
     }
 }

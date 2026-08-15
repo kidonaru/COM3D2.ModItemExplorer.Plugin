@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,33 +9,25 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public class HairLengthWindow : IWindow
+    public class HairLengthWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 741329;
         public readonly static int WINDOW_WIDTH = 320;
         public readonly static int WINDOW_HEIGHT = 320;
-        public readonly static int HEADER_HEIGHT = 20;
 
         private static ModItemExplorer plugin => ModItemExplorer.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static Config config => ConfigManager.instance.config;
 
-        public int windowIndex { get; set; }
-        public bool isShowWnd { get; set; }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => "髪の長さ";
+        protected override int minWidth => WINDOW_WIDTH;
+        protected override int minHeight => WINDOW_HEIGHT;
 
         private int _windowWidth = WINDOW_WIDTH;
         private int _windowHeight = WINDOW_HEIGHT;
-        private bool _initializedGUI = false;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _contentView = new GUIView();
 
         private Maid _maid;
@@ -48,13 +40,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         public HairLengthWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = false;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                100,
-                _windowWidth,
-                _windowHeight
-            );
+        }
+
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = config.hairLengthWindowPosX;
+            y = config.hairLengthWindowPosY;
+            width = config.hairLengthWindowWidth;
+            height = config.hairLengthWindowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.hairLengthWindowPosX = x;
+            config.hairLengthWindowPosY = y;
+            config.hairLengthWindowWidth = width;
+            config.hairLengthWindowHeight = height;
+            config.dirty = true;
         }
 
         public void ResetData()
@@ -87,7 +89,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _setupWaitFrame = 10;
         }
 
-        public void Update()
+        private void UpdateSetup()
         {
             if (_setupRequested)
             {
@@ -133,115 +135,53 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void Close()
+        protected override void OnSizeChanged(int width, int height)
         {
-            isShowWnd = false;
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
         }
 
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _contentView.Init(0, HEADER_HEIGHT, _windowWidth, _windowHeight - HEADER_HEIGHT);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            _headerView.parent = _rootView;
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            _contentView.Init(0, headerHeight, _windowWidth, _windowHeight - headerHeight);
+
             _contentView.parent = _rootView;
         }
 
-        public void Init()
+        public override void Init()
         {
-        }
+            base.Init();
 
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
-        {
-            if (plugin.isEnable)
-            {
-                return;
-            }
-        }
-
-        public void InitGUI()
-        {
-            if (_initializedGUI)
-            {
-                return;
-            }
-            _initializedGUI = true;
-
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
             InitView();
-
-            if (config.hairLengthWindowPosX != -1 && config.hairLengthWindowPosY != -1)
-            {
-                _windowRect.x = config.hairLengthWindowPosX;
-                _windowRect.y = config.hairLengthWindowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
         }
 
-        public void OnGUI()
+        public override void Update()
         {
-            if (!isShowWnd)
-            {
-                return;
-            }
+            base.Update();
 
-            InitGUI();
-
-            if (_windowHeight != windowRect.height)
-            {
-                _windowRect.height = _windowHeight;
-                InitView();
-            }
-
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "髪の長さ", GUIView.gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.hairLengthWindowPosX != (int)windowRect.x ||
-                config.hairLengthWindowPosY != (int)windowRect.y)
-            {
-                config.hairLengthWindowPosX = (int)windowRect.x;
-                config.hairLengthWindowPosY = (int)windowRect.y;
-            }
+            UpdateSetup();
         }
 
-        private void DrawWindow(int id)
+        protected override void DrawContent()
         {
             _rootView.ResetLayout();
 
-            DrawHeader();
-            DrawContent();
+            DrawMainContent();
 
-            _rootView.DrawComboBox();
-
-            GUI.DragWindow();
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        private void DrawHeader()
-        {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                isShowWnd = false;
-            }
-        }
-
-        private void DrawContent()
+        private void DrawMainContent()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             if (_dataCount == 0 || _setupRequested)
             {
@@ -315,6 +255,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.currentPos.y -= 20;
             view.layoutMaxPos.y = view.currentPos.y;
 
+            // 毛髪グループ数はモデル次第で窓の高さを超えるため、スライダー一覧はスクロールさせる
+            view.BeginScrollView();
+
             for (var i = 0; i < _dataCount; i++)
             {
                 var data = _dataList[i];
@@ -339,12 +282,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.AddSpace(10);
 
-            _windowHeight = (int) (view.currentPos.y + view.viewRect.y);
+            view.EndScrollView();
         }
 
-        public void OnScreenSizeChanged()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
     }
 }

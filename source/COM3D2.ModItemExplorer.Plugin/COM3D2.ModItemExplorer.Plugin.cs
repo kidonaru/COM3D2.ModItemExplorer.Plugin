@@ -9,6 +9,9 @@ using System.Collections.Generic;
 using System.Linq;
 using COM3D2.MotionTimelineEditor;
 using System.Reflection;
+// 参照 DLL (COM3D2.ExternalPreset.Managed 等) がグローバルな GearMenu 名前空間を
+// 内包しており、素の GearMenu だとそちらへ解決されてしまうため別名で参照する
+using MTEGearMenu = COM3D2.MotionTimelineEditor.GearMenu;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
@@ -222,12 +225,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public void AddGearMenu()
         {
             // SysShortcut 生成前に呼ばれた場合は何もしない（シーンロード時に再試行される）
-            if (!GearMenu.Buttons.IsReady)
+            if (!MTEGearMenu.Buttons.IsReady)
             {
                 return;
             }
 
-            gearMenuIcon = GearMenu.Buttons.Add(
+            gearMenuIcon = MTEGearMenu.Buttons.Add(
                 PluginInfo.PluginName,
                 PluginInfo.PluginName,
                 PluginInfo.Icon,
@@ -241,7 +244,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (gearMenuIcon != null)
             {
-                GearMenu.Buttons.Remove(gearMenuIcon);
+                MTEGearMenu.Buttons.Remove(gearMenuIcon);
                 gearMenuIcon = null;
             }
         }
@@ -250,7 +253,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             if (gearMenuIcon != null)
             {
-                GearMenu.Buttons.SetFrameColor(gearMenuIcon, isEnable ? Color.blue : Color.white);
+                MTEGearMenu.Buttons.SetFrameColor(gearMenuIcon, isEnable ? Color.blue : Color.white);
             }
         }
 

@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,18 +8,13 @@ namespace COM3D2.ModItemExplorer.Plugin
     /// <summary>
     /// 配置モデルの操作ウィンドウ。編集モードがモデルのときのみ表示される
     /// </summary>
-    public class ModelOperationWindow : IWindow
+    public class ModelOperationWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 582880;
 
         /// <summary>ウィンドウの最小サイズ。Transform 行が折り返さない幅を下限にする</summary>
         public readonly static int MIN_WINDOW_WIDTH = 380;
         public readonly static int MIN_WINDOW_HEIGHT = 320;
-
-        public readonly static int HEADER_HEIGHT = 20;
-
-        /// <summary>リサイズグリップを置く下端の高さ</summary>
-        public readonly static int FOOTER_HEIGHT = 20;
 
         public readonly static int ROW_HEIGHT = 20;
 
@@ -31,11 +25,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         public readonly static int MIN_MODEL_LIST_HEIGHT = MODEL_ROW_HEIGHT * 2;
 
         /// <summary>
-        /// モデル一覧より下に確保する行数（ギズモ + Transform 5行）。
+        /// モデル一覧より下に確保する行数（ギズモ + 位置・回転・拡縮 + アタッチ）。
         /// モデル未選択時は Transform が案内ラベル1行に縮むが、選択のたびに一覧の高さが
         /// 変わると操作しづらいため、常に最大の行数分を確保する
         /// </summary>
-        private readonly static int BOTTOM_ROW_COUNT = 6;
+        private readonly static int BOTTOM_ROW_COUNT = 5;
 
         /// <summary>GUIView.DrawHorizontalLine が描く区切り線の高さ</summary>
         private readonly static int HORIZONTAL_LINE_HEIGHT = 1;
@@ -63,34 +57,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             _userVisible = !_userVisible;
         }
 
-        /// <summary>ドラッグラベルの感度（1pxあたりの増減量）</summary>
-        private const float PositionSensitivity = 0.01f;
-        private const float RotationSensitivity = 1f;
-        private const float ScaleSensitivity = 0.01f;
-
-        /// <summary>連動時に比率計算をあきらめる拡縮値のしきい値</summary>
-        private const float ScaleLinkEpsilon = 0.0001f;
-
-        /// <summary>拡縮の XYZ を連動させるか。設定には保存せずセッション内のみ保持する</summary>
-        private bool _scaleLinked = false;
-
-        private static readonly string[] AxisNames = { "X", "Y", "Z" };
-
         private static WindowManager windowManager => WindowManager.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static TextureManager textureManager => TextureManager.instance;
         private static SelfModelPlacer placer => SelfModelPlacer.instance;
         private static Config config => ConfigManager.instance.config;
 
-        public int windowIndex { get; set; }
-        public bool isShowWnd { get; set; }
-
-        private Rect _windowRect;
-        public Rect windowRect
-        {
-            get => _windowRect;
-            set => _windowRect = value;
-        }
+        protected override int windowId => WINDOW_ID;
+        protected override string windowTitle => "モデル操作";
+        protected override int minWidth => MIN_WINDOW_WIDTH;
+        protected override int minHeight => MIN_WINDOW_HEIGHT;
 
         /// <summary>操作対象のモデル。実体は SelfModelPlacer が持つ</summary>
         public StudioModelStatWrapper selectedModel
@@ -115,48 +91,65 @@ namespace COM3D2.ModItemExplorer.Plugin
         private bool _presetNamesDirty = true;
 
         private GUIView _rootView = new GUIView();
-        private GUIView _headerView = new GUIView();
         private GUIView _contentView = new GUIView();
-        private GUIView _footerView = new GUIView();
-        private bool _initializedGUI = false;
 
         private int _windowWidth = MIN_WINDOW_WIDTH;
         private int _windowHeight = MIN_WINDOW_HEIGHT;
-
-        private GUIView.DragInfo _windowSizeDragInfo = new GUIView.DragInfo();
 
         public GUIStyle gsWin => GUIView.gsWin;
 
         public ModelOperationWindow()
         {
             this.windowIndex = 0;
-            this.isShowWnd = false;
-            this.windowRect = new Rect(
-                Screen.width - _windowWidth - 30,
-                Screen.height - _windowHeight - 100,
-                _windowWidth,
-                _windowHeight);
         }
 
-        public void Init()
+        protected override void LoadPlacement(out int x, out int y, out int width, out int height)
         {
+            x = config.modelOperationWindowPosX;
+            y = config.modelOperationWindowPosY;
+            width = config.modelOperationWindowWidth;
+            height = config.modelOperationWindowHeight;
+        }
+
+        protected override void StorePlacement(int x, int y, int width, int height)
+        {
+            config.modelOperationWindowPosX = x;
+            config.modelOperationWindowPosY = y;
+            config.modelOperationWindowWidth = width;
+            config.modelOperationWindowHeight = height;
+            config.dirty = true;
+        }
+
+        public override void Init()
+        {
+            base.Init();
+
+            _windowWidth = (int)windowRect.width;
+            _windowHeight = (int)windowRect.height;
+            InitView();
+        }
+
+        protected override void OnSizeChanged(int width, int height)
+        {
+            _windowWidth = width;
+            _windowHeight = height;
+            InitView();
         }
 
         public void InitView()
         {
-            _rootView.Init(0, 0, _windowWidth, _windowHeight);
-            _headerView.Init(0, 0, _windowWidth, HEADER_HEIGHT);
-            _contentView.Init(0, HEADER_HEIGHT, _windowWidth,
-                _windowHeight - HEADER_HEIGHT - FOOTER_HEIGHT);
-            _footerView.Init(0, _windowHeight - FOOTER_HEIGHT, _windowWidth, FOOTER_HEIGHT);
+            var headerHeight = DockableWindowBase.HEADER_HEIGHT;
 
-            _headerView.parent = _rootView;
+            _rootView.Init(0, 0, _windowWidth, _windowHeight);
+            _contentView.Init(0, headerHeight, _windowWidth, _windowHeight - headerHeight);
+
             _contentView.parent = _rootView;
-            _footerView.parent = _rootView;
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update();
+
             // ギズモ回転のオイラー角正規化はウィンドウ非表示中も回す
             // （他の編集モードでもギズモ自体は操作できるため）
             placer.Update();
@@ -178,167 +171,37 @@ namespace COM3D2.ModItemExplorer.Plugin
             isShowWnd = showWnd;
         }
 
-        public void Close()
+        public override void Close()
         {
-            isShowWnd = false;
+            base.Close();
+
+            // isShowWnd は Update() が毎フレーム計算し直すため、こちらも落とす
             _userVisible = false;
 
             // プラグイン無効化時にも呼ばれるため、ギズモとハイライトをここで片付ける
             placer.isModelEditMode = false;
         }
 
-        public void OnLoad()
-        {
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
 
-        public void OnScreenSizeChanged()
-        {
-            ClampWindowSize();
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
+        public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             selectedModel = null;
         }
 
-        public void InitGUI()
-        {
-            if (_initializedGUI)
-            {
-                return;
-            }
-            _initializedGUI = true;
-
-            // 画面解像度が変わった後でも収まるよう、保存値は読み込み時点で丸める
-            ClampWindowSize();
-
-            _windowWidth = config.modelOperationWindowWidth;
-            _windowHeight = config.modelOperationWindowHeight;
-            _windowRect.width = _windowWidth;
-            _windowRect.height = _windowHeight;
-
-            InitView();
-
-            if (config.modelOperationWindowPosX != -1 && config.modelOperationWindowPosY != -1)
-            {
-                _windowRect.x = config.modelOperationWindowPosX;
-                _windowRect.y = config.modelOperationWindowPosY;
-            }
-
-            MTEUtils.AdjustWindowPosition(ref _windowRect);
-        }
-
-        public void OnGUI()
-        {
-            if (!isShowWnd)
-            {
-                return;
-            }
-
-            InitGUI();
-
-            if (_windowWidth != config.modelOperationWindowWidth ||
-                _windowHeight != config.modelOperationWindowHeight)
-            {
-                _windowWidth = config.modelOperationWindowWidth;
-                _windowHeight = config.modelOperationWindowHeight;
-                _windowRect.width = _windowWidth;
-                _windowRect.height = _windowHeight;
-                InitView();
-            }
-
-            windowRect = GUI.Window(WINDOW_ID, windowRect, DrawWindow, "モデル操作", gsWin);
-            MTEUtils.ResetInputOnScroll(windowRect);
-
-            if (config.modelOperationWindowPosX != (int)windowRect.x ||
-                config.modelOperationWindowPosY != (int)windowRect.y)
-            {
-                config.modelOperationWindowPosX = (int)windowRect.x;
-                config.modelOperationWindowPosY = (int)windowRect.y;
-            }
-        }
-
-        private void DrawWindow(int id)
+        protected override void DrawContent()
         {
             _rootView.ResetLayout();
 
-            DrawHeader();
-            DrawContent();
-            DrawResizeGrip();
+            DrawMainContent();
 
-            _rootView.DrawComboBox();
-
-            // リサイズ中にウィンドウ移動が同時に走ると位置とサイズが競合するため抑止する
-            if (!_windowSizeDragInfo.isDragging)
-            {
-                GUI.DragWindow();
-            }
+            ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
 
-        /// <summary>
-        /// 右下のリサイズグリップ。実サイズは config 経由で OnGUI が反映する
-        /// </summary>
-        private void DrawResizeGrip()
-        {
-            var view = _footerView;
-            view.ResetLayout();
-
-            // フッター内の右端に合わせるため、padding/margin は入れない
-            view.padding = Vector2.zero;
-            view.margin = 0;
-
-            view.BeginLayout(GUIView.LayoutDirection.Free);
-
-            view.currentPos.x = _windowWidth - FOOTER_HEIGHT;
-
-            view.DrawDraggableButton("□", FOOTER_HEIGHT, FOOTER_HEIGHT,
-                _windowSizeDragInfo,
-                new Vector2(_windowWidth, _windowHeight),
-                null,
-                value =>
-                {
-                    config.modelOperationWindowWidth = (int)value.x;
-                    config.modelOperationWindowHeight = (int)value.y;
-
-                    ClampWindowSize();
-
-                    config.dirty = true;
-                });
-        }
-
-        private void ClampWindowSize()
-        {
-            config.modelOperationWindowWidth = Mathf.Clamp(
-                config.modelOperationWindowWidth, MIN_WINDOW_WIDTH, Screen.width);
-            config.modelOperationWindowHeight = Mathf.Clamp(
-                config.modelOperationWindowHeight, MIN_WINDOW_HEIGHT, Screen.height);
-        }
-
-        private void DrawHeader()
-        {
-            var view = _headerView;
-            view.ResetLayout();
-
-            view.padding = Vector2.zero;
-
-            view.BeginLayout(GUIView.LayoutDirection.Free);
-
-            view.currentPos.x = _windowWidth - 20;
-
-            if (view.DrawButton("x", 20, 20))
-            {
-                // isShowWnd は Update() が毎フレーム計算し直すため、こちらを落とす
-                _userVisible = false;
-            }
-        }
-
-        private void DrawContent()
+        private void DrawMainContent()
         {
             var view = _contentView;
             view.ResetLayout();
-            view.SetEnabled(!view.IsComboBoxFocused());
+            view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
             _tabType = view.DrawTabs(_tabType, 80, ROW_HEIGHT);
 
@@ -549,28 +412,20 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// ギズモの操作種別。dragType は配置モデル全体で共有される
+        /// ギズモの操作種別と軸空間。dragType は配置モデル全体で共有される
         /// </summary>
         private void DrawGizmoRow(GUIView view)
         {
-            view.BeginHorizontal();
+            GizmoToolRowDrawer.Draw(view, new GizmoToolRowOption
             {
-                view.DrawLabel("ギズモ", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-
-                view.DrawToggle("なし", placer.dragType == SelfModelPlacer.GizmoDragType.None,
-                    60, ROW_HEIGHT,
-                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.None);
-                view.DrawToggle("移動", placer.dragType == SelfModelPlacer.GizmoDragType.Move,
-                    60, ROW_HEIGHT,
-                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Move);
-                view.DrawToggle("回転", placer.dragType == SelfModelPlacer.GizmoDragType.Rotate,
-                    60, ROW_HEIGHT,
-                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Rotate);
-                view.DrawToggle("拡縮", placer.dragType == SelfModelPlacer.GizmoDragType.Scale,
-                    60, ROW_HEIGHT,
-                    _ => placer.dragType = SelfModelPlacer.GizmoDragType.Scale);
-            }
-            view.EndLayout();
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                labelStyle = GUIView.gsLabelRight,
+                getTool = () => SelfModelPlacer.ToGizmoTool(placer.dragType),
+                setTool = tool => placer.dragType = SelfModelPlacer.FromGizmoTool(tool),
+                getUseLocalSpace = () => placer.useLocalSpace,
+                setUseLocalSpace = value => placer.useLocalSpace = value,
+            });
         }
 
         /// <summary>
@@ -586,23 +441,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            var cache = view.GetTransformCache(go.transform);
-
-            DrawVector3Row(view, "位置", PositionSensitivity, cache.position,
-                (value, _) => { cache.position = value; cache.Apply(); },
-                () => { cache.position = Vector3.zero; cache.Apply(); });
-
-            // 回転は SelfModelPlacer のオイラー角キャッシュを使う。
-            // ギズモ操作分も軸単位で足し込まれるため、ハンドル操作が該当軸の数値だけを動かす
-            DrawVector3Row(view, "回転", RotationSensitivity, placer.GetEulerAngles(model),
-                (value, _) => placer.SetEulerAngles(model, value),
-                () => placer.SetEulerAngles(model, Vector3.zero));
-
-            DrawVector3Row(view, "拡縮", ScaleSensitivity, cache.scale,
-                (value, index) => ApplyScale(cache, value, index),
-                () => { cache.scale = Vector3.one; cache.Apply(); });
-
-            DrawScaleLinkRow(view);
+            ModelTransformRowDrawer.Draw(view, model, go, LABEL_WIDTH, ROW_HEIGHT,
+                labelStyle: GUIView.gsLabelRight);
 
             DrawAttachRow(view, model);
         }
@@ -616,108 +456,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 view.DrawLabel("アタッチ", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
 
-                // 現在のアタッチ状態をコンボに反映する（見つからなければ「なし」）
-                var state = placer.GetAttachState(model);
-                var boneName = state != null ? state.boneName : null;
-                _attachPointComboBox.currentIndex = Mathf.Max(0,
-                    SelfModelPlacer.AttachPoints.FindIndex(p => p.boneName == boneName));
+                _attachPointComboBox.currentIndex = placer.GetAttachPointIndex(model);
 
                 _attachPointComboBox.onSelected = (point, _) =>
                     placer.Attach(model, modItemManager.currentMaid, point);
                 _attachPointComboBox.DrawButton(view);
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>
-        /// 拡縮の連動トグル。オンにすると 1 軸の変更を他軸へ比率で波及させる。
-        /// 拡縮行に並べると幅が足りないため独立した行にしている
-        /// </summary>
-        private void DrawScaleLinkRow(GUIView view)
-        {
-            view.BeginHorizontal();
-            {
-                // 拡縮行と列を揃えるためラベル幅分を空ける
-                view.DrawLabel("", LABEL_WIDTH, ROW_HEIGHT);
-
-                view.DrawToggle("XYZ連動", _scaleLinked, 100, ROW_HEIGHT,
-                    value => _scaleLinked = value);
-            }
-            view.EndLayout();
-        }
-
-        /// <summary>
-        /// 拡縮を適用する。連動中は変更軸の変化率を全軸に掛けて、元の比率を保ったまま拡縮する
-        /// </summary>
-        private void ApplyScale(TransformCache cache, Vector3 value, int index)
-        {
-            if (_scaleLinked)
-            {
-                var oldValue = cache.scale[index];
-                if (Mathf.Abs(oldValue) > ScaleLinkEpsilon)
-                {
-                    value = cache.scale * (value[index] / oldValue);
-                }
-                else
-                {
-                    // 0 付近は比率が求まらないため、このときだけ全軸を同じ値にそろえる
-                    value = Vector3.one * value[index];
-                }
-            }
-
-            cache.scale = value;
-            cache.Apply();
-        }
-
-        /// <summary>
-        /// ラベル + XYZ（ドラッグラベル + 数値入力）+ リセットボタンの1行を描画。
-        /// onChanged には変更後の値と、変更された軸のインデックスを渡す（連動処理で使う）
-        /// </summary>
-        private void DrawVector3Row(
-            GUIView view,
-            string label,
-            float dragSensitivity,
-            Vector3 value,
-            Action<Vector3, int> onChanged,
-            Action onReset)
-        {
-            view.BeginHorizontal();
-            {
-                view.DrawLabel(label, LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-
-                for (var i = 0; i < 3; i++)
-                {
-                    var index = i;
-
-                    view.DrawDragLabel(AxisNames[index], 14, ROW_HEIGHT, dragSensitivity, delta =>
-                    {
-                        value[index] += delta;
-                        onChanged(value, index);
-                    });
-
-                    // FloatFieldOption.label はフィールド左のラベル描画も兼ねるため、
-                    // XYZ を並べるここでは label を渡さずキャッシュだけ自前で取る
-                    var fieldCache = view.GetFieldCache(label + index, FloatFieldType.F3);
-                    fieldCache.UpdateValue(value[index]);
-
-                    view.DrawFloatField(new GUIView.FloatFieldOption
-                    {
-                        value = value[index],
-                        width = 62,
-                        height = ROW_HEIGHT,
-                        fieldCache = fieldCache,
-                        onChanged = newValue =>
-                        {
-                            value[index] = newValue;
-                            onChanged(value, index);
-                        },
-                    });
-                }
-
-                if (view.DrawButton("R", 20, ROW_HEIGHT))
-                {
-                    onReset();
-                }
             }
             view.EndLayout();
         }

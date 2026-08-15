@@ -11,6 +11,9 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         PluginToggle,
         OpenExplorer,
+        GizmoMove,
+        GizmoRotate,
+        GizmoScale,
     }
 
     public enum ItemSortType
@@ -53,14 +56,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         public float tagBGAlpha = 0.9f;
         public int colorPaletteWindowPosX = -1;
         public int colorPaletteWindowPosY = -1;
+        public int colorPaletteWindowWidth = 540;
+        public int colorPaletteWindowHeight = 240;
         public int customPartsWindowPosX = -1;
         public int customPartsWindowPosY = -1;
+        public int customPartsWindowWidth = 480;
+        public int customPartsWindowHeight = 360;
         public float customPartsPositionRange = 1f;
         public bool customPartsAutoEditMode = false;
         public int hairLengthWindowPosX = -1;
         public int hairLengthWindowPosY = -1;
+        public int hairLengthWindowWidth = 320;
+        public int hairLengthWindowHeight = 320;
         public int motionWindowPosX = -1;
         public int motionWindowPosY = -1;
+        public int motionWindowWidth = 520;
+        // 初期表示は「拡張」を想定した高さ。非拡張時は MotionWindow.WINDOW_HEIGHT まで手動で縮められる
+        public int motionWindowHeight = 320;
         public int modelOperationWindowPosX = -1;
         public int modelOperationWindowPosY = -1;
         public int modelOperationWindowWidth = 380;
@@ -93,6 +105,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             { KeyBindType.PluginToggle, new KeyBind("Alt+M") },
             { KeyBindType.OpenExplorer, new KeyBind("Shift") },
+            { KeyBindType.GizmoMove, new KeyBind("Z") },
+            { KeyBindType.GizmoRotate, new KeyBind("X") },
+            { KeyBindType.GizmoScale, new KeyBind("C") },
         };
 
         public struct KeyBindPair

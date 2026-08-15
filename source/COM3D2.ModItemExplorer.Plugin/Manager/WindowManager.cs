@@ -1,26 +1,10 @@
-using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
-    public interface IWindow
-    {
-        int windowIndex { get; set; }
-        bool isShowWnd { get; set; }
-        Rect windowRect { get; set; }
-
-        void Init();
-        void Update();
-        void Close();
-        void OnLoad();
-        void OnScreenSizeChanged();
-        void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode);
-        void OnGUI();
-    }
-
-    public class WindowManager : ManagerBase
+    public class WindowManager : WindowManagerBase
     {
         public ModItemWindow modItemWindow = null;
         public ColorPaletteWindow colorPaletteWindow = null;
@@ -29,14 +13,17 @@ namespace COM3D2.ModItemExplorer.Plugin
         public MotionWindow motionWindow = null;
         public ModelOperationWindow modelOperationWindow = null;
 
-        public List<IWindow> windows = new List<IWindow>();
-
-        private int _screenWidth = 0;
-        private int _screenHeight = 0;
         private bool _isCameraControlDisabled = false;
         private bool _isUIInputDisabled = false;
         private bool _isGizmoLocked = false;
         private bool _isMouseOverWindow = false;
+
+        /// <summary>
+        /// 自プラグインのウィンドウ上にカーソルがあるか（UpdateInputBlock が毎フレーム更新）。
+        /// 窓上の押下を掴み判定から除外したい箇所（配置モデルギズモ等）で参照する
+        /// </summary>
+        public bool isMouseOverWindow => _isMouseOverWindow;
+
         private bool _isMousePressInProgress = false;
         private bool _isCameraPressInProgress = false;
         private bool _isCameraDragFromOutside = false;
@@ -66,6 +53,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override void Init()
         {
+            base.Init();
+
             modItemWindow = new ModItemWindow();
             AddWindow(modItemWindow);
 
@@ -83,33 +72,13 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             modelOperationWindow = new ModelOperationWindow();
             AddWindow(modelOperationWindow);
+
+            // コンボボックスのポップアップは他の窓より前面に出す必要があるため最後に登録する
+            AddWindow(ComboBoxPopupWindow.instance);
         }
 
-        public void AddWindow(IWindow window)
+        protected override void OnAfterUpdate()
         {
-            windows.Add(window);
-            window.Init();
-        }
-
-        public override void Update()
-        {
-            bool isScreenSizeChanged = _screenWidth != Screen.width || _screenHeight != Screen.height;
-            if (isScreenSizeChanged)
-            {
-                foreach (var window in windows)
-                {
-                    window.OnScreenSizeChanged();
-                }
-
-                _screenWidth = Screen.width;
-                _screenHeight = Screen.height;
-            }
-
-            foreach (var window in windows)
-            {
-                window.Update();
-            }
-
             UpdateInputBlock();
         }
 
@@ -128,6 +97,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             var isMouseOverWindow = false;
             foreach (var window in windows)
             {
+                // 非アクティブタブの窓は描かれていないので入力ブロックの根拠にしない
+                var tabWindow = window as ITabVisibleWindow;
+                if (tabWindow != null && !tabWindow.isTabVisible)
+                {
+                    continue;
+                }
+
                 if (window.isShowWnd && MTEUtils.IsMouseOverWindowRect(window.windowRect))
                 {
                     isMouseOverWindow = true;
@@ -250,8 +226,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// ドラッグ扱いになり、そのままカーソルがハンドルへ重なった瞬間に操作を奪われてしまう。
         /// 判定は押下フレームの _isMouseOverWindow だけで行い、以降はボタンを離すまで維持する。
         /// GizmoRender.Update より後・OnRenderObject より前に走る必要があるため LateUpdate で処理する。
-        /// 自前のモデル用ギズモは ModelGizmoRender が自分で掴み判定を絞るので、ここが効くのは
-        /// ゲーム側や他プラグインのギズモに対してのみ
+        /// 自前のモデル用ギズモは GizmoRender を使わない（TransformGizmo で自前に掴み判定を絞る）ため、
+        /// ここが効くのはゲーム側や他プラグインのギズモに対してのみ
         /// </summary>
         private void UpdateGizmoDragSuppress()
         {
@@ -311,43 +287,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             _isCameraDragFromOutside = false;
         }
 
-        public override void OnLoad()
-        {
-            foreach (var window in windows)
-            {
-                window.OnLoad();
-            }
-        }
-
-        public override void OnPluginDisable()
+        protected override void OnBeforeCloseWindows()
         {
             RestoreInputBlock();
-
-            foreach (var window in windows)
-            {
-                window.Close();
-            }
         }
 
         public override void OnChangedSceneLevel(Scene scene, LoadSceneMode sceneMode)
         {
             RestoreInputBlock();
 
-            foreach (var window in windows)
-            {
-                window.OnChangedSceneLevel(scene, sceneMode);
-            }
-        }
-
-        public void OnGUI()
-        {
-            // 組み込み GUIStyle の複製は OnGUI 内でしか行えないためここで初期化する
-            GUIView.InitStyles();
-
-            foreach (var window in windows)
-            {
-                window.OnGUI();
-            }
+            base.OnChangedSceneLevel(scene, sceneMode);
         }
     }
 }
