@@ -391,5 +391,35 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return _sortTimeDescIconTexture;
             }
         }
+
+        /// <summary>XYZ連動 (鎖)。EditorWindow の ToolbarIcons と同じ画像を使い、見た目をそろえている</summary>
+        public readonly static byte[] LinkIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACrElEQVR42r1X0a2jQAx0CXRwlEAH" +
+            "8H8nhb+7v9BB6AA6gA5CB9ABdAAdQAehg30MstHCC7AE3llCUQjLjL2e8Ybo2rCIyCWiiIgS/nT5" +
+            "/o+GxYDKtm11u91UFEXjJ77jPhHlP0XEI6LW8zzVtq16F6/XS/m+DxIvIvKvBA+QXZIkyiTyPFeW" +
+            "ZamrSIzgz+dzAuj7XsVxrFAN/OY4jgqCYLyvk+BKWGfLPgNvmkb2uxguh5+zB6AUWVdVNT3L25Gf" +
+            "IVCEYTgD59KGa9XC71IJ9AQ35sdVyJDFAjzYWZNiOySwPVzJjwKl7TWJBSZrACoBMsPN+IzR/Cai" +
+            "f0zGNCYCaFZUxXQhAFsxGtd1pey46uG3u8E7HKhj0Yi7FUA31ygd5IPm0aOu69HxeCvKnabK9cbl" +
+            "Nd6uzgGwFyDGTVWvkAgBKAl0Xbergm8mg0jTVCELlBJ7CAXoJNiAyncSRLUk+LnUGBxAnGHH+4Yr" +
+            "gxJ0aWn6XgVHEvweyxicGy7mnmgZBJn+Gny9Ebvlzu7WwLMsE4Kesb0uTKYFCDJlHddMouIXd0wy" +
+            "2gAP1vTdojwb4KOO9cHCJDBYnizVUa7YriPgo03qGt2w1wrP6SREivCGx+PxrXFNwJH9dJjAy1mj" +
+            "4cqzDTLUSawF98SuVXsAlIDMeKRuEa6wZilFSaAoClFNo43m1YhlsmkatQ0PJAAYtwvrtOHUHRk0" +
+            "KTKRWOjYZCr+JaI/DOh9MuPjN3PatAKSdXtwKs574M2c3huTM5PhyZadOdPPjks7J5zH0mS4cT8m" +
+            "MJ7x9EYsy1JIJFpp0c0lSn7EXo9UoYd89MFyv9+lJ0ajgeHoZwITkzkSPrLWSWwFT7XLwCcSqAS2" +
+            "Y83pcJhgr+jOln1rOwqRGMjIvx3NaNL/9Y/XY4NJeTZ4VwN/ATB4H8FIkCRfAAAAAElFTkSuQmCC");
+
+        private static Texture2D _linkIconTexture = null;
+        public static Texture2D LinkIconTexture
+        {
+            get
+            {
+                if (_linkIconTexture == null)
+                {
+                    _linkIconTexture = new Texture2D(1, 1);
+                    _linkIconTexture.LoadImage(LinkIcon);
+                }
+                return _linkIconTexture;
+            }
+        }
     }
 }
