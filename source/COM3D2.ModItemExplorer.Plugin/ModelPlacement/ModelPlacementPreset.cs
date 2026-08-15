@@ -15,8 +15,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         public float rotX, rotY, rotZ;
         public float sclX = 1f, sclY = 1f, sclZ = 1f;
 
-        /// <summary>アタッチ先メイドのスロット番号。-1 は未アタッチ</summary>
-        public int attachMaidSlotNo = -1;
+        /// <summary>
+        /// アタッチ先メイドの guid。null/空 は未アタッチ。
+        /// スロット番号はシーンをまたぐと変わるため、EditorWindow のシーンプリセット本体に合わせて guid で持つ
+        /// </summary>
+        public string attachMaidGuid = null;
 
         /// <summary>アタッチ先ボーン名。null/空 は未アタッチ</summary>
         public string attachBoneName = null;
@@ -27,8 +30,14 @@ namespace COM3D2.ModItemExplorer.Plugin
     /// </summary>
     public class ModelPlacementPreset
     {
-        /// <summary>将来のフォーマット変更時の互換判定用（現状は書き出すだけで参照しない）</summary>
-        public int version = 1;
+        /// <summary>
+        /// 現行フォーマットのバージョン。
+        /// version 2: アタッチ先の識別子がスロット番号から guid になった
+        /// </summary>
+        public const int CurrentVersion = 2;
+
+        /// <summary>フォーマットの互換判定用。旧形式の読み込み時に警告を出すために使う</summary>
+        public int version = CurrentVersion;
         public List<ModelPlacementPresetItem> items = new List<ModelPlacementPresetItem>();
     }
 }

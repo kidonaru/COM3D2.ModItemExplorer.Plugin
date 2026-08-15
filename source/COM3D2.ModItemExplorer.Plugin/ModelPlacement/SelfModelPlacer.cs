@@ -20,13 +20,15 @@ namespace COM3D2.ModItemExplorer.Plugin
         private const string ParentObjectName = "ModItemExplorer Model Parent";
 
         /// <summary>ギズモの大きさ。既定倍率では配置モデルに対して大きすぎるため縮めている</summary>
-        private const float GizmoScale = 0.5f;
+        public const float GizmoScale = 0.5f;
 
         /// <summary>選択中モデルのハイライト色。元色との間を往復させる</summary>
         private static readonly Color HighlightColor = new Color(0.4f, 1f, 0.4f, 1f);
 
         /// <summary>ハイライトの明滅周期(秒)</summary>
         private const float HighlightCycle = 1.2f;
+
+        private static ModItemManager modItemManager => ModItemManager.instance;
 
         private static SelfModelPlacer _instance = null;
         public static SelfModelPlacer instance
@@ -40,6 +42,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private GameObject _parentGo = null;
 
+        private ModelPlacementHistory _history = null;
+
+        /// <summary>配置操作を EditorWindow の操作履歴へ積む窓口</summary>
+        public ModelPlacementHistory history
+            => _history ?? (_history = new ModelPlacementHistory(this));
+
         /// <summary>アタッチ先ボーンの定義</summary>
         public class AttachPoint
         {
@@ -49,10 +57,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             public string boneName;
         }
 
-        /// <summary>アタッチ中のモデルの状態。復元用にスロット番号とボーン名を持つ</summary>
+        /// <summary>アタッチ中のモデルの状態。復元用にメイドの guid とボーン名を持つ</summary>
         public class AttachState
         {
-            public int maidSlotNo;
+            public string maidGuid;
             public string boneName;
         }
 
@@ -137,6 +145,24 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        private bool _useLocalSpace = true;
+
+        /// <summary>ギズモの軸空間 (true = Local)。EW 在席時は GizmoToolClient と双方向同期する</summary>
+        public bool useLocalSpace
+        {
+            get => _useLocalSpace;
+            set
+            {
+                if (_useLocalSpace == value)
+                {
+                    return;
+                }
+
+                _useLocalSpace = value;
+                ModelGizmoManager.instance.SetUseLocalSpace(value);
+            }
+        }
+
         private StudioModelStatWrapper _selectedModel = null;
 
         /// <summary>
@@ -169,8 +195,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                     return;
                 }
 
+                var previousGo = _selectedModel?.obj as GameObject;
+
+                // 同期が EW の onSelectionChanged 経由で OnHostSelectionChanged として
+                // 戻ってきたときに同値判定で止まるよう、同期より先に代入しておく
                 _selectedModel = value;
                 RefreshHighlight();
+                SyncSelectionToHost(previousGo);
             }
         }
 
@@ -284,6 +315,134 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        // ---- EditorWindow の選択連携 ----
+
+        // 購読の再試行間隔 (フレーム)。ホスト型の解決は毎フレーム行うほど安くはない
+        private const int SelectionRetryIntervalFrames = 60;
+        // int.MinValue だと frame - _lastSelectionAttemptFrame がオーバーフローして負になり、
+        // リトライガードが恒久的に成立して一度も購読を試行しなくなる
+        private int _lastSelectionAttemptFrame = -SelectionRetryIntervalFrames;
+        private bool _selectionHandlerRegistered;
+
+        /// <summary>
+        /// EW への接続（選択変更の購読と Inspector 描画の登録）を行う。
+        /// EW は後からロードされる可能性があるため、両方そろうまで一定間隔で再試行する
+        /// （ModelGizmoManager のホスト登録と同じパターン）
+        /// </summary>
+        private void TryRegisterHostConnections()
+        {
+            if (_selectionHandlerRegistered && _inspectorHandle != null)
+            {
+                return;
+            }
+
+            var frame = Time.frameCount;
+            if (frame - _lastSelectionAttemptFrame < SelectionRetryIntervalFrames)
+            {
+                return;
+            }
+            _lastSelectionAttemptFrame = frame;
+
+            if (!_selectionHandlerRegistered)
+            {
+                _selectionHandlerRegistered = SelectionClient.AddSelectionChangedHandler(OnHostSelectionChanged);
+            }
+            TryRegisterInspector();
+        }
+
+        // EW の InspectorHost へ登録済みか。EW は後からロードされる可能性があるため
+        // 成功するまで再試行する (選択購読の再試行間隔に相乗りする)
+        private object _inspectorHandle;
+        private ModelInspectorDrawer _inspectorDrawer;
+
+        /// <summary>
+        /// EW Inspector へ管理モデルの委譲描画を登録する。
+        /// EW 不在時は InspectorHostClient が無効を返すため何もしない
+        /// </summary>
+        private void TryRegisterInspector()
+        {
+            if (_inspectorHandle != null || !InspectorHostClient.isAvailable)
+            {
+                return;
+            }
+
+            if (_inspectorDrawer == null)
+            {
+                _inspectorDrawer = new ModelInspectorDrawer();
+            }
+
+            _inspectorHandle = InspectorHostClient.Register(
+                "ModItemExplorer",
+                _inspectorDrawer.CanDraw,
+                _inspectorDrawer.Draw);
+
+            if (_inspectorHandle != null)
+            {
+                MTEUtils.LogDebug("SelfModelPlacer: InspectorHost へ登録しました");
+            }
+        }
+
+        /// <summary>
+        /// 選択状態を EW の SelectionManager へ反映する。Inspector に選択として表示されるが、
+        /// ギズモは常に ModelGizmoManager 側を使うため showGizmo = false で抑止する
+        /// </summary>
+        private void SyncSelectionToHost(GameObject previousGo)
+        {
+            if (!SelectionClient.isAvailable)
+            {
+                return;
+            }
+
+            var go = _selectedModel?.obj as GameObject;
+            if (go != null)
+            {
+                SelectionClient.Select(go, showGizmo: false);
+            }
+            else if (previousGo != null && SelectionClient.selectedObject == previousGo)
+            {
+                // 自分が選ばせたオブジェクトだけ解除する。
+                // EW 側でユーザーが選び直した別オブジェクトの選択は奪わない
+                SelectionClient.Select(null, showGizmo: true);
+            }
+        }
+
+        /// <summary>
+        /// EW 側の選択変更を MTE 側へ追従させる。自プラグイン管理のモデルなら選択し、
+        /// それ以外（他オブジェクト・選択解除）なら MTE 側の選択を外す
+        /// </summary>
+        private void OnHostSelectionChanged(GameObject go)
+        {
+            // EW のマルチキャストデリゲートから直接呼ばれるため、
+            // ここで例外を漏らすと EW 側の発火元や他の購読者を巻き込んで止めてしまう
+            try
+            {
+                selectedModel = FindModelByGameObject(go);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("EW の選択変更の反映に失敗しました");
+                MTEUtils.LogException(e);
+            }
+        }
+
+        /// <summary>配置済みモデルを GameObject から逆引きする。管理外なら null</summary>
+        public StudioModelStatWrapper FindModelByGameObject(GameObject go)
+        {
+            if (go == null)
+            {
+                return null;
+            }
+
+            foreach (var model in _models)
+            {
+                if ((model.obj as GameObject) == go)
+                {
+                    return model;
+                }
+            }
+            return null;
+        }
+
         /// <summary>
         /// 配置中のモデル一覧。呼び出し側の走査中に増減しても壊れないようコピーを返す。
         /// 要素の Wrapper は配置中ずっと同一インスタンスであること（ツリー側が参照比較で追従するため）
@@ -355,6 +514,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 // 配置直後は操作対象にする（3D 上のハイライトと一覧の選択表示を一致させる）
                 selectedModel = wrapper;
 
+                history.RegisterCreate(wrapper, history.TryCaptureState(wrapper));
+
                 return wrapper;
             }
             catch (Exception e)
@@ -383,6 +544,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         public void Update()
         {
+            TryRegisterHostConnections();
+            UpdateGizmoKeyInput();
+            UpdateGizmoToolSync();
+            ModelGizmoManager.instance.Update();
+
             foreach (var model in _models)
             {
                 var go = model.obj as GameObject;
@@ -408,6 +574,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 cache.rotation = Quaternion.Euler(cache.eulerAngles);
                 t.localRotation = cache.rotation;
             }
+
+            // オイラー角の確定後に見ないと、回転の差分を過渡状態のまま拾ってしまう
+            history.UpdateTransformAggregation(_models, isModelEditMode);
 
             UpdateHighlight();
         }
@@ -472,6 +641,16 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// 現在のアタッチ先が AttachPoints の何番目か。未アタッチ・該当なしは 0 (なし)
+        /// </summary>
+        public int GetAttachPointIndex(StudioModelStatWrapper model)
+        {
+            var state = GetAttachState(model);
+            var boneName = state != null ? state.boneName : null;
+            return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == boneName));
+        }
+
+        /// <summary>
         /// モデルをメイドのボーンにアタッチする。point.boneName が null ならワールドに戻す。
         /// 切替時はローカル位置・回転をリセットしてボーン直上に置く
         /// </summary>
@@ -488,6 +667,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            // Attach は位置・回転もリセットするため、履歴の控えは Transform ごと取る
+            var historyState = history.TryCaptureState(model);
+
             Transform parent;
             if (point != null && point.boneName != null)
             {
@@ -501,7 +683,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 parent = bone;
                 _attachStates[model] = new AttachState
                 {
-                    maidSlotNo = maid.ActiveSlotNo,
+                    maidGuid = maid.status.guid,
                     boneName = point.boneName,
                 };
             }
@@ -516,6 +698,52 @@ namespace COM3D2.ModItemExplorer.Plugin
             // 拡縮はアタッチ後も見た目を保ちたいため維持する
             // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
             SetEulerAngles(model, Vector3.zero);
+
+            history.RegisterAttach(model, historyState);
+        }
+
+        /// <summary>
+        /// 保存データのアタッチ状態を復元する。未アタッチならワールド配置へ戻す
+        /// </summary>
+        internal void RestoreAttachState(StudioModelStatWrapper model, ModelPlacementPresetItem item)
+        {
+            if (string.IsNullOrEmpty(item.attachMaidGuid) || string.IsNullOrEmpty(item.attachBoneName))
+            {
+                Attach(model, null, null);
+                return;
+            }
+
+            var maid = FindAttachTargetMaid(item.attachMaidGuid);
+            var point = AttachPoints.Find(p => p.boneName == item.attachBoneName);
+            if (maid == null || point == null)
+            {
+                MTEUtils.LogWarning("アタッチ先が見つからないためワールド配置に戻します。{0}", item.attachBoneName);
+                Attach(model, null, null);
+                return;
+            }
+
+            Attach(model, maid, point);
+        }
+
+        /// <summary>
+        /// guid からアタッチ先メイドを引く。別セーブのプリセットなど guid が一致しない場合は
+        /// 現在の対象メイドで代替する（見つからなければ null）
+        /// </summary>
+        private static Maid FindAttachTargetMaid(string maidGuid)
+        {
+            var maid = GameMain.Instance.CharacterMgr.GetMaid(maidGuid);
+            if (maid != null)
+            {
+                return maid;
+            }
+
+            var currentMaid = modItemManager.currentMaid;
+            if (currentMaid != null)
+            {
+                MTEUtils.LogWarning("アタッチ先メイドが見つからないため現在の対象メイドに割り当てます。{0}", maidGuid);
+            }
+
+            return currentMaid;
         }
 
         /// <summary>
@@ -537,6 +765,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            if (model.visible == visible)
+            {
+                return;
+            }
+
+            var historyState = history.TryCaptureState(model);
+
             model.visible = visible;
 
             var go = model.obj as GameObject;
@@ -544,6 +779,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 go.SetActive(visible);
             }
+
+            history.RegisterVisible(model, historyState, visible);
         }
 
         /// <summary>
@@ -556,6 +793,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            // 破棄すると状態を読めなくなるため、履歴用の控えは削除前に取る
+            var historyState = history.TryCaptureState(model);
+            var historyName = model.displayName;
+
             if (selectedModel == model)
             {
                 selectedModel = null;
@@ -566,6 +807,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 var go = model.obj as GameObject;
                 if (go != null)
                 {
+                    ModelGizmoManager.instance.RemoveGizmo(go);
                     UnityEngine.Object.Destroy(go);
                 }
 
@@ -584,6 +826,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             _models.Remove(model);
             _attachStates.Remove(model);
             _rotationCaches.Remove(model);
+            history.Forget(model);
+
+            history.RegisterDelete(historyState, historyName);
         }
 
         /// <summary>
@@ -593,10 +838,16 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             selectedModel = null;
 
-            foreach (var model in modelList)
+            // 一括破棄は 1 体ずつ履歴に積んでも戻せないため登録しない。
+            // 世代を進めて、既存の生成/削除エントリが復活させに来ないようにする
+            history.RunSuppressed(() =>
             {
-                DeleteModel(model);
-            }
+                foreach (var model in modelList)
+                {
+                    DeleteModel(model);
+                }
+            });
+            history.InvalidateAll();
 
             _models.Clear();
             _disposables.Clear();
@@ -696,33 +947,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             try
             {
-                var preset = new ModelPlacementPreset();
-
-                foreach (var model in _models)
-                {
-                    var go = model.obj as GameObject;
-                    if (go == null)
-                    {
-                        continue;
-                    }
-
-                    var t = go.transform;
-                    var attach = GetAttachState(model);
-                    // 回転はキャッシュ値を保存し、UI に表示している数値と一致させる
-                    var euler = GetEulerAngles(model);
-                    preset.items.Add(new ModelPlacementPresetItem
-                    {
-                        fileName = model.infoWrapper?.fileName,
-                        group = model.group,
-                        visible = model.visible,
-                        // UI・アタッチと揃えるためローカル系で保存する
-                        posX = t.localPosition.x, posY = t.localPosition.y, posZ = t.localPosition.z,
-                        rotX = euler.x, rotY = euler.y, rotZ = euler.z,
-                        sclX = t.localScale.x, sclY = t.localScale.y, sclZ = t.localScale.z,
-                        attachMaidSlotNo = attach != null ? attach.maidSlotNo : -1,
-                        attachBoneName = attach?.boneName,
-                    });
-                }
+                var preset = BuildPreset();
 
                 // 書き込み途中の例外で既存ファイルを壊さないよう、一時ファイル経由で置き換える
                 var serializer = new XmlSerializer(typeof(ModelPlacementPreset));
@@ -780,32 +1005,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     preset = (ModelPlacementPreset)serializer.Deserialize(stream);
                 }
 
-                DeleteAll();
-
-                var restored = 0;
-                foreach (var item in preset.items)
-                {
-                    // 保存時と同じ生成経路を再実行してから Transform を適用する
-                    var wrapper = CreateModel(item.fileName, item.group, item.visible);
-                    var go = wrapper?.obj as GameObject;
-                    if (go == null)
-                    {
-                        continue;
-                    }
-
-                    RestoreAttach(wrapper, item);
-
-                    // Attach はローカル位置・回転をリセットするため、必ずアタッチの後に適用する
-                    var t = go.transform;
-                    t.localPosition = new Vector3(item.posX, item.posY, item.posZ);
-                    // 回転はキャッシュ経由で適用し、保存した数値がそのまま UI に出るようにする
-                    SetEulerAngles(wrapper, new Vector3(item.rotX, item.rotY, item.rotZ));
-                    t.localScale = new Vector3(item.sclX, item.sclY, item.sclZ);
-                    restored++;
-                }
-
-                // 復元直後はどれも選択していない状態にする
-                selectedModel = null;
+                var restored = ApplyPreset(preset);
 
                 // 個別失敗はスキップされるため、実際に復元できた数を報告する
                 MTEUtils.Log("配置プリセットを復元しました。{0} ({1}/{2}体)", safeName, restored, preset.items.Count);
@@ -820,24 +1020,179 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// プリセットのアタッチ情報を復元する。メイド不在時はワールド配置のままにする
+        /// 現在の自前配置分の配置内容をプリセットデータとして取り出す
         /// </summary>
-        private void RestoreAttach(StudioModelStatWrapper wrapper, ModelPlacementPresetItem item)
+        private ModelPlacementPreset BuildPreset()
         {
-            if (item.attachMaidSlotNo < 0 || string.IsNullOrEmpty(item.attachBoneName))
+            var preset = new ModelPlacementPreset();
+
+            foreach (var model in _models)
+            {
+                var item = BuildPresetItem(model);
+                if (item != null)
+                {
+                    preset.items.Add(item);
+                }
+            }
+
+            return preset;
+        }
+
+        /// <summary>
+        /// モデル1体分の状態を取り出す。破棄済みなら null。
+        /// プリセット保存と操作履歴のスナップショットで同じ形式を使う
+        /// </summary>
+        internal ModelPlacementPresetItem BuildPresetItem(StudioModelStatWrapper model)
+        {
+            var go = model?.obj as GameObject;
+            if (go == null)
+            {
+                return null;
+            }
+
+            var t = go.transform;
+            var attach = GetAttachState(model);
+            // 回転はキャッシュ値を保存し、UI に表示している数値と一致させる
+            var euler = GetEulerAngles(model);
+            return new ModelPlacementPresetItem
+            {
+                fileName = model.infoWrapper?.fileName,
+                group = model.group,
+                visible = model.visible,
+                // UI・アタッチと揃えるためローカル系で保存する
+                posX = t.localPosition.x, posY = t.localPosition.y, posZ = t.localPosition.z,
+                rotX = euler.x, rotY = euler.y, rotZ = euler.z,
+                sclX = t.localScale.x, sclY = t.localScale.y, sclZ = t.localScale.z,
+                attachMaidGuid = attach?.maidGuid,
+                attachBoneName = attach?.boneName,
+            };
+        }
+
+        /// <summary>
+        /// プリセットデータを現在のシーンに反映する。既存の自前配置分は置き換える。
+        /// 個別失敗はスキップし、実際に復元できた数を返す
+        /// </summary>
+        private int ApplyPreset(ModelPlacementPreset preset)
+        {
+            DeleteAll();
+
+            // 旧形式はアタッチ先がスロット番号のため復元できない。黙って世界配置に落ちると気付けないので知らせる
+            if (preset.version < ModelPlacementPreset.CurrentVersion)
+            {
+                MTEUtils.LogWarning(
+                    "旧形式(version {0})の配置プリセットのため、アタッチ情報は復元されません", preset.version);
+            }
+
+            // プリセット復元は全体の入れ替えなので、1 体ずつは履歴に積まない
+            var restored = 0;
+            history.RunSuppressed(() =>
+            {
+                foreach (var item in preset.items)
+                {
+                    if (RestoreModel(item) != null)
+                    {
+                        restored++;
+                    }
+                }
+            });
+
+            // 復元直後はどれも選択していない状態にする
+            selectedModel = null;
+
+            return restored;
+        }
+
+        /// <summary>
+        /// 保存データからモデル1体を復元する。失敗時は null。
+        /// プリセット復元と操作履歴の undo/redo で同じ経路を使う
+        /// </summary>
+        internal StudioModelStatWrapper RestoreModel(ModelPlacementPresetItem item)
+        {
+            // 保存時と同じ生成経路を再実行してから Transform を適用する
+            var wrapper = CreateModel(item.fileName, item.group, item.visible);
+            if (wrapper?.obj as GameObject == null)
+            {
+                return null;
+            }
+
+            RestoreAttachState(wrapper, item);
+
+            // Attach はローカル位置・回転をリセットするため、必ずアタッチの後に適用する
+            ApplyTransform(wrapper, item);
+            return wrapper;
+        }
+
+        /// <summary>
+        /// 保存データの位置・回転・拡縮をモデルへ適用する（アタッチ先は変更しない）
+        /// </summary>
+        internal void ApplyTransform(StudioModelStatWrapper model, ModelPlacementPresetItem item)
+        {
+            var go = model?.obj as GameObject;
+            if (go == null)
             {
                 return;
             }
 
-            var maid = GameMain.Instance.CharacterMgr.GetMaid(item.attachMaidSlotNo);
-            var point = AttachPoints.Find(p => p.boneName == item.attachBoneName);
-            if (maid == null || point == null)
-            {
-                MTEUtils.LogWarning("アタッチ先が見つからないためワールド配置に戻します。{0}", item.attachBoneName);
-                return;
-            }
+            var t = go.transform;
+            t.localPosition = new Vector3(item.posX, item.posY, item.posZ);
+            // 回転はキャッシュ経由で適用し、保存した数値がそのまま UI に出るようにする
+            SetEulerAngles(model, new Vector3(item.rotX, item.rotY, item.rotZ));
+            t.localScale = new Vector3(item.sclX, item.sclY, item.sclZ);
+        }
 
-            Attach(wrapper, maid, point);
+        /// <summary>
+        /// 現在の自前配置分の配置内容を XML 文字列として取得する（外部プラグイン連携用）。
+        /// フォーマットは名前付きプリセットの xml と同一。失敗時は null
+        /// </summary>
+        public string GetPlacementXml()
+        {
+            try
+            {
+                var serializer = new XmlSerializer(typeof(ModelPlacementPreset));
+                using (var writer = new StringWriter())
+                {
+                    serializer.Serialize(writer, BuildPreset());
+                    return writer.ToString();
+                }
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("配置内容のXML化に失敗しました");
+                MTEUtils.LogException(e);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// XML 文字列から配置を復元する（外部プラグイン連携用）。既存の自前配置分は置き換える
+        /// </summary>
+        public bool ApplyPlacementXml(string xml)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(xml))
+                {
+                    MTEUtils.LogWarning("配置XMLが空です");
+                    return false;
+                }
+
+                ModelPlacementPreset preset;
+                var serializer = new XmlSerializer(typeof(ModelPlacementPreset));
+                using (var reader = new StringReader(xml))
+                {
+                    preset = (ModelPlacementPreset)serializer.Deserialize(reader);
+                }
+
+                var restored = ApplyPreset(preset);
+                MTEUtils.Log("配置XMLを反映しました。({0}/{1}体)", restored, preset.items.Count);
+                return true;
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("配置XMLの反映に失敗しました");
+                MTEUtils.LogException(e);
+                return false;
+            }
         }
 
         /// <summary>
@@ -1030,14 +1385,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 操作ギズモを付ける。種別は dragType に従い排他。
-        /// GizmoRenderTarget ではなく GizmoRender 派生の ModelGizmoRender を使う。GizmoRenderTarget の Update は
-        /// new で基底を隠蔽していて base.Update() を呼ばないため、ドラッグ判定フラグが立たず操作できない
+        /// ゲーム本体の GizmoRender はメインカメラ前提で SceneView 上では操作できないため、
+        /// カメラ非依存の TransformGizmo を ModelGizmoManager 経由で使う
         /// </summary>
         private void AddGizmo(GameObject target)
         {
-            var gizmo = target.AddComponent<ModelGizmoRender>();
-            gizmo.offsetScale = GizmoScale;
-            ApplyDragType(gizmo);
+            ModelGizmoManager.instance.AddGizmo(target);
         }
 
         /// <summary>
@@ -1045,28 +1398,128 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private void ApplyDragType()
         {
-            foreach (var model in _models)
-            {
-                var go = model.obj as GameObject;
-                var gizmo = go != null ? go.GetComponent<GizmoRender>() : null;
-                if (gizmo == null)
-                {
-                    continue;
-                }
+            ModelGizmoManager.instance.SetToolAndVisible(
+                ToGizmoTool(_dragType), _isModelEditMode && _dragType != GizmoDragType.None);
+        }
 
-                ApplyDragType(gizmo);
+        public static GizmoTool ToGizmoTool(GizmoDragType dragType)
+        {
+            switch (dragType)
+            {
+                case GizmoDragType.Move: return GizmoTool.Move;
+                case GizmoDragType.Rotate: return GizmoTool.Rotate;
+                case GizmoDragType.Scale: return GizmoTool.Scale;
+                default: return GizmoTool.None;
             }
         }
 
-        private void ApplyDragType(GizmoRender gizmo)
+        /// <summary>キー入力でギズモの操作種別を切り替える</summary>
+        private void UpdateGizmoKeyInput()
         {
-            gizmo.eAxis = _dragType == GizmoDragType.Move;
-            gizmo.eRotate = _dragType == GizmoDragType.Rotate;
-            gizmo.eScal = _dragType == GizmoDragType.Scale;
+            if (!_isModelEditMode)
+            {
+                return;
+            }
 
-            // GizmoRender は Visible=false で描画も操作判定も止まる。
-            // 「なし」と編集モード外はこれでまとめて切る
-            gizmo.Visible = _isModelEditMode && _dragType != GizmoDragType.None;
+            var config = ConfigManager.instance.config;
+            if (config.GetKeyDown(KeyBindType.GizmoMove))
+            {
+                dragType = GizmoDragType.Move;
+            }
+            if (config.GetKeyDown(KeyBindType.GizmoRotate))
+            {
+                dragType = GizmoDragType.Rotate;
+            }
+            if (config.GetKeyDown(KeyBindType.GizmoScale))
+            {
+                dragType = GizmoDragType.Scale;
+            }
+        }
+
+        // 前回同期時点の値。EW とどちら側が変更したかの判別に使う
+        private GizmoDragType _lastSyncedDragType;
+        private bool _lastSyncedUseLocalSpace;
+        private bool _gizmoToolSyncStarted;
+
+        // ホスト型が未解決の間の再試行間隔 (フレーム)。
+        // ホスト型の解決は毎フレーム行うほど安くはない (TryRegisterHostConnections と同じパターン)
+        private const int GizmoToolSyncRetryIntervalFrames = 60;
+        private int _lastGizmoToolSyncAttemptFrame = -GizmoToolSyncRetryIntervalFrames;
+
+        /// <summary>
+        /// ギズモ操作設定を EW (GizmoRenderer) と双方向同期する。
+        /// EW 側にイベントが無いため毎フレームのポーリングで追従し、
+        /// 前回同期値との差分でどちらが動いたかを判別する (同値なら no-op でループしない)。
+        /// 両側が同フレームに変わった場合は MTE 側を優先する
+        /// </summary>
+        private void UpdateGizmoToolSync()
+        {
+            if (!_gizmoToolSyncStarted)
+            {
+                var frame = Time.frameCount;
+                if (frame - _lastGizmoToolSyncAttemptFrame < GizmoToolSyncRetryIntervalFrames)
+                {
+                    return;
+                }
+                _lastGizmoToolSyncAttemptFrame = frame;
+            }
+
+            if (!GizmoToolClient.isAvailable)
+            {
+                return;
+            }
+
+            // 取得に失敗すると GizmoToolClient は無効へ倒れつつ既定値を返すため、
+            // 読み出した後にもう一度確認する。既定値 (なし / Local) を EW の現在値と
+            // 取り違えて MTE 側のギズモ設定を書き換えないようにする
+            var hostTool = GizmoToolClient.tool;
+            var hostUseLocalSpace = GizmoToolClient.useLocalSpace;
+            if (!GizmoToolClient.isAvailable)
+            {
+                return;
+            }
+
+            if (!_gizmoToolSyncStarted)
+            {
+                // 初回は EW 側の現在値へ合わせる (EW を正とする)
+                _gizmoToolSyncStarted = true;
+                dragType = FromGizmoTool(hostTool);
+                useLocalSpace = hostUseLocalSpace;
+                _lastSyncedDragType = dragType;
+                _lastSyncedUseLocalSpace = useLocalSpace;
+                return;
+            }
+
+            if (dragType != _lastSyncedDragType)
+            {
+                GizmoToolClient.tool = ToGizmoTool(dragType);
+            }
+            else
+            {
+                dragType = FromGizmoTool(hostTool);
+            }
+            _lastSyncedDragType = dragType;
+
+            if (useLocalSpace != _lastSyncedUseLocalSpace)
+            {
+                GizmoToolClient.useLocalSpace = useLocalSpace;
+            }
+            else
+            {
+                useLocalSpace = hostUseLocalSpace;
+            }
+            _lastSyncedUseLocalSpace = useLocalSpace;
+        }
+
+        public static GizmoDragType FromGizmoTool(GizmoTool tool)
+        {
+            switch (tool)
+            {
+                case GizmoTool.Move: return GizmoDragType.Move;
+                case GizmoTool.Rotate: return GizmoDragType.Rotate;
+                case GizmoTool.Scale: return GizmoDragType.Scale;
+                default: return GizmoDragType.None;
+            }
         }
     }
 }

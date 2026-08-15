@@ -421,6 +421,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            var beforeSnapshot = CapturePropsForHistory();
+
             currentMaid.SetProp(menu.mpn, menu.fileName, menu.rid, false, false);
 
             if (menu.mpn == MPN.eye_hi && currentMaid.IsNewFace())
@@ -430,7 +432,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (item.colorSet != null)
             {
-                ApplyColorSet(item.colorSet);
+                // 履歴はアイテム適用 1 件にまとめるため、色セット単体では登録しない
+                ApplyColorSetInternal(item.colorSet);
             }
 
             currentMaid.AllProcPropSeqStart();
@@ -450,6 +453,46 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // 髪の長さの表示
             windowManager.hairLengthWindow.Call(currentMaid, menu.mpn);
+
+            RegisterPropsHistory("アイテム適用: " + item.name, beforeSnapshot);
+        }
+
+        /// <summary>
+        /// 履歴用に現在の装備を控える。履歴機能が無い環境では
+        /// 全 MPN 走査のコストを払う意味がないため何もしない
+        /// </summary>
+        private MaidPropsSnapshot CapturePropsForHistory()
+        {
+            return HistoryClient.isAvailable ? MaidPropsSnapshot.Capture(currentMaid) : null;
+        }
+
+        /// <summary>
+        /// 装備の変化を操作履歴へ 1 件登録する。変化が無ければ何もしない
+        /// </summary>
+        private void RegisterPropsHistory(string description, MaidPropsSnapshot before)
+        {
+            if (before == null)
+            {
+                return;
+            }
+
+            var after = MaidPropsSnapshot.Capture(currentMaid);
+            if (after == null || !after.HasDiffFrom(before))
+            {
+                return;
+            }
+
+            HistoryClient.Register(
+                description,
+                () => RestoreProps(before),
+                () => RestoreProps(after),
+                () => before.isAlive);
+        }
+
+        private void RestoreProps(MaidPropsSnapshot snapshot)
+        {
+            snapshot.Restore();
+            UpdateEquippedItemsAfterProcProp();
         }
 
         /// <summary>
@@ -511,6 +554,22 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            var beforeSnapshot = CapturePropsForHistory();
+            var menuName = colorSet.selectedMenu.name;
+
+            ApplyColorSetInternal(colorSet);
+
+            RegisterPropsHistory("色変更: " + menuName, beforeSnapshot);
+        }
+
+        private void ApplyColorSetInternal(ColorSetInfo colorSet)
+        {
+            // ApplyMenuItem からは未検証の item.colorSet が渡るため、ここでも確認する
+            if (currentMaid == null || colorSet == null || colorSet.selectedMenu == null)
+            {
+                return;
+            }
+
             var menu = colorSet.selectedMenu;
             MTEUtils.LogDebug("[ModMenuItemManager] ApplyColorSet {0} {1}", colorSet.colorSetMPN, menu.fileName);
             currentMaid.SetProp(colorSet.colorSetMPN, menu.fileName, menu.rid, false, false);
@@ -537,17 +596,24 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            var maid = currentMaid;
+            var beforeSnapshot = CapturePresetForHistory(maid);
+
+            Action apply;
             if (item.itemPath.StartsWith(PresetDirName))
             {
-                maidPresetManager.ApplyPreset(currentMaid, item.preset);
+                apply = () => maidPresetManager.ApplyPreset(maid, item.preset);
             }
             else
             {
-                maidPresetManager.ApplyPreset(currentMaid, item.preset, item.fullPath, item.xmlMemory);
+                apply = () => maidPresetManager.ApplyPreset(maid, item.preset, item.fullPath, item.xmlMemory);
             }
+            apply();
 
             // プリセットは全部位が書き換わるため、適用完了後に全体を更新する
             UpdateEquippedItemsAfterProcProp();
+
+            RegisterPresetHistory("プリセット適用: " + item.name, maid, beforeSnapshot, apply);
         }
 
         public void ApplyTempPreset(TempPreset tempPreset)
@@ -557,10 +623,55 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            maidPresetManager.ApplyPreset(currentMaid, tempPreset.preset, xmlMemory: tempPreset.xmlMemory);
+            var maid = currentMaid;
+            var beforeSnapshot = CapturePresetForHistory(maid);
+
+            Action apply = () => maidPresetManager.ApplyPreset(
+                maid, tempPreset.preset, xmlMemory: tempPreset.xmlMemory);
+            apply();
 
             // プリセットは全部位が書き換わるため、適用完了後に全体を更新する
             UpdateEquippedItemsAfterProcProp();
+
+            RegisterPresetHistory(
+                "一時記録の復元: " + tempPreset.preset.strFileName, maid, beforeSnapshot, apply);
+        }
+
+        /// <summary>
+        /// 履歴用にメイドの全状態を控える。プリセットの保存相当の重い処理なので、
+        /// 履歴機能が無い環境では実行しない
+        /// </summary>
+        private TempPreset CapturePresetForHistory(Maid maid)
+        {
+            return HistoryClient.isAvailable ? tempPresetManager.CaptureHistorySnapshot(maid) : null;
+        }
+
+        /// <summary>
+        /// プリセット適用を操作履歴へ 1 件登録する。
+        /// 装備以外（体型・顔・ExPreset）も書き換わるため、undo にはプリセット全体の控えを使う。
+        /// TempPreset 同士を比較する手段が無いため、同じプリセットの再適用でも 1 件積む
+        /// </summary>
+        private void RegisterPresetHistory(
+            string description, Maid maid, TempPreset before, Action redo)
+        {
+            if (before == null)
+            {
+                return;
+            }
+
+            HistoryClient.Register(
+                description,
+                () =>
+                {
+                    maidPresetManager.ApplyPreset(maid, before.preset, xmlMemory: before.xmlMemory);
+                    UpdateEquippedItemsAfterProcProp();
+                },
+                () =>
+                {
+                    redo();
+                    UpdateEquippedItemsAfterProcProp();
+                },
+                () => maid != null);
         }
 
         public void ApplyAnmItem(AnmItem item)
@@ -571,13 +682,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             var animation = currentMaid.GetAnimation();
-            var animationState = currentMaid.body0.GetAnist();
-            if (animation == null || animationState == null)
+            if (animation == null)
             {
                 return;
             }
 
-            var isPlaying = animationState.speed > 0f;
+            // 再呼出直後などモーション未再生のメイドは anist が null や破棄済みの
+            // ことがあるため、その場合は「非再生」として扱い適用を続行する
+            var animationState = currentMaid.body0.GetAnist();
+            var anistName = "";
+            var isPlaying = false;
+            try
+            {
+                if (animationState != null)
+                {
+                    anistName = animationState.name;
+                    isPlaying = animationState.speed > 0f;
+                }
+            }
+            catch (Exception)
+            {
+                // 破棄済みの AnimationState はメンバーアクセスで例外になる
+            }
 
             GameMain.Instance.ScriptMgr.StopMotionScript();
 
@@ -595,7 +721,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             var anmTag = item.itemName.ToLower();
-            if (animationState.name == anmTag && layer > 0)
+            if (anistName == anmTag && layer > 0)
             {
                 MTEUtils.LogWarning("デフォルトレイヤーで再生中のアニメはレイヤー変更できません。" + item.itemName);
                 return;
@@ -715,10 +841,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if (currentMaid != null)
                 {
+                    var beforeSnapshot = CapturePropsForHistory();
+
                     currentMaid.DelProp(item.menu.mpn);
                     currentMaid.AllProcPropSeqStart();
 
                     RemoveItem(item);
+
+                    RegisterPropsHistory("アイテム削除: " + item.name, beforeSnapshot);
                 }
             }
             else if (item.itemType == ModItemType.Official
@@ -726,11 +856,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if (currentMaid != null)
                 {
+                    var beforeSnapshot = CapturePropsForHistory();
+
                     currentMaid.DelProp(item.menu.mpn);
                     currentMaid.AllProcPropSeqStart();
 
                     // 脱いだ状態を反映するため、適用完了後に全体を更新する
                     UpdateEquippedItemsAfterProcProp();
+
+                    RegisterPropsHistory("アイテム削除: " + item.name, beforeSnapshot);
                 }
             }
             else if (item.itemType == ModItemType.Model)
@@ -2356,14 +2490,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void ThumShot()
+        public void ThumShot(Maid maid)
         {
-            GameMain.Instance.StartCoroutine(ThumShotInternal());
+            GameMain.Instance.StartCoroutine(ThumShotInternal(maid));
         }
 
-        public IEnumerator ThumShotInternal()
+        public IEnumerator ThumShotInternal(Maid maid)
         {
-            var maid = currentMaid;
             if (maid == null)
             {
                 yield break;
@@ -2382,6 +2515,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             windowManager.isExternalUIInputBlocked = true;
 
             var savedLookTarget = maid.body0.trsLookTarget;
+            // 表情編集中などでまばたきを止めているケースがあるため、決め打ちで true に戻さない
+            var savedMabataki = maid.boMabataki;
 
             maid.ThumShotCamMove();
             maid.body0.trsLookTarget = GameMain.Instance.ThumCamera.transform;
@@ -2394,7 +2529,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             GameMain.Instance.SoundMgr.PlaySe("SE022.ogg", false);
             maid.ThumShot();
-            maid.boMabataki = true;
+            maid.boMabataki = savedMabataki;
             maid.body0.trsLookTarget = savedLookTarget;
             windowManager.isExternalUIInputBlocked = false;
 
