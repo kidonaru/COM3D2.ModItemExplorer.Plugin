@@ -268,7 +268,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             _windowHeight = (int)windowRect.height;
             InitView();
 
-            isShowWnd = true;
+            // ここで isShowWnd を立ててはいけない。Init() はプラグイン無効のまま
+            // 起動時に呼ばれるため、描画されない窓をドッキングホストへ
+            // 「表示中」として登録してしまう（初期表示は OnLoad が担う）
         }
 
         /// <summary>閉じるとプラグイン自体を無効化する（メイン窓のみの特別な挙動）</summary>
@@ -281,8 +283,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// メイン窓はプラグインが有効な間は常に開いている前提のため、有効化のたびに表示へ戻す。
-        /// 無効化時の Close() で isShowWnd が落ちる一方、初期表示を担う Init() は初回しか
-        /// 呼ばれないので、ここで戻さないと再有効化しても窓が出てこなくなる
+        /// 無効化時の Close() で isShowWnd が落ちるので、ここで戻さないと再有効化しても
+        /// 窓が出てこなくなる（初期表示もここが担う。理由は Init() 側のコメント参照）
         /// </summary>
         public override void OnLoad()
         {
