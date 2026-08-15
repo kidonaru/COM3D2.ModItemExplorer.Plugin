@@ -6,7 +6,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// GizmoRender の private な内部状態へアクセスするためのリフレクション置き場。
-    /// ハンドルの掴み判定を外から制御するにはこれらのフラグを触るしかないため、
+    /// 自前の配置モデルギズモは GizmoRender を使わなくなったため、現在の用途は
+    /// WindowManager.UpdateGizmoDragSuppress のみ（IMGUI ウィンドウ上の押下で
+    /// ゲーム側・他プラグインの GizmoRender を誤って掴まないようにする汎用抑止）。
+    /// 掴み判定を外から制御するにはこれらのフラグを触るしかないため、
     /// ゲーム更新で名前が変わったときに 1 箇所で気付けるよう集約している
     /// </summary>
     public static class GizmoRenderHack
