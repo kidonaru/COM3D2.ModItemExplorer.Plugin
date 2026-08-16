@@ -320,7 +320,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     view.DrawTexture(GUIView.texWhite, 20, 20, color);
 
-                    var buttonColor = _category == tabType ? Color.green : Color.white;
+                    var buttonColor = _category == tabType ? GUIView.option.accentColor : Color.white;
                     var name = _categoryNameMap[tabType];
                     if (view.DrawButton(name, 80, 20, true, buttonColor))
                     {

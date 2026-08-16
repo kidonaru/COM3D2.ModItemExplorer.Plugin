@@ -739,7 +739,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         continue;
                     }
 
-                    var color = item == currentDirItem ? Color.green : Color.white;
+                    var color = item == currentDirItem ? GUIView.option.accentColor : Color.white;
                     if (view.DrawButton(item.name, 70, 20, color: color))
                     {
                         SetCurrentDirItem(item as DirItem);
@@ -1107,7 +1107,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         view.currentPos.x += 20;
                     }
 
-                    var buttonColor = item == currentDirItem ? Color.green : Color.white;
+                    var buttonColor = item == currentDirItem ? GUIView.option.accentColor : Color.white;
                     if (view.DrawButton(item.name, -1, 20, color: buttonColor, style: gsNaviButton))
                     {
                         SetCurrentDirItem(item);
@@ -1571,7 +1571,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (selectedMenu == menu)
             {
-                view.DrawRectInternal(drawRect, Color.green, 2);
+                view.DrawRectInternal(drawRect, GUIView.option.accentColor, 2);
             }
 
             if (drawRect.Contains(Event.current.mousePosition))
@@ -1640,7 +1640,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (menu == selectedMenu)
             {
-                view.DrawRectInternal(drawRect, Color.green, 2);
+                view.DrawRectInternal(drawRect, GUIView.option.accentColor, 2);
             }
 
             if (drawRect.Contains(Event.current.mousePosition))

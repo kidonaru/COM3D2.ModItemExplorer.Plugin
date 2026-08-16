@@ -356,7 +356,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     // 選択状態は文字色で表す（トグルを2つ並べると視覚ノイズになるため）
                     var selected = model == selectedModel;
                     view.DrawLabel(GetModelDisplayName(model, menu), nameWidth, MODEL_ROW_HEIGHT,
-                        textColor: selected ? Color.green : Color.white,
+                        textColor: selected ? GUIView.option.accentColor : Color.white,
                         // 選択済みのモデルを再度押したときは選択を解除する
                         onClickAction: () => selectedModel = selected ? null : model);
 

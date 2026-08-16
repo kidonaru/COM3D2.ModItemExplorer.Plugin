@@ -349,7 +349,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 for (int i = 0; i < _apCount; ++i)
                 {
-                    var buttonColor = i == _apIndex ? Color.green : Color.white;
+                    var buttonColor = i == _apIndex ? GUIView.option.accentColor : Color.white;
                     var name = $"{i + 1}";
                     if (view.DrawButton(name, 20, 20, true, buttonColor))
                     {

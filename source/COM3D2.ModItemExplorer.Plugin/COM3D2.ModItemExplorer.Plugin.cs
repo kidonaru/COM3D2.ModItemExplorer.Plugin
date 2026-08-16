@@ -29,6 +29,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
         public override Color windowHoverColor => config.windowHoverColor;
+        // タブバー (TabBarDrawer.ACCENT_COLOR) やドッキング表示と揃えたアクセント色
+        public override Color accentColor => Color.cyan;
         public override Texture2D changeIcon => null;
         public override Texture2D favoriteOffIcon => PluginInfo.FavoriteOffIconTexture;
         public override Texture2D favoriteOnIcon => PluginInfo.FavoriteOnIconTexture;
