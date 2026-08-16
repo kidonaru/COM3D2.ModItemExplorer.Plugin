@@ -67,6 +67,8 @@ public static class MyPresetProvider
     public static string PresetProviderId => "MyPlugin.Something";
     // 保存ポップアップのチェックボックスに表示される名前
     public static string PresetProviderDisplayName => "○○ (MyPlugin)";
+    // 任意。読込トグルなど幅の狭い場所で使う短縮名（未定義・空なら DisplayName）
+    public static string PresetProviderShortDisplayName => "○○";
     // 任意。サイドカーの拡張子（未定義なら "xml"）
     public static string PresetProviderFileExtension => "xml";
     // 現在状態を XML 文字列で返す。null/空なら保存スキップ
@@ -94,9 +96,35 @@ SceneEditor プラグインは初回参照時（以降は保存ポップアッ�
 
 本プラグインでは `ModelPlacementPresetProvider`
 （`source/COM3D2.ModItemExplorer.Plugin/ModelPlacement/ModelPlacementPresetProvider.cs`）が
-`SelfModelPlacer` の配置 XML をこの規約で公開している。拡張子は既定の `xml` のままで、
+`SelfModelPlacer` の配置 XML をこの規約で公開している。短縮名は `モデル`、
+拡張子は既定の `xml` のままで、
 名前付きプリセット（`PluginUtils.ModelPresetDirPath` 配下）と同一フォーマットのため、
 サイドカーをそのまま名前付きプリセットとして流用できる。
 
 詳細は SceneEditor 側のガイド
 （`W:\COM3D2_5\work\COM3D2.SceneEditor.Plugin\docs\scene-preset-provider-guide.md`）を参照。
+
+### SceneCapture プリセットの取り込み
+
+SceneEditor はシーンプリセット一覧に SceneCapture プラグインのプリセット
+（`Config\SceneCapture\Presets\*.xml`）も並べる。読み込み時、`<Models>` か `<Effects>` に
+中身があれば、`public static bool ApplySceneCaptureXml(string xml)` を実装した全プロバイダへ
+`<Preset>` XML 全体がそのまま渡される。各プロバイダは自分の担当セクションだけを解釈する。
+
+本プラグインは `ModelPlacementPresetProvider.ApplySceneCaptureXml` でこれを受け、
+`SceneCaptureImporter`（`source/COM3D2.ModItemExplorer.Plugin/ModelPlacement/SceneCaptureImporter.cs`）が
+`<Models>` を自前配置へ変換する。
+
+- `ModelType` が **MaidEquip（0）で `MenuFileName` が `.menu`** のモデルだけを配置する。
+  背景・BGObject・マイルーム家具は menu を持たず自前配置の生成経路に乗らないため、
+  除外して件数を警告ログに出す
+- `Position` / `Rotation`（クォータニオン）/ `LocalScale` を反映する。回転は UI 表示に
+  合わせて -180〜180 のオイラー角へ直す
+- `<Models>` が無い・空なら現在の配置には触れず `true` を返す。中身があれば
+  名前付きプリセットの読み込みと同じく**既存の自前配置分は全て置き換える**
+- SceneCapture 側の `ObjectLayer` / `ModelCastShadow` は自前配置に対応する概念が無いため無視する
+- アタッチ情報は SceneCapture プリセットに含まれないため、常にワールド配置になる
+- 適用は同期実行で、操作履歴には積まない（SceneEditor が適用開始時に履歴を全クリアするため）
+
+詳細は SceneEditor 側のガイド
+（`W:\COM3D2_5\work\COM3D2.SceneEditor.Plugin\docs\scenecapture-import-guide.md`）を参照。

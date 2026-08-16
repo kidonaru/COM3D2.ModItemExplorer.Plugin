@@ -1072,7 +1072,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// プリセットデータを現在のシーンに反映する。既存の自前配置分は置き換える。
         /// 個別失敗はスキップし、実際に復元できた数を返す
         /// </summary>
-        private int ApplyPreset(ModelPlacementPreset preset)
+        internal int ApplyPreset(ModelPlacementPreset preset)
         {
             DeleteAll();
 

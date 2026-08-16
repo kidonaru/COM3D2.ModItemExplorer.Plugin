@@ -183,6 +183,7 @@
     <Compile Include="ModelPlacement\ModelPlacerManager.cs" />
     <Compile Include="ModelPlacement\ModelTransformRowDrawer.cs" />
     <Compile Include="ModelPlacement\NprShaderLoader.cs" />
+    <Compile Include="ModelPlacement\SceneCaptureImporter.cs" />
     <Compile Include="ModelPlacement\SelfModelPlacer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ColorPaletteWindow.cs" />
