@@ -220,30 +220,35 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
                 return _selectedModel;
             }
-            set
+            set => SetSelectedModel(value, focus: true);
+        }
+
+        /// <summary>
+        /// 選択中モデルを切り替える。focus = true なら SceneEditor の SceneView カメラを対象へ寄せる
+        /// </summary>
+        private void SetSelectedModel(StudioModelStatWrapper value, bool focus)
+        {
+            // 他プラグイン配置分は対象外。ハイライトでマテリアルを書き換えてしまうため弾く
+            if (value != null && !Owns(value))
             {
-                // 他プラグイン配置分は対象外。ハイライトでマテリアルを書き換えてしまうため弾く
-                if (value != null && !Owns(value))
-                {
-                    return;
-                }
-
-                // 破棄済み判定のある getter ではなくフィールドと比べる。
-                // 破棄済みモデルから null への切替もハイライト解除として通す必要があるため
-                if (_selectedModel == value)
-                {
-                    return;
-                }
-
-                var previousGo = _selectedModel?.obj as GameObject;
-
-                // 同期が SceneEditor の onSelectionChanged 経由で OnHostSelectionChanged として
-                // 戻ってきたときに同値判定で止まるよう、同期より先に代入しておく
-                _selectedModel = value;
-                RefreshHighlight();
-                ApplyGizmoTarget();
-                SyncSelectionToHost(previousGo);
+                return;
             }
+
+            // 破棄済み判定のある getter ではなくフィールドと比べる。
+            // 破棄済みモデルから null への切替もハイライト解除として通す必要があるため
+            if (_selectedModel == value)
+            {
+                return;
+            }
+
+            var previousGo = _selectedModel?.obj as GameObject;
+
+            // 同期が SceneEditor の onSelectionChanged 経由で OnHostSelectionChanged として
+            // 戻ってきたときに同値判定で止まるよう、同期より先に代入しておく
+            _selectedModel = value;
+            RefreshHighlight();
+            ApplyGizmoTarget();
+            SyncSelectionToHost(previousGo, focus);
         }
 
         private bool _isModelEditMode = false;
@@ -425,9 +430,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 選択状態を SceneEditor の SelectionManager へ反映する。Inspector に選択として表示されるが、
-        /// ギズモは常に ModelGizmoManager 側を使うため showGizmo = false で抑止する
+        /// ギズモは常に ModelGizmoManager 側を使うため showGizmo = false で抑止する。
+        /// focus = true なら SceneView のカメラを選択対象へ寄せる
         /// </summary>
-        private void SyncSelectionToHost(GameObject previousGo)
+        private void SyncSelectionToHost(GameObject previousGo, bool focus)
         {
             if (!SelectionClient.isAvailable)
             {
@@ -437,7 +443,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             var go = _selectedModel?.obj as GameObject;
             if (go != null)
             {
-                SelectionClient.Select(go, showGizmo: false);
+                SelectionClient.Select(go, showGizmo: false, focus: focus);
             }
             else if (previousGo != null && SelectionClient.selectedObject == previousGo)
             {
@@ -457,7 +463,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             // ここで例外を漏らすと SceneEditor 側の発火元や他の購読者を巻き込んで止めてしまう
             try
             {
-                selectedModel = FindModelByGameObject(go);
+                // ホスト発の選択はホスト側でカメラ制御済みなので、こちらからフォーカスし直さない
+                SetSelectedModel(FindModelByGameObject(go), focus: false);
             }
             catch (Exception e)
             {
