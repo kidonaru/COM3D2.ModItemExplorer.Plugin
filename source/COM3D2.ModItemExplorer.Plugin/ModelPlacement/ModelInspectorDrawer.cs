@@ -46,7 +46,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             return placer.FindModelByGameObject(go) != null;
         }
 
-        /// <summary>InspectorHost の draw。contentRect は SceneEditor Inspector のウィンドウローカル領域</summary>
+        /// <summary>
+        /// InspectorHost の draw。contentRect は SceneEditor Inspector のウィンドウローカル領域で、
+        /// ホストが描くヘッダー行 (アクティブ・名前・フォーカス) を除いた残り領域
+        /// </summary>
         public void Draw(GameObject go, Rect contentRect)
         {
             var model = placer.FindModelByGameObject(go);
@@ -56,13 +59,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _view.Init(contentRect);
-
-            _view.BeginHorizontal();
-            {
-                _view.DrawToggle(go.activeSelf, 20, RowHeight, value => go.SetActive(value));
-                _view.DrawLabel(go.name, -1, RowHeight);
-            }
-            _view.EndLayout();
 
             GizmoToolRowDrawer.Draw(_view, new GizmoToolRowOption
             {
