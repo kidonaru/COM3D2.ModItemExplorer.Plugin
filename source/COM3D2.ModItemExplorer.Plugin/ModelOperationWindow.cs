@@ -52,6 +52,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>ユーザーによる表示切替。設定には保存せずセッション内のみ保持する</summary>
         private bool _userVisible = true;
 
+        /// <summary>前フレームの編集モードがモデルだったか</summary>
+        private bool _prevIsModelMode = false;
+
         public void ToggleVisible()
         {
             _userVisible = !_userVisible;
@@ -160,6 +163,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             // ギズモはウィンドウの開閉と独立。編集モード中は出しっぱなしにする
             placer.isModelEditMode = isModelMode;
 
+            // 閉じたまま別モードへ移っても、モデルへ戻ってきたら表示を復帰させる
+            if (isModelMode && !_prevIsModelMode)
+            {
+                _userVisible = true;
+            }
+            _prevIsModelMode = isModelMode;
+
             var showWnd = isModelMode && _userVisible;
 
             // 表示のたびに一覧を取り直す（外部でファイルが増減していても追従させる）
@@ -169,6 +179,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             isShowWnd = showWnd;
+        }
+
+        /// <summary>プラグイン再有効化時は閉じた状態を引き継がない（無効化時の Close で落ちているため）</summary>
+        public override void OnLoad()
+        {
+            base.OnLoad();
+
+            _userVisible = true;
         }
 
         public override void Close()
