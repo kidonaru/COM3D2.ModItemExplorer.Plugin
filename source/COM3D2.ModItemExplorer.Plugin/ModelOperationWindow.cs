@@ -14,7 +14,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>ウィンドウの最小サイズ。Transform 行が折り返さない幅を下限にする</summary>
         public readonly static int MIN_WINDOW_WIDTH = 380;
-        public readonly static int MIN_WINDOW_HEIGHT = 320;
+        public readonly static int MIN_WINDOW_HEIGHT = 340;
 
         public readonly static int ROW_HEIGHT = 20;
 
@@ -25,11 +25,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         public readonly static int MIN_MODEL_LIST_HEIGHT = MODEL_ROW_HEIGHT * 2;
 
         /// <summary>
-        /// モデル一覧より下に確保する行数（ギズモ + 位置・回転・拡縮 + アタッチ）。
+        /// モデル一覧より下に確保する行数（ギズモ + 表示対象 + 位置・回転・拡縮 + アタッチ）。
         /// モデル未選択時は Transform が案内ラベル1行に縮むが、選択のたびに一覧の高さが
         /// 変わると操作しづらいため、常に最大の行数分を確保する
         /// </summary>
-        private readonly static int BOTTOM_ROW_COUNT = 5;
+        private readonly static int BOTTOM_ROW_COUNT = 6;
 
         /// <summary>GUIView.DrawHorizontalLine が描く区切り線の高さ</summary>
         private readonly static int HORIZONTAL_LINE_HEIGHT = 1;
@@ -212,6 +212,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 view.DrawHorizontalLine();
 
                 DrawGizmoRow(view);
+                DrawGizmoTargetRow(view);
                 DrawTransform(view);
             }
             else
@@ -299,7 +300,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private float GetModelListHeight(GUIView view)
         {
-            // 区切り線 + ギズモ行 + Transform 各行。いずれも後ろに margin が付く
+            // 区切り線 + ギズモ行 + 表示対象行 + Transform 各行。いずれも後ろに margin が付く
             var bottomHeight = HORIZONTAL_LINE_HEIGHT + view.margin
                 + (ROW_HEIGHT + view.margin) * BOTTOM_ROW_COUNT;
 
@@ -426,6 +427,39 @@ namespace COM3D2.ModItemExplorer.Plugin
                 getUseLocalSpace = () => placer.useLocalSpace,
                 setUseLocalSpace = value => placer.useLocalSpace = value,
             });
+        }
+
+        private readonly static SelfModelPlacer.GizmoTargetType[] GIZMO_TARGET_TYPES =
+        {
+            SelfModelPlacer.GizmoTargetType.All,
+            SelfModelPlacer.GizmoTargetType.Selected,
+        };
+
+        private readonly static string[] GIZMO_TARGET_NAMES = { "すべて表示", "選択中" };
+
+        /// <summary>ギズモの表示対象を選ぶ幅。最長の「すべて表示」が収まる幅にする</summary>
+        private readonly static int GIZMO_TARGET_BUTTON_WIDTH = 80;
+
+        /// <summary>
+        /// ギズモを表示する対象の切替行。設定は配置モデル全体で共有される
+        /// </summary>
+        private void DrawGizmoTargetRow(GUIView view)
+        {
+            view.BeginHorizontal();
+            {
+                view.DrawLabel("表示対象", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
+
+                var current = placer.gizmoTargetType;
+                for (var i = 0; i < GIZMO_TARGET_TYPES.Length; i++)
+                {
+                    var targetType = GIZMO_TARGET_TYPES[i];
+                    view.DrawToggle(GIZMO_TARGET_NAMES[i], current == targetType,
+                        GIZMO_TARGET_BUTTON_WIDTH, ROW_HEIGHT,
+                        // 選択中の項目を再度押しても解除しない（ギズモ行と同じ規約）
+                        on => { if (on) placer.gizmoTargetType = targetType; });
+                }
+            }
+            view.EndLayout();
         }
 
         /// <summary>

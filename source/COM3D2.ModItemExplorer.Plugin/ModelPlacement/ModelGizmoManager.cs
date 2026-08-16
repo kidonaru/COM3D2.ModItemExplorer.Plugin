@@ -26,6 +26,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         private bool _useLocalSpace = true;
         private bool _visible;
 
+        // ギズモの表示対象を選択中のモデルだけに絞るか、と、その選択中モデル
+        private bool _targetSelectedOnly;
+        private GameObject _selectedTarget;
+
         // standalone 描画用にメインカメラへ付けるフック
         private StandaloneDrawHook _drawHook;
 
@@ -64,7 +68,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             var gizmo = new TransformGizmo
             {
                 target = target.transform,
-                tool = _visible ? _tool : GizmoTool.None,
+                tool = GetAppliedTool(target),
                 sizeScale = SelfModelPlacer.GizmoScale,
                 useLocalSpace = _useLocalSpace,
             };
@@ -93,10 +97,41 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             _tool = tool;
             _visible = visible;
-            var applied = visible ? tool : GizmoTool.None;
-            foreach (var gizmo in _gizmos.Values)
+            ApplyTool();
+        }
+
+        /// <summary>
+        /// ギズモを表示する対象を絞る。selectedOnly が false なら全モデルに表示する。
+        /// selectedOnly かつ target が null のときはどのモデルにも表示しない
+        /// </summary>
+        public void SetVisibleTarget(bool selectedOnly, GameObject target)
+        {
+            _targetSelectedOnly = selectedOnly;
+            _selectedTarget = target;
+            ApplyTool();
+        }
+
+        /// <summary>
+        /// 対象に適用する操作種別。表示条件を満たさないものは None（＝非表示）にする
+        /// </summary>
+        private GizmoTool GetAppliedTool(GameObject target)
+        {
+            if (!_visible)
             {
-                gizmo.tool = applied;
+                return GizmoTool.None;
+            }
+            if (_targetSelectedOnly && target != _selectedTarget)
+            {
+                return GizmoTool.None;
+            }
+            return _tool;
+        }
+
+        private void ApplyTool()
+        {
+            foreach (var pair in _gizmos)
+            {
+                pair.Value.tool = GetAppliedTool(pair.Key);
             }
         }
 

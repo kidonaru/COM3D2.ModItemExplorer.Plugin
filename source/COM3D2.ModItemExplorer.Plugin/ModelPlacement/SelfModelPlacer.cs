@@ -145,6 +145,42 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        /// <summary>ギズモを表示する対象</summary>
+        public enum GizmoTargetType
+        {
+            All,
+            Selected,
+        }
+
+        private GizmoTargetType _gizmoTargetType = GizmoTargetType.All;
+
+        /// <summary>
+        /// ギズモを表示する対象。多数配置するとギズモが重なって選びづらくなるため、
+        /// 選択中のモデルだけに絞れるようにしている
+        /// </summary>
+        public GizmoTargetType gizmoTargetType
+        {
+            get => _gizmoTargetType;
+            set
+            {
+                if (_gizmoTargetType == value)
+                {
+                    return;
+                }
+
+                _gizmoTargetType = value;
+                ApplyGizmoTarget();
+            }
+        }
+
+        /// <summary>現在の表示対象設定と選択状態をギズモへ反映する</summary>
+        private void ApplyGizmoTarget()
+        {
+            var selectedOnly = _gizmoTargetType == GizmoTargetType.Selected;
+            ModelGizmoManager.instance.SetVisibleTarget(
+                selectedOnly, selectedOnly ? selectedModel?.obj as GameObject : null);
+        }
+
         private bool _useLocalSpace = true;
 
         /// <summary>ギズモの軸空間 (true = Local)。SceneEditor 在席時は GizmoToolClient と双方向同期する</summary>
@@ -174,9 +210,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             get
             {
                 var go = _selectedModel?.obj as GameObject;
-                if (go == null)
+                if (go == null && _selectedModel != null)
                 {
+                    // DeleteModel を通らずに破棄された場合もここで検知する。
+                    // ギズモの表示対象は破棄済みの GameObject を持ち続けるため併せて更新する
+                    // (ApplyGizmoTarget から再入するが、この時点で _selectedModel は null なので再帰しない)
                     _selectedModel = null;
+                    ApplyGizmoTarget();
                 }
                 return _selectedModel;
             }
@@ -201,6 +241,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 // 戻ってきたときに同値判定で止まるよう、同期より先に代入しておく
                 _selectedModel = value;
                 RefreshHighlight();
+                ApplyGizmoTarget();
                 SyncSelectionToHost(previousGo);
             }
         }
