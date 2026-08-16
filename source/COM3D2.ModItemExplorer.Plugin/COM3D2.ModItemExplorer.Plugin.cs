@@ -186,6 +186,18 @@ namespace COM3D2.ModItemExplorer.Plugin
             configManager.SaveConfigXml();
         }
 
+        void OnDestroy()
+        {
+            // ホストは常駐するため、解除を怠るとハンドラが掴んだ参照ごと残る
+            EditorStateClient.Unsubscribe(OnEditorEnabledChanged);
+        }
+
+        // ロード順への追従と接続時の初期同期は EditorStateClient 側の責務のため、ここは反映するだけでよい
+        private void OnEditorEnabledChanged(bool enabled)
+        {
+            isEnable = enabled;
+        }
+
         private void Initialize()
         {
             try
@@ -213,6 +225,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 managerRegistry.RegisterManager(ConfigManager.instance);
 
                 _ = ExPresetWrapper.instance;
+
+                // SceneEditor の有効/無効へ追従する（SceneEditor 不在時は無視される）
+                EditorStateClient.Subscribe(OnEditorEnabledChanged);
 
                 AddGearMenu();
             }

@@ -139,6 +139,7 @@
     <Compile Include="MTEUtils\CustomFieldBase.cs" />
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\DockingClient.cs" />
+    <Compile Include="MTEUtils\EditorStateClient.cs" />
     <Compile Include="MTEUtils\Extensions.cs" />
     <Compile Include="MTEUtils\GearMenu.cs" />
     <Compile Include="MTEUtils\GizmoHostClient.cs" />
