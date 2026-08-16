@@ -44,7 +44,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private ModelPlacementHistory _history = null;
 
-        /// <summary>配置操作を EditorWindow の操作履歴へ積む窓口</summary>
+        /// <summary>配置操作を SceneEditor の操作履歴へ積む窓口</summary>
         public ModelPlacementHistory history
             => _history ?? (_history = new ModelPlacementHistory(this));
 
@@ -147,7 +147,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private bool _useLocalSpace = true;
 
-        /// <summary>ギズモの軸空間 (true = Local)。EW 在席時は GizmoToolClient と双方向同期する</summary>
+        /// <summary>ギズモの軸空間 (true = Local)。SceneEditor 在席時は GizmoToolClient と双方向同期する</summary>
         public bool useLocalSpace
         {
             get => _useLocalSpace;
@@ -197,7 +197,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 var previousGo = _selectedModel?.obj as GameObject;
 
-                // 同期が EW の onSelectionChanged 経由で OnHostSelectionChanged として
+                // 同期が SceneEditor の onSelectionChanged 経由で OnHostSelectionChanged として
                 // 戻ってきたときに同値判定で止まるよう、同期より先に代入しておく
                 _selectedModel = value;
                 RefreshHighlight();
@@ -315,7 +315,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        // ---- EditorWindow の選択連携 ----
+        // ---- SceneEditor の選択連携 ----
 
         // 購読の再試行間隔 (フレーム)。ホスト型の解決は毎フレーム行うほど安くはない
         private const int SelectionRetryIntervalFrames = 60;
@@ -325,8 +325,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private bool _selectionHandlerRegistered;
 
         /// <summary>
-        /// EW への接続（選択変更の購読と Inspector 描画の登録）を行う。
-        /// EW は後からロードされる可能性があるため、両方そろうまで一定間隔で再試行する
+        /// SceneEditor への接続（選択変更の購読と Inspector 描画の登録）を行う。
+        /// SceneEditor は後からロードされる可能性があるため、両方そろうまで一定間隔で再試行する
         /// （ModelGizmoManager のホスト登録と同じパターン）
         /// </summary>
         private void TryRegisterHostConnections()
@@ -350,14 +350,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             TryRegisterInspector();
         }
 
-        // EW の InspectorHost へ登録済みか。EW は後からロードされる可能性があるため
+        // SceneEditor の InspectorHost へ登録済みか。SceneEditor は後からロードされる可能性があるため
         // 成功するまで再試行する (選択購読の再試行間隔に相乗りする)
         private object _inspectorHandle;
         private ModelInspectorDrawer _inspectorDrawer;
 
         /// <summary>
-        /// EW Inspector へ管理モデルの委譲描画を登録する。
-        /// EW 不在時は InspectorHostClient が無効を返すため何もしない
+        /// SceneEditor Inspector へ管理モデルの委譲描画を登録する。
+        /// SceneEditor 不在時は InspectorHostClient が無効を返すため何もしない
         /// </summary>
         private void TryRegisterInspector()
         {
@@ -383,7 +383,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 選択状態を EW の SelectionManager へ反映する。Inspector に選択として表示されるが、
+        /// 選択状態を SceneEditor の SelectionManager へ反映する。Inspector に選択として表示されるが、
         /// ギズモは常に ModelGizmoManager 側を使うため showGizmo = false で抑止する
         /// </summary>
         private void SyncSelectionToHost(GameObject previousGo)
@@ -401,26 +401,26 @@ namespace COM3D2.ModItemExplorer.Plugin
             else if (previousGo != null && SelectionClient.selectedObject == previousGo)
             {
                 // 自分が選ばせたオブジェクトだけ解除する。
-                // EW 側でユーザーが選び直した別オブジェクトの選択は奪わない
+                // SceneEditor 側でユーザーが選び直した別オブジェクトの選択は奪わない
                 SelectionClient.Select(null, showGizmo: true);
             }
         }
 
         /// <summary>
-        /// EW 側の選択変更を MTE 側へ追従させる。自プラグイン管理のモデルなら選択し、
+        /// SceneEditor 側の選択変更を MTE 側へ追従させる。自プラグイン管理のモデルなら選択し、
         /// それ以外（他オブジェクト・選択解除）なら MTE 側の選択を外す
         /// </summary>
         private void OnHostSelectionChanged(GameObject go)
         {
-            // EW のマルチキャストデリゲートから直接呼ばれるため、
-            // ここで例外を漏らすと EW 側の発火元や他の購読者を巻き込んで止めてしまう
+            // SceneEditor のマルチキャストデリゲートから直接呼ばれるため、
+            // ここで例外を漏らすと SceneEditor 側の発火元や他の購読者を巻き込んで止めてしまう
             try
             {
                 selectedModel = FindModelByGameObject(go);
             }
             catch (Exception e)
             {
-                MTEUtils.LogWarning("EW の選択変更の反映に失敗しました");
+                MTEUtils.LogWarning("SceneEditor の選択変更の反映に失敗しました");
                 MTEUtils.LogException(e);
             }
         }
@@ -1436,7 +1436,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        // 前回同期時点の値。EW とどちら側が変更したかの判別に使う
+        // 前回同期時点の値。SceneEditor とどちら側が変更したかの判別に使う
         private GizmoDragType _lastSyncedDragType;
         private bool _lastSyncedUseLocalSpace;
         private bool _gizmoToolSyncStarted;
@@ -1447,8 +1447,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private int _lastGizmoToolSyncAttemptFrame = -GizmoToolSyncRetryIntervalFrames;
 
         /// <summary>
-        /// ギズモ操作設定を EW (GizmoRenderer) と双方向同期する。
-        /// EW 側にイベントが無いため毎フレームのポーリングで追従し、
+        /// ギズモ操作設定を SceneEditor (GizmoRenderer) と双方向同期する。
+        /// SceneEditor 側にイベントが無いため毎フレームのポーリングで追従し、
         /// 前回同期値との差分でどちらが動いたかを判別する (同値なら no-op でループしない)。
         /// 両側が同フレームに変わった場合は MTE 側を優先する
         /// </summary>
@@ -1470,7 +1470,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             // 取得に失敗すると GizmoToolClient は無効へ倒れつつ既定値を返すため、
-            // 読み出した後にもう一度確認する。既定値 (なし / Local) を EW の現在値と
+            // 読み出した後にもう一度確認する。既定値 (なし / Local) を SceneEditor の現在値と
             // 取り違えて MTE 側のギズモ設定を書き換えないようにする
             var hostTool = GizmoToolClient.tool;
             var hostUseLocalSpace = GizmoToolClient.useLocalSpace;
@@ -1481,7 +1481,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (!_gizmoToolSyncStarted)
             {
-                // 初回は EW 側の現在値へ合わせる (EW を正とする)
+                // 初回は SceneEditor 側の現在値へ合わせる (SceneEditor を正とする)
                 _gizmoToolSyncStarted = true;
                 dragType = FromGizmoTool(hostTool);
                 useLocalSpace = hostUseLocalSpace;

@@ -5,7 +5,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// 配置モデルの位置・回転・拡縮の 3 行。モデル操作ウィンドウと
-    /// EW Inspector への委譲描画で同じ見た目・同じ感度を使うために共通化している
+    /// SceneEditor Inspector への委譲描画で同じ見た目・同じ感度を使うために共通化している
     /// </summary>
     public static class ModelTransformRowDrawer
     {
@@ -18,7 +18,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private const float ScaleLinkEpsilon = 0.0001f;
 
         /// <summary>
-        /// 拡縮の XYZ を連動させるか。操作ウィンドウと EW Inspector のどちらから
+        /// 拡縮の XYZ を連動させるか。操作ウィンドウと SceneEditor Inspector のどちらから
         /// 切り替えても同じ状態を見せるため共有する。設定には保存せずセッション内のみ保持する。
         /// 書き換えを連動トグルの操作だけに限るため外部へは公開しない
         /// </summary>

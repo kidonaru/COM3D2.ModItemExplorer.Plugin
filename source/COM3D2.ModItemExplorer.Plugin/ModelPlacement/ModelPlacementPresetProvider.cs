@@ -3,7 +3,7 @@ using System;
 namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
-    /// EditorWindow プラグインのシーンプリセットプロバイダ規約用の属性。
+    /// SceneEditor プラグインのシーンプリセットプロバイダ規約用の属性。
     /// アセンブリ参照を避けるため、各プラグインが同名（短名一致）で自前定義する
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]

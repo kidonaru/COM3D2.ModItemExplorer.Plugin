@@ -6,9 +6,9 @@ using UnityEngine;
 namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
-    /// 自前配置モデルの操作を EditorWindow の操作履歴へ積む。
+    /// 自前配置モデルの操作を SceneEditor の操作履歴へ積む。
     /// 状態のスナップショットと復元はプリセットと同じ経路（ModelPlacementPresetItem）を使う。
-    /// EditorWindow が無い環境では HistoryClient 側で無視される
+    /// SceneEditor が無い環境では HistoryClient 側で無視される
     /// </summary>
     public class ModelPlacementHistory
     {

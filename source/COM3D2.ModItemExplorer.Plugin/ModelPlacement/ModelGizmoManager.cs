@@ -7,7 +7,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// 配置モデルの TransformGizmo を一括管理する。
-    /// EditorWindow の GizmoHost が使える環境では登録して SceneView / GameView の
+    /// SceneEditor の GizmoHost が使える環境では登録して SceneView / GameView の
     /// 入力・描画ディスパッチに乗り、稼働ビューが無い間は standalone (Camera.main +
     /// Input.mousePosition) で自前駆動する。GizmoHost は後からロードされる可能性が
     /// あるため、解決できるまで一定間隔で再試行する
@@ -283,7 +283,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if (Input.GetMouseButton(0))
                 {
-                    // 旧 EditorWindow 環境では InputRemapper が GameView 内で
+                    // 旧バージョンの SceneEditor 環境では InputRemapper が GameView 内で
                     // RT 座標へ変換済みのため、Camera.main とのペアで正しく成立する
                     UpdateDrag((Vector2)Input.mousePosition);
                 }

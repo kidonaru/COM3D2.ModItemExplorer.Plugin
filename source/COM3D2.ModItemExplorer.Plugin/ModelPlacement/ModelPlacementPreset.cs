@@ -17,7 +17,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// アタッチ先メイドの guid。null/空 は未アタッチ。
-        /// スロット番号はシーンをまたぐと変わるため、EditorWindow のシーンプリセット本体に合わせて guid で持つ
+        /// スロット番号はシーンをまたぐと変わるため、SceneEditor のシーンプリセット本体に合わせて guid で持つ
         /// </summary>
         public string attachMaidGuid = null;
 

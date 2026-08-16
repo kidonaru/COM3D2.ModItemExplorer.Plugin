@@ -392,7 +392,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        /// <summary>XYZ連動 (鎖)。EditorWindow の ToolbarIcons と同じ画像を使い、見た目をそろえている</summary>
+        /// <summary>XYZ連動 (鎖)。SceneEditor の ToolbarIcons と同じ画像を使い、見た目をそろえている</summary>
         public readonly static byte[] LinkIcon = Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACrElEQVR42r1X0a2jQAx0CXRwlEAH" +
             "8H8nhb+7v9BB6AA6gA5CB9ABdAAdQAehg30MstHCC7AE3llCUQjLjL2e8Ybo2rCIyCWiiIgS/nT5" +

@@ -50,13 +50,13 @@ var ok = (bool)type.GetMethod("ApplyPlacementXml").Invoke(placer, new object[] {
 - 旧形式（`version` 1、アタッチ先がスロット番号）の xml も読み込めるが、アタッチ情報は
   復元されずワールド配置になる（読み込み時に警告ログを出す）。
 
-## シーンプリセットプロバイダ規約（EditorWindow プラグイン連携）
+## シーンプリセットプロバイダ規約（SceneEditor プラグイン連携）
 
-EditorWindow プラグインのシーンプリセットは、外部プラグインの状態も一緒に
+SceneEditor プラグインのシーンプリセットは、外部プラグインの状態も一緒に
 保存/復元できる。連携したいプラグインは以下の規約に従う:
 
 1. 自アセンブリ内に `ScenePresetProviderAttribute` という**短名一致**の属性を自前定義する
-   （EditorWindow プラグインへのアセンブリ参照は不要）
+   （SceneEditor プラグインへのアセンブリ参照は不要）
 2. その属性を付けたクラスに、以下の public static メンバを実装する
 
 ```csharp
@@ -82,7 +82,7 @@ public static class MyPresetProvider
 id / 拡張子はサイドカーのファイル名になるため、パスに使えない文字・`..`・
 拡張子中のドットを含むものは登録時に弾かれる。
 
-EditorWindow プラグインは初回参照時（以降は保存ポップアップを開くたび）に全アセンブリを
+SceneEditor プラグインは初回参照時（以降は保存ポップアップを開くたび）に全アセンブリを
 走査してプロバイダを発見し、プリセット保存時に選択されたプロバイダの `CapturePresetXml` を、
 ロード時に `ApplyPresetXml` を呼ぶ。例外はプロバイダ単位で握られ、他の復元は続行される。
 
@@ -98,5 +98,5 @@ EditorWindow プラグインは初回参照時（以降は保存ポップアッ�
 名前付きプリセット（`PluginUtils.ModelPresetDirPath` 配下）と同一フォーマットのため、
 サイドカーをそのまま名前付きプリセットとして流用できる。
 
-詳細は EditorWindow 側のガイド
-（`W:\COM3D2_5\work\COM3D2.EditorWindow.Plugin\docs\scene-preset-provider-guide.md`）を参照。
+詳細は SceneEditor 側のガイド
+（`W:\COM3D2_5\work\COM3D2.SceneEditor.Plugin\docs\scene-preset-provider-guide.md`）を参照。

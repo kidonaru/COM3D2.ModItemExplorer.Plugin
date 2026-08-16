@@ -5,10 +5,10 @@ using UnityEngine.SceneManagement;
 namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
-    /// EW Inspector へ委譲描画する MTE 管理モデルの内容。
+    /// SceneEditor Inspector へ委譲描画する MTE 管理モデルの内容。
     /// ギズモ行・Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
     /// アタッチのドロップダウンは MTE 側の ComboBoxPopupWindow が独立ウィンドウとして
-    /// 出すため、ボタン座標をスクリーン座標へ直す基準として EW のウィンドウ矩形を借りる
+    /// 出すため、ボタン座標をスクリーン座標へ直す基準として SceneEditor のウィンドウ矩形を借りる
     /// </summary>
     public class ModelInspectorDrawer
     {
@@ -46,7 +46,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             return placer.FindModelByGameObject(go) != null;
         }
 
-        /// <summary>InspectorHost の draw。contentRect は EW Inspector のウィンドウローカル領域</summary>
+        /// <summary>InspectorHost の draw。contentRect は SceneEditor Inspector のウィンドウローカル領域</summary>
         public void Draw(GameObject go, Rect contentRect)
         {
             var model = placer.FindModelByGameObject(go);
@@ -82,13 +82,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 // ボタン押下で _view へ登録されたフォーカスを MTE 側のポップアップへ渡す。
                 // ポップアップは MTE のウィンドウとして描かれるため、ボタン座標の基準に
-                // ホスト (EW Inspector) のウィンドウ矩形を渡す
+                // ホスト (SceneEditor Inspector) のウィンドウ矩形を渡す
                 ComboBoxPopupWindow.instance.ProcessFocus(
                     _view, _hostWindow, () => InspectorHostClient.hostWindowRect);
             }
             else
             {
-                // ウィンドウ矩形を取れない旧 EditorWindow ではドロップダウンの位置を
+                // ウィンドウ矩形を取れない旧バージョンの SceneEditor ではドロップダウンの位置を
                 // 決められない。開かずに捨てて前後送りボタンだけで選ばせる
                 _view.CancelFocusComboBox();
             }
@@ -112,7 +112,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// ComboBoxPopupWindow へ渡すホスト。EW のウィンドウは MTE 側の
+        /// ComboBoxPopupWindow へ渡すホスト。SceneEditor のウィンドウは MTE 側の
         /// ウィンドウ管理下に無いため、ポップアップの生存判定に使う表示状態だけを
         /// 橋渡しする。他のメンバーは呼ばれないので空実装にしている
         /// </summary>
