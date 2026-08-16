@@ -30,9 +30,19 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private static ModItemManager modItemManager => ModItemManager.instance;
 
+        private static Config config => ConfigManager.instance.config;
+
         private static SelfModelPlacer _instance = null;
         public static SelfModelPlacer instance
             => _instance ?? (_instance = new SelfModelPlacer());
+
+        // Config から復元した表示対象をギズモ側の初期状態にも反映しておく。
+        // 復元前の既定値を掴まないよう、初回アクセスは ConfigManager.Init() より後である必要がある
+        // (現状 ModItemExplorer.Initialize が configManager.Init() を最初に呼ぶため満たされている)
+        private SelfModelPlacer()
+        {
+            ApplyGizmoTarget();
+        }
 
         private readonly List<StudioModelStatWrapper> _models = new List<StudioModelStatWrapper>();
 
@@ -152,23 +162,22 @@ namespace COM3D2.ModItemExplorer.Plugin
             Selected,
         }
 
-        private GizmoTargetType _gizmoTargetType = GizmoTargetType.All;
-
         /// <summary>
         /// ギズモを表示する対象。多数配置するとギズモが重なって選びづらくなるため、
-        /// 選択中のモデルだけに絞れるようにしている
+        /// 選択中のモデルだけに絞れるようにしている。設定は Config に永続化する
         /// </summary>
         public GizmoTargetType gizmoTargetType
         {
-            get => _gizmoTargetType;
+            get => config.gizmoTargetType;
             set
             {
-                if (_gizmoTargetType == value)
+                if (config.gizmoTargetType == value)
                 {
                     return;
                 }
 
-                _gizmoTargetType = value;
+                config.gizmoTargetType = value;
+                config.dirty = true;
                 ApplyGizmoTarget();
             }
         }
@@ -176,7 +185,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>現在の表示対象設定と選択状態をギズモへ反映する</summary>
         private void ApplyGizmoTarget()
         {
-            var selectedOnly = _gizmoTargetType == GizmoTargetType.Selected;
+            var selectedOnly = gizmoTargetType == GizmoTargetType.Selected;
             ModelGizmoManager.instance.SetVisibleTarget(
                 selectedOnly, selectedOnly ? selectedModel?.obj as GameObject : null);
         }
@@ -1469,7 +1478,6 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            var config = ConfigManager.instance.config;
             if (config.GetKeyDown(KeyBindType.GizmoMove))
             {
                 dragType = GizmoDragType.Move;
