@@ -507,6 +507,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         public List<StudioModelStatWrapper> modelList
             => new List<StudioModelStatWrapper>(_models);
 
+        /// <summary>配置中のモデル数。有無の判定だけならコピーを作らずに済む</summary>
+        public int modelCount => _models.Count;
+
         /// <summary>
         /// .menu アイテムをシーンに配置し、生成したモデルを返す（失敗時は null）。
         /// group は呼び出し側の採番をヒントとして受け取るが、名前の一意性は内部で採り直して保証する

@@ -203,7 +203,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.ResetLayout();
             view.SetEnabled(!ComboBoxPopupWindow.instance.IsOpenFor(this));
 
-            _tabType = view.DrawTabs(_tabType, 80, ROW_HEIGHT);
+            DrawTabRow(view);
 
             if (_tabType == TabType.操作)
             {
@@ -219,6 +219,73 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 DrawPreset(view);
             }
+        }
+
+        /// <summary>
+        /// タブ1つ分の幅。リセットボタンはウィンドウ右端に固定で置くため、
+        /// TAB_WIDTH * タブ数 + RESET_BUTTON_WIDTH が MIN_WINDOW_WIDTH に収まる範囲でタブを増やすこと
+        /// </summary>
+        private readonly static int TAB_WIDTH = 80;
+
+        /// <summary>リセット（全削除）ボタンの幅</summary>
+        private readonly static int RESET_BUTTON_WIDTH = 60;
+
+        /// <summary>リセットの確認を待つ秒数。この間に再度押されたら実行する</summary>
+        private readonly static float RESET_CONFIRM_DURATION = 3f;
+
+        /// <summary>リセットの確認待ちが切れる時刻。0 なら確認待ちではない</summary>
+        private float _resetConfirmTime = 0f;
+
+        /// <summary>
+        /// タブ行。右端にはタブと関係なく効くリセット（全削除）ボタンを寄せて置く
+        /// </summary>
+        private void DrawTabRow(GUIView view)
+        {
+            view.BeginHorizontal();
+            {
+                _tabType = view.DrawTabs(_tabType, TAB_WIDTH, ROW_HEIGHT);
+
+                view.currentPos.x = view.viewRect.width - view.padding.x * 2 - RESET_BUTTON_WIDTH;
+
+                DrawResetButton(view);
+            }
+            view.EndLayout();
+
+            // DrawTabs が単独行のときに末尾へ入れる余白（GUIView.DrawTabs 内の AddSpace(5) と同値）。
+            // 横並びにすると x 方向へ消えるため縦に入れ直す
+            view.AddSpace(5);
+        }
+
+        /// <summary>
+        /// 配置モデルを全削除するボタン。DeleteAll は履歴ごと捨てて取り消せないため、
+        /// 誤クリックを弾くよう 2 度押しを要求する
+        /// </summary>
+        private void DrawResetButton(GUIView view)
+        {
+            var confirming = Time.realtimeSinceStartup < _resetConfirmTime;
+
+            var pressed = view.DrawButton(
+                confirming ? "本当に?" : "リセット",
+                RESET_BUTTON_WIDTH, ROW_HEIGHT,
+                placer.modelCount > 0,
+                confirming ? Color.red : (Color?)null);
+
+            if (!pressed)
+            {
+                return;
+            }
+
+            if (!confirming)
+            {
+                _resetConfirmTime = Time.realtimeSinceStartup + RESET_CONFIRM_DURATION;
+                return;
+            }
+
+            _resetConfirmTime = 0f;
+
+            // 選択の解除は SelfModelPlacer.DeleteAll が行う
+            placer.DeleteAll();
+            modItemManager.UpdateModelItems();
         }
 
         /// <summary>
