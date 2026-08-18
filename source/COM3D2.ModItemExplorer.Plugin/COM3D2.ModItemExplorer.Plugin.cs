@@ -190,12 +190,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             // ホストは常駐するため、解除を怠るとハンドラが掴んだ参照ごと残る
             EditorStateClient.Unsubscribe(OnEditorEnabledChanged);
+            MaidSelectClient.Unsubscribe(OnSelectedMaidChanged);
         }
 
         // ロード順への追従と接続時の初期同期は EditorStateClient 側の責務のため、ここは反映するだけでよい
         private void OnEditorEnabledChanged(bool enabled)
         {
             isEnable = enabled;
+        }
+
+        // 選択解除（null）や一覧に居ないメイドの扱いは窓側に任せる
+        private void OnSelectedMaidChanged(Maid maid)
+        {
+            windowManager.modItemWindow.SelectMaid(maid);
         }
 
         private void Initialize()
@@ -228,6 +235,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 // SceneEditor の有効/無効へ追従する（SceneEditor 不在時は無視される）
                 EditorStateClient.Subscribe(OnEditorEnabledChanged);
+
+                // SceneEditor の選択中メイドへ追従する（SceneEditor 不在時は無視される）
+                MaidSelectClient.Subscribe(OnSelectedMaidChanged);
 
                 AddGearMenu();
             }

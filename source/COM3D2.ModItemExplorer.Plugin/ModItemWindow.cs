@@ -553,7 +553,36 @@ namespace COM3D2.ModItemExplorer.Plugin
             getName = (maid, _) => maid == null ? "なし" : maid.status.fullNameJpStyle,
             buttonSize = new Vector2(100, 20),
             contentSize = new Vector2(150, 300),
+            // ユーザー操作時のみ呼ばれるため、SceneEditor からの通知を押し返すことはない
+            onSelected = (maid, _) => MaidSelectClient.TrySelectMaid(maid),
         };
+
+        /// <summary>
+        /// SceneEditor の選択中メイドへ追従する。
+        /// 一覧に居ないメイドや選択解除（null）は現状維持とし、こちらの選択を巻き込まない
+        /// </summary>
+        public void SelectMaid(Maid maid)
+        {
+            if (maid == null)
+            {
+                return;
+            }
+
+            // 一覧は描画時にしか作り直されないため、ここで最新の状態に合わせてから引き当てる
+            _maidComboBox.items = GetMaidComboItems();
+            var index = _maidComboBox.items.IndexOf(maid);
+            if (index < 0)
+            {
+                return;
+            }
+
+            // currentItem 経由にすると GUIComboBox の実装次第で onSelected へ回り込み、
+            // TrySelectMaid を押し返すループになりかねないので index を直接入れる
+            _maidComboBox.currentIndex = index;
+
+            // メイドタブ以外を表示中は DrawMaidInfo が走らないため、ここで確定させる
+            modItemManager.SetCurrentMaid(maid);
+        }
 
         /// <summary>メイド選択コンボ用の一覧。メイドが1体でも居れば「なし」は出さない</summary>
         private static List<Maid> GetMaidComboItems()

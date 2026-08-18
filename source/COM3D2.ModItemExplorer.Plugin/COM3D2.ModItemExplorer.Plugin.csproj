@@ -157,6 +157,7 @@
     <Compile Include="MTEUtils\KeyBind.cs" />
     <Compile Include="MTEUtils\MaidPartType.cs" />
     <Compile Include="MTEUtils\MaidPartUtils.cs" />
+    <Compile Include="MTEUtils\MaidSelectClient.cs" />
     <Compile Include="MTEUtils\MainThreadDispatcher.cs" />
     <Compile Include="MTEUtils\ManagerRegistry.cs" />
     <Compile Include="MTEUtils\ModMenuLoader.cs" />
