@@ -267,69 +267,73 @@ namespace COM3D2.ModItemExplorer.Plugin
             _variationMenuPathMap.Clear();
             _variationMenuMap.Clear();
 
-            LoadOfficialMenuFileNameList();
-
-            ThreadPool.QueueUserWorkItem(_ =>
+            // MenuDataBaseは非同期構築のため、完了前に列挙すると公式アイテムを途中までしか登録できない
+            MTEUtils.ExecuteAfterMenuDataBaseReady(() =>
             {
-                try
+                LoadOfficialMenuFileNameList();
+
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    if (reset)
+                    try
                     {
-                        _menuMap.Clear();
-                        InitItemCache();
+                        if (reset)
+                        {
+                            _menuMap.Clear();
+                            InitItemCache();
+                        }
+                        else if (rebuild)
+                        {
+                            InitItemCache();
+                        }
+
+                        LoadOfficialNameCsv();
+
+                        if (_menuMap.Count == 0)
+                        {
+                            LoadMenuCache();
+                        }
+
+                        LoadOfficialMenuItems();
+                        LoadOfficialAnmItems();
+                        ValidateItemChildren(officialRootItem);
+                        SortItemChildren(officialRootItem);
+
+                        LoadModItems("*.menu");
+                        LoadModItems("mod_*.mod");
+                        UpdateModPresetItems();
+                        UpdateModAnmItems();
+                        ValidateItemChildren(modRootItem);
+                        SortItemChildren(modRootItem);
+
+                        SaveMenuCache();
+
+                        UpdatePresetItems();
+                        UpdateTempPresetItems();
+
+                        CollectVariationMenu();
+                        CollectColorSetMenu();
+                        UpdateEquippedItems();
+                        UpdateSearchItems();
+                        UpdateFavoriteItems();
+                        ResetFlatView();
+
+                        _officialMenuFileNameList.Clear();
+                        _variationMenuPathMap.Clear();
+                        _variationMenuMap.Clear();
+
+                        MTEUtils.EnqueueAction(() =>
+                        {
+                            UpdateModelItems();
+                            GC.Collect();
+                            isLoading = false;
+                        });
                     }
-                    else if (rebuild)
+                    catch (Exception e)
                     {
-                        InitItemCache();
-                    }
-
-                    LoadOfficialNameCsv();
-
-                    if (_menuMap.Count == 0)
-                    {
-                        LoadMenuCache();
-                    }
-
-                    LoadOfficialMenuItems();
-                    LoadOfficialAnmItems();
-                    ValidateItemChildren(officialRootItem);
-                    SortItemChildren(officialRootItem);
-
-                    LoadModItems("*.menu");
-                    LoadModItems("mod_*.mod");
-                    UpdateModPresetItems();
-                    UpdateModAnmItems();
-                    ValidateItemChildren(modRootItem);
-                    SortItemChildren(modRootItem);
-
-                    SaveMenuCache();
-
-                    UpdatePresetItems();
-                    UpdateTempPresetItems();
-
-                    CollectVariationMenu();
-                    CollectColorSetMenu();
-                    UpdateEquippedItems();
-                    UpdateSearchItems();
-                    UpdateFavoriteItems();
-                    ResetFlatView();
-
-                    _officialMenuFileNameList.Clear();
-                    _variationMenuPathMap.Clear();
-                    _variationMenuMap.Clear();
-
-                    MTEUtils.EnqueueAction(() =>
-                    {
-                        UpdateModelItems();
-                        GC.Collect();
+                        MTEUtils.LogException(e);
                         isLoading = false;
-                    });
-                }
-                catch (Exception e)
-                {
-                    MTEUtils.LogException(e);
-                    isLoading = false;
-                }
+                    }
+                });
             });
         }
 
