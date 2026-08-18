@@ -901,7 +901,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                 animationStates[i] = null;
             }
 
-            UpdateEquippedItems();
+            if (currentMaid != null && currentMaid.IsAllProcPropBusy)
+            {
+                // 適用途中の不完全な状態を読まないよう、完了を待ってから更新する
+                UpdateEquippedItemsAfterProcProp();
+            }
+            else
+            {
+                UpdateEquippedItems();
+            }
         }
 
         public bool IsEquippedItem(MenuItem item)
