@@ -196,6 +196,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         private Dictionary<int, string> _variationMenuPathMap = new Dictionary<int, string>(menuCapacity); // rid -> path
         private Dictionary<string, List<MenuInfo>> _variationMenuMap = new Dictionary<string, List<MenuInfo>>(1024);
 
+        // 同じアイテムで毎回警告が出るのを防ぐための記録
+        private HashSet<string> _warnedNotFoundEquippedItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
         public List<AnimationState> animationStates = new List<AnimationState>();
 
@@ -266,6 +269,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _officialMenuFileNameList.Clear();
             _variationMenuPathMap.Clear();
             _variationMenuMap.Clear();
+            _warnedNotFoundEquippedItems.Clear();
 
             // MenuDataBaseは非同期構築のため、完了前に列挙すると公式アイテムを途中までしか登録できない
             MTEUtils.ExecuteAfterMenuDataBaseReady(() =>
@@ -964,7 +968,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
             }
 
-            return GetItemByName<MenuItem>(prop.strFileName);
+            var equippedItem = GetItemByName<MenuItem>(prop.strFileName);
+            if (equippedItem == null && _warnedNotFoundEquippedItems.Add(prop.strFileName))
+            {
+                // 非表示・男性用・未所持のアイテムを着用している場合もここに来る
+                MTEUtils.LogWarning("着用中のアイテムがツリーに登録されていません。" + prop.strFileName);
+            }
+
+            return equippedItem;
         }
 
         private static string WildCardMatchEvaluator(Match match)
