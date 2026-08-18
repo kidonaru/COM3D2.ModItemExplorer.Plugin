@@ -196,7 +196,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         private Dictionary<int, string> _variationMenuPathMap = new Dictionary<int, string>(menuCapacity); // rid -> path
         private Dictionary<string, List<MenuInfo>> _variationMenuMap = new Dictionary<string, List<MenuInfo>>(1024);
 
-        // 同じアイテムで毎回警告が出るのを防ぐための記録
         private HashSet<string> _warnedNotFoundEquippedItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
@@ -274,7 +273,17 @@ namespace COM3D2.ModItemExplorer.Plugin
             // MenuDataBaseは非同期構築のため、完了前に列挙すると公式アイテムを途中までしか登録できない
             MTEUtils.ExecuteAfterMenuDataBaseReady(() =>
             {
-                LoadOfficialMenuFileNameList();
+                try
+                {
+                    LoadOfficialMenuFileNameList();
+                }
+                catch (Exception e)
+                {
+                    // ここで失敗するとisLoadingがtrueのまま固着し、以後の読み込みが一切できなくなる
+                    MTEUtils.LogException(e);
+                    isLoading = false;
+                    return;
+                }
 
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
