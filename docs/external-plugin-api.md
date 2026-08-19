@@ -128,3 +128,50 @@ SceneEditor はシーンプリセット一覧に SceneCapture プラグインの
 
 詳細は SceneEditor 側のガイド
 （`W:\COM3D2_5\work\COM3D2.SceneEditor.Plugin\docs\scenecapture-import-guide.md`）を参照。
+
+## モデル提供者登録（SceneEditor のボーン編集連携）
+
+SceneEditor のボーン編集ウィンドウに「モデル」タブがあり、外部プラグインが配置した
+モデルのボーンを選択・編集・PartsEdit 互換プリセットで保存できる。
+対象モデルの一覧は、外部プラグインが**モデル提供者**として登録することで供給する。
+
+- ホスト側 API: `COM3D2.SceneEditor.Plugin.ModelProviderHost`
+- クライアント側ブリッジ: `COM3D2.MotionTimelineEditor.ModelProviderClient`（MTEUtils 同梱）
+
+### 登録
+
+```csharp
+// SceneEditor は後からロードされ得るため、成功するまで一定間隔で再試行する
+if (_handle == null && ModelProviderClient.isAvailable)
+{
+    _handle = ModelProviderClient.Register(
+        "プラグイン名",
+        GetModels,        // Func<List<GameObject>>
+        GetDisplayName);  // Func<GameObject, string> (null 可)
+}
+```
+
+本プラグインでは `SelfModelPlacer.TryRegisterModelProvider` が
+`ModelPlacerManager.instance.modelList` を元に登録している。
+
+### 契約
+
+- `getModels` は「現在配置中のモデルのルート GameObject」を**毎回列挙して返す**。
+  ホスト側は結果を保持せず都度呼ぶため、モデルの増減はそのまま反映される
+- `getDisplayName` は null 可。null または空文字を返した場合は GameObject 名で表示される
+- `Register` の戻り値は解除用ハンドル。不要になったら必ず `Unregister(handle)` すること
+- 提供デリゲートが投げた例外はホスト側で握り潰される（他プラグインを巻き込まない）
+- ホスト側は重複排除を行わない。同一 GameObject を複数経路で提供しないのは提供側の責務
+- SceneEditor 不在・旧バージョンでは `isAvailable` が false になり、登録は行われない
+
+### 編集の扱い
+
+- ボーンギズモと骨格線は SceneEditor 側が出す。モデルルートのギズモは従来どおり
+  提供側（本プラグインの `ModelGizmoManager`）が持ち、選択同期は `showGizmo:false` で行う
+- undo は `HistoryScope.Object` で記録される
+- プリセットは PartsEdit 本体と同じ `UnityInjector\Config\PartsEdit\*.xml` に
+  `bMaidParts=false` で書かれ、PartsEdit と相互運用できる。
+  ただし SceneEditor 側は `rootData`（モデルルートの TRS）を**適用しない**
+  （ルートの配置は提供側プラグインの管理下にあるため）。
+  PartsEdit 本体はモデルへ `rootData.scale` も適用するので、この点だけ挙動が異なる
+- モデルのボーン編集はシーンプリセットには保存されない
