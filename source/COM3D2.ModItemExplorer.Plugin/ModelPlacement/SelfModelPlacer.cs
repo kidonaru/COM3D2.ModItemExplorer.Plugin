@@ -386,7 +386,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private void TryRegisterHostConnections()
         {
-            if (_selectionHandlerRegistered && _inspectorHandle != null)
+            if (_selectionHandlerRegistered && _inspectorHandle != null && _modelProviderHandle != null)
             {
                 return;
             }
@@ -403,11 +403,16 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _selectionHandlerRegistered = SelectionClient.AddSelectionChangedHandler(OnHostSelectionChanged);
             }
             TryRegisterInspector();
+            TryRegisterModelProvider();
         }
 
         // SceneEditor の InspectorHost へ登録済みか。SceneEditor は後からロードされる可能性があるため
         // 成功するまで再試行する (選択購読の再試行間隔に相乗りする)
         private object _inspectorHandle;
+
+        // SceneEditor の ModelProviderHost へ登録済みか。SceneEditor は後からロードされる
+        // 可能性があるため成功するまで再試行する (選択購読の再試行間隔に相乗りする)
+        private object _modelProviderHandle;
         private ModelInspectorDrawer _inspectorDrawer;
 
         /// <summary>
@@ -435,6 +440,61 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 MTEUtils.LogDebug("SelfModelPlacer: InspectorHost へ登録しました");
             }
+        }
+
+        /// <summary>
+        /// SceneEditor のボーン編集等へ配置モデルの一覧を提供する。
+        /// SceneEditor 不在時は ModelProviderClient が無効を返すため何もしない
+        /// </summary>
+        private void TryRegisterModelProvider()
+        {
+            if (_modelProviderHandle != null || !ModelProviderClient.isAvailable)
+            {
+                return;
+            }
+
+            _modelProviderHandle = ModelProviderClient.Register(
+                "ModItemExplorer",
+                GetProvidedModels,
+                GetProvidedModelName);
+
+            if (_modelProviderHandle != null)
+            {
+                MTEUtils.LogDebug("SelfModelPlacer: ModelProviderHost へ登録しました");
+            }
+        }
+
+        /// <summary>配置中モデルのルート GameObject 一覧 (MTE 配置分も含む)</summary>
+        private List<GameObject> GetProvidedModels()
+        {
+            var result = new List<GameObject>();
+            foreach (var model in ModelPlacerManager.instance.modelList)
+            {
+                var go = model.obj as GameObject;
+                if (go != null)
+                {
+                    result.Add(go);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>GameObject からモデルの表示名を逆引きする。管理外なら null (ホスト側が GO 名で表示)</summary>
+        private string GetProvidedModelName(GameObject go)
+        {
+            if (go == null)
+            {
+                return null;
+            }
+
+            foreach (var model in ModelPlacerManager.instance.modelList)
+            {
+                if ((model.obj as GameObject) == go)
+                {
+                    return model.displayName;
+                }
+            }
+            return null;
         }
 
         /// <summary>
