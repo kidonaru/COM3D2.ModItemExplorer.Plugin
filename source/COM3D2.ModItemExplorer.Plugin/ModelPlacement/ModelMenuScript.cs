@@ -234,11 +234,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 採用した additem と同じスロット宛の変更かどうか。
-        /// スロット名が分からない menu では絞り込めないため全て受け入れる
+        /// スロット名が分からない menu では絞り込めないため全て受け入れる。
+        /// ゲーム側は TBody.hashSlotName に原文/小文字/大文字を全て登録していて大小文字を区別しないため、
+        /// ここも区別しない（additem が "accSenaka"、マテリアル変更が "accsenaka" という menu が実在する）
         /// </summary>
         private bool IsTargetSlot(string slotName)
         {
-            return _slotName == null || _slotName == slotName;
+            return _slotName == null
+                || string.Equals(_slotName, slotName, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
