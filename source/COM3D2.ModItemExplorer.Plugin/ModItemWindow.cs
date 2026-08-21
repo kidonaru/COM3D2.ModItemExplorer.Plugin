@@ -1777,6 +1777,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             modItemManager.CreateModel(selectedMenuItem, pluginName);
+
+            // 配置したモデルをすぐ操作できるよう操作ウィンドウを前面へ出す。
+            // 一覧に載るのは自前配置分だけなので、MTE 経由では出さない
+            if (pluginName == SelfModelPlacer.PluginName)
+            {
+                windowManager.modelOperationWindow.Activate();
+            }
         }
 
         private void DrawVariationMenu(MenuInfo menu, MenuInfo selectedMenu)

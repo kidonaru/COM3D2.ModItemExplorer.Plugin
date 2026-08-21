@@ -60,6 +60,18 @@ namespace COM3D2.ModItemExplorer.Plugin
             _userVisible = !_userVisible;
         }
 
+        /// <summary>
+        /// 配置直後など外部から前面に呼び出すとき用。
+        /// isShowWnd は Update() が _userVisible から計算し直すため、こちらも立てる
+        /// (ユーザーが「操作」ボタンで閉じていた場合も再表示する)。
+        /// 表示条件に編集モードを含むため、呼び出し側はモデル編集モード中であること
+        /// </summary>
+        public override void Activate()
+        {
+            _userVisible = true;
+            base.Activate();
+        }
+
         private static WindowManager windowManager => WindowManager.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
         private static TextureManager textureManager => TextureManager.instance;
