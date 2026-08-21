@@ -604,6 +604,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             var items = _categoryComboBox.items;
             items.Clear();
+
+            // 全カテゴリを並べるルート自身も選択肢に含める
+            items.Add(rootItem);
             foreach (var child in rootItem.children)
             {
                 items.Add(child as DirItem);
@@ -612,17 +615,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             // ナビツリーやパンくずからの移動にも追従させる。
             // currentItem 経由だと onSelected へ回り込んで SetCurrentDirItem を
             // 押し返すことになるため index を直接入れる
-            var index = items.IndexOf(GetCategoryItem(currentDirItem));
-            _categoryComboBox.currentIndex = index;
-
-            // ルート表示中はどのカテゴリにも属さないため、パスバーと同じ名前を出して
-            // 直前のカテゴリ名が残って見えないようにする
-            _categoryComboBox.defaultName = index >= 0 ? null : rootItem.name;
+            _categoryComboBox.currentIndex = items.IndexOf(GetCategoryItem(currentDirItem));
 
             _categoryComboBox.DrawButton(view);
         }
 
-        /// <summary>指定アイテムが属する表示カテゴリ（rootItem 直下のディレクトリ）を返す</summary>
+        /// <summary>
+        /// 指定アイテムが属する表示カテゴリ（rootItem 直下のディレクトリ）を返す。
+        /// ルート自身や未選択はどのカテゴリにも属さないため rootItem を返す
+        /// </summary>
         private static DirItem GetCategoryItem(DirItem item)
         {
             var current = item;
@@ -630,7 +631,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 current = current.parent as DirItem;
             }
-            return current;
+            return current ?? rootItem;
         }
 
         private GUIComboBox<Maid> _maidComboBox = new GUIComboBox<Maid>
@@ -1462,6 +1463,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     {
                         selectedItem = item as ModItemBase;
                         OnItemSelected(selectedItem);
+                        CheckItemDoubleClick(selectedItem);
                     },
                     item =>
                     {
@@ -1785,25 +1787,36 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>ダブルクリックとみなす連続クリックの間隔（秒）</summary>
         private readonly static float DOUBLE_CLICK_INTERVAL = 0.3f;
 
-        private MenuInfo _lastClickedVariationMenu = null;
-        private float _lastVariationClickTime = 0f;
-
         /// <summary>
-        /// バリエーションの同一アイテムが短時間に2回押されたかを判定する。
-        /// 呼び出すたびにクリック履歴を更新するため、1アイテムにつき1回だけ呼ぶこと。
-        /// 成立時は履歴を捨て、3回目以降のクリックを続けて成立させない
+        /// ダブルクリック判定の状態。バリエーションと一覧はクリックが互いを巻き込むため
+        /// （バリエーションのクリックは一覧向けの OnItemSelected も呼ぶ）、
+        /// 判定する場所ごとに1つ持って状態を混ぜないこと
         /// </summary>
-        private bool TryConsumeVariationDoubleClick(MenuInfo menu)
+        private class DoubleClickTracker
         {
-            var now = Time.realtimeSinceStartup;
-            var isDoubleClick = _lastClickedVariationMenu == menu
-                && now - _lastVariationClickTime <= DOUBLE_CLICK_INTERVAL;
+            private object _lastTarget = null;
+            private float _lastTime = 0f;
 
-            _lastClickedVariationMenu = isDoubleClick ? null : menu;
-            _lastVariationClickTime = now;
+            /// <summary>
+            /// 同一の対象が短時間に2回押されたかを判定する。
+            /// 呼び出すたびにクリック履歴を更新するため、1クリックにつき1回だけ呼ぶこと。
+            /// 成立時は履歴を捨て、3回目以降のクリックを続けて成立させない
+            /// </summary>
+            public bool TryConsume(object target)
+            {
+                var now = Time.realtimeSinceStartup;
+                var isDoubleClick = _lastTarget == target
+                    && now - _lastTime <= DOUBLE_CLICK_INTERVAL;
 
-            return isDoubleClick;
+                _lastTarget = isDoubleClick ? null : target;
+                _lastTime = now;
+
+                return isDoubleClick;
+            }
         }
+
+        private DoubleClickTracker _variationDoubleClick = new DoubleClickTracker();
+        private DoubleClickTracker _itemDoubleClick = new DoubleClickTracker();
 
         /// <summary>
         /// バリエーションのダブルクリックで配置する。選択中の項目はボタンが無効化され
@@ -1820,7 +1833,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            if (!TryConsumeVariationDoubleClick(menu))
+            if (!_variationDoubleClick.TryConsume(menu))
             {
                 return;
             }
@@ -1830,6 +1843,24 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             selectedMenuItem.variationMenu = menu;
             CreateSelectedModel();
+        }
+
+        /// <summary>
+        /// アイテム一覧のダブルクリックで配置する。バリエーションと違い一覧のボタンは
+        /// 常に有効なため、クリックで呼ばれるこの経路で判定できる
+        /// </summary>
+        private void CheckItemDoubleClick(ModItemBase item)
+        {
+            if (item == null || item.isDir || !isModelMode || !canCreateSelectedModel)
+            {
+                return;
+            }
+
+            // バリエーションと揃えて、単発クリックは選択に留めダブルクリックで配置する
+            if (_itemDoubleClick.TryConsume(item))
+            {
+                CreateSelectedModel();
+            }
         }
 
         /// <summary>選択中アイテムを、選択中の配置プラグインへ配置する</summary>

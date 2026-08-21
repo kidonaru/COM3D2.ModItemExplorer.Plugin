@@ -407,9 +407,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (applied)
             {
-                itemHistoryManager.Add(item.itemPath);
-                UpdateHistoryItems();
+                AddItemHistory(item);
             }
+        }
+
+        /// <summary>選択履歴へ 1 件積み、一覧へ反映する</summary>
+        private void AddItemHistory(ModItemBase item)
+        {
+            itemHistoryManager.Add(item.itemPath);
+            UpdateHistoryItems();
         }
 
         // colorSetMPN -> colorSetMenuName -> ColorSetInfo
@@ -830,29 +836,33 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            var created = false;
             if (item is BgObjectItem bgObjectItem)
             {
-                CreateBgObjectModel(bgObjectItem, pluginName);
-                return;
+                created = CreateBgObjectModel(bgObjectItem, pluginName);
+            }
+            else if (item is MenuItem menuItem)
+            {
+                created = CreateMenuModel(menuItem, pluginName);
             }
 
-            if (item is MenuItem menuItem)
+            if (created)
             {
-                CreateMenuModel(menuItem, pluginName);
+                AddItemHistory(item);
             }
         }
 
         /// <summary>
-        /// 背景オブジェクトを配置する。
+        /// 背景オブジェクトを配置する。配置まで到達した場合のみ true を返す。
         /// MTE / StudioMode の配置経路は .menu 名を渡す前提でアセットバンドルを扱えないため、
         /// 配置プラグインの選択に関わらず自前配置を使う
         /// </summary>
-        private void CreateBgObjectModel(BgObjectItem item, string pluginName)
+        private bool CreateBgObjectModel(BgObjectItem item, string pluginName)
         {
             if (item.info == null)
             {
                 MTEUtils.LogWarning("背景オブジェクトの情報がありません。" + item.itemPath);
-                return;
+                return false;
             }
 
             try
@@ -867,14 +877,17 @@ namespace COM3D2.ModItemExplorer.Plugin
                 modelPlacerManager.CreateBgObject(item.info.assetBundleName, 0, true);
 
                 UpdateModelItems();
+                return true;
             }
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
+                return false;
             }
         }
 
-        private void CreateMenuModel(MenuItem item, string pluginName)
+        /// <summary>モデルを配置する。配置まで到達した場合のみ true を返す</summary>
+        private bool CreateMenuModel(MenuItem item, string pluginName)
         {
             try
             {
@@ -885,7 +898,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 if (menu == null)
                 {
                     MTEUtils.LogWarning("Menuが見つかりません。" + item.itemPath);
-                    return;
+                    return false;
                 }
 
                 foreach (var model in modelList)
@@ -913,10 +926,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                     true);
 
                 UpdateModelItems();
+                return true;
             }
             catch (Exception e)
             {
                 MTEUtils.LogException(e);
+                return false;
             }
         }
 
