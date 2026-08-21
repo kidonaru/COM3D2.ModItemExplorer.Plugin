@@ -1314,14 +1314,32 @@ namespace COM3D2.ModItemExplorer.Plugin
             return restored;
         }
 
+        /// <summary>配置データのファイル名が背景オブジェクト (.asset_bg) を指すか</summary>
+        internal static bool IsBgObjectFileName(string fileName)
+        {
+            return !string.IsNullOrEmpty(fileName)
+                && fileName.EndsWith(
+                    BgObjectAssetLoader.AssetBgExtension, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>"xxx.asset_bg" からアセットバンドル名 "xxx" を取り出す</summary>
+        private static string GetAssetBundleName(string fileName)
+        {
+            return Path.GetFileNameWithoutExtension(fileName);
+        }
+
         /// <summary>
         /// 保存データからモデル1体を復元する。失敗時は null。
         /// プリセット復元と操作履歴の undo/redo で同じ経路を使う
         /// </summary>
         internal StudioModelStatWrapper RestoreModel(ModelPlacementPresetItem item)
         {
-            // 保存時と同じ生成経路を再実行してから Transform を適用する
-            var wrapper = CreateModel(item.fileName, item.group, item.visible);
+            // 保存時と同じ生成経路を再実行してから Transform を適用する。
+            // 背景オブジェクトは fileName の拡張子で見分ける
+            // (ModItemManager.GetMenu が .menu/.mod を拡張子で見分けているのと同じ流儀)
+            var wrapper = IsBgObjectFileName(item.fileName)
+                ? CreateBgObject(GetAssetBundleName(item.fileName), item.group, item.visible)
+                : CreateModel(item.fileName, item.group, item.visible);
             if (wrapper?.obj as GameObject == null)
             {
                 return null;
