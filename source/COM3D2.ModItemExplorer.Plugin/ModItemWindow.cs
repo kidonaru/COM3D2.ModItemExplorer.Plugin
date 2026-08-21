@@ -8,6 +8,14 @@ using UnityEngine.SceneManagement;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
+    /// <summary>ウィンドウの編集モード。設定へ保存するため公開型にしている</summary>
+    public enum ContentMode
+    {
+        メイド,
+        モデル,
+        設定,
+    }
+
     public class ModItemWindow : DockableWindowBase
     {
         public readonly static int WINDOW_ID = 582870;
@@ -696,14 +704,20 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private GUIView.DragInfo _naviWidthDragInfo = new GUIView.DragInfo();
 
-        private enum ContentMode
+        /// <summary>編集モードは設定へ保存し、次回起動時に復元する</summary>
+        private ContentMode _contentMode
         {
-            メイド,
-            モデル,
-            設定,
+            get => config.contentMode;
+            set
+            {
+                if (config.contentMode == value)
+                {
+                    return;
+                }
+                config.contentMode = value;
+                config.dirty = true;
+            }
         }
-
-        private ContentMode _contentMode = ContentMode.メイド;
 
         protected override void DrawContent()
         {
@@ -952,9 +966,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     view.DrawLabel("プラグインを選択してください", 200, 20, textColor: Color.yellow);
                 }
-                else if (view.DrawButton("配置", 50, 20))
+                // 配置対象が決まらないため、アイテム未選択時は押せないようにする
+                else if (view.DrawButton("配置", 50, 20, selectedMenuItem != null))
                 {
-                    modItemManager.CreateModel(selectedMenuItem, pluginName);
+                    CreateSelectedModel();
                 }
 
                 // プラグイン未選択でもウィンドウは開閉できるようにする
@@ -1700,6 +1715,70 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.EndScrollView();
         }
 
+        /// <summary>ダブルクリックとみなす連続クリックの間隔（秒）</summary>
+        private readonly static float DOUBLE_CLICK_INTERVAL = 0.3f;
+
+        private MenuInfo _lastClickedVariationMenu = null;
+        private float _lastVariationClickTime = 0f;
+
+        /// <summary>
+        /// バリエーションの同一アイテムが短時間に2回押されたかを判定する。
+        /// 呼び出すたびにクリック履歴を更新するため、1アイテムにつき1回だけ呼ぶこと。
+        /// 成立時は履歴を捨て、3回目以降のクリックを続けて成立させない
+        /// </summary>
+        private bool TryConsumeVariationDoubleClick(MenuInfo menu)
+        {
+            var now = Time.realtimeSinceStartup;
+            var isDoubleClick = _lastClickedVariationMenu == menu
+                && now - _lastVariationClickTime <= DOUBLE_CLICK_INTERVAL;
+
+            _lastClickedVariationMenu = isDoubleClick ? null : menu;
+            _lastVariationClickTime = now;
+
+            return isDoubleClick;
+        }
+
+        /// <summary>
+        /// バリエーションのダブルクリックで配置する。選択中の項目はボタンが無効化され
+        /// GUI.Button が反応しないため、クリックはイベントから直接拾う
+        /// </summary>
+        private void CheckVariationDoubleClick(MenuInfo menu, Rect drawRect)
+        {
+            var view = _variationView;
+            var e = Event.current;
+
+            if (!view.guiEnabled || e.type != EventType.MouseDown || e.button != 0
+                || !drawRect.Contains(e.mousePosition))
+            {
+                return;
+            }
+
+            if (!TryConsumeVariationDoubleClick(menu))
+            {
+                return;
+            }
+
+            // 配置済みのクリックはボタン側の選択処理へ渡さない
+            e.Use();
+
+            selectedMenuItem.variationMenu = menu;
+            CreateSelectedModel();
+        }
+
+        /// <summary>選択中アイテムを、選択中の配置プラグインへ配置する</summary>
+        private void CreateSelectedModel()
+        {
+            var pluginName = _pluginComboBox.currentItem;
+            if (pluginName == null)
+            {
+                // ダブルクリック経由だと未選択の案内ラベルが目に入らないため、ログで知らせる
+                MTEUtils.LogWarning("配置プラグインが選択されていません");
+                return;
+            }
+
+            modItemManager.CreateModel(selectedMenuItem, pluginName);
+        }
+
         private void DrawVariationMenu(MenuInfo menu, MenuInfo selectedMenu)
         {
             var view = _variationView;
@@ -1717,6 +1796,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 view.NextElement(drawRect);
                 return;
+            }
+
+            // モデル編集モードのみダブルクリックで配置（単発クリックは選択に留める）
+            if (isModelMode)
+            {
+                CheckVariationDoubleClick(menu, drawRect);
             }
 
             var thum = textureManager.GetTexture(menu.iconName, menu.iconData);

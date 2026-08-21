@@ -45,6 +45,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool setumeiSerch = false;
         public ItemSortType itemSortType = ItemSortType.DefaultAsc;
         public bool animationExtend = true;
+        public ContentMode contentMode = ContentMode.メイド;
         public SelfModelPlacer.GizmoTargetType gizmoTargetType = SelfModelPlacer.GizmoTargetType.All;
 
         // 表示設定
