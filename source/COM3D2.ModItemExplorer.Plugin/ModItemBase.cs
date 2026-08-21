@@ -17,6 +17,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         TempPreset,
         Model,
         Anm,
+        BgObject,
     }
 
     public abstract class ModItemBase : TileViewContentBase

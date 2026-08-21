@@ -109,6 +109,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BgObject\BgObjectInfo.cs" />
+    <Compile Include="BgObject\BgObjectItem.cs" />
     <Compile Include="BgObject\BgObjectNeiLoader.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\MaidPresetManager.cs" />

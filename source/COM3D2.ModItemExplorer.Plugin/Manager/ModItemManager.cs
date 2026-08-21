@@ -178,6 +178,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             LoadOfficialMenuItems,
             LoadOfficialAnmItems,
             LoadModItems,
+            LoadModBgObjectItems,
             UpdateModPresetItems,
             UpdateModAnmItems,
             UpdatePresetItems,
@@ -313,6 +314,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                         LoadModItems("*.menu");
                         LoadModItems("mod_*.mod");
+                        LoadModBgObjectItems();
                         UpdateModPresetItems();
                         UpdateModAnmItems();
                         ValidateItemChildren(modRootItem);
@@ -1381,6 +1383,76 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        private void LoadModBgObjectItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] LoadModBgObjectItems");
+            loadState = LoadState.LoadModBgObjectItems;
+
+            // 今回のロードで生き残った itemPath。取りこぼしを後で掃除するために覚えておく
+            var alivePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var infoList = BgObjectNeiLoader.LoadAll();
+            foreach (var info in infoList)
+            {
+                try
+                {
+                    // nei と同じフォルダに展開する。既存の Mod ツリー(実フォルダ構造)と揃える
+                    var relativeDir = Path.GetDirectoryName(
+                        GetRelativePath(MTEUtils.ModDirPath, info.neiFilePath));
+                    var itemPath = MTEUtils.CombinePaths(ModDirName, relativeDir, info.name);
+
+                    // 同一フォルダで表示名が衝突すると後勝ちで消えてしまうため、
+                    // 一意なアセットバンドル名を足して逃がす。
+                    // 前回ロード分の自分自身は衝突扱いにしない
+                    var existing = GetItemByPath<ModItemBase>(itemPath);
+                    if (existing != null && !(existing is BgObjectItem))
+                    {
+                        MTEUtils.LogWarning(
+                            "背景オブジェクトの名前が重複しています。{0} ({1})",
+                            info.name, info.assetBundleName);
+                        itemPath = MTEUtils.CombinePaths(
+                            ModDirName, relativeDir, info.name + "_" + info.assetBundleName);
+                    }
+
+                    if (GetOrCreateBgObjectItem(itemPath, info) != null)
+                    {
+                        alivePaths.Add(itemPath);
+                    }
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            RemoveStaleBgObjectItems(alivePaths);
+        }
+
+        /// <summary>
+        /// 今回の nei に現れなかった背景オブジェクトのアイテムをツリーから消す。
+        ///
+        /// BgObjectItem の fullPath は nei ファイル自体を指すため、MOD 側が nei の行だけを
+        /// 削除・リネームしても ValidateItemFile の File.Exists は通ってしまい、
+        /// 旧アイテムがゴーストとしてツリーに残る。ここで明示的に掃除する
+        /// </summary>
+        private void RemoveStaleBgObjectItems(HashSet<string> alivePaths)
+        {
+            var staleItems = new List<ModItemBase>();
+            foreach (var pair in _itemPathMap)
+            {
+                if (pair.Value is BgObjectItem && !alivePaths.Contains(pair.Key))
+                {
+                    staleItems.Add(pair.Value);
+                }
+            }
+
+            foreach (var item in staleItems)
+            {
+                MTEUtils.LogDebug("[ModMenuItemManager] 背景オブジェクトを削除: " + item.itemPath);
+                RemoveItem(item);
+            }
+        }
+
         public void DumpDuplicatedMods(List<string> patterns)
         {
             MTEUtils.Log("[ModMenuItemManager] DumpDuplicatedMods");
@@ -2435,6 +2507,49 @@ namespace COM3D2.ModItemExplorer.Plugin
                 itemPath = itemPath,
                 itemType = itemType,
                 fullPath = fullPath,
+            };
+
+            parentItem.AddChild(item);
+            _itemPathMap[itemPath] = item;
+            _itemNameMap[itemName] = item;
+
+            return item;
+        }
+
+        private BgObjectItem GetOrCreateBgObjectItem(string itemPath, BgObjectInfo info)
+        {
+            if (string.IsNullOrEmpty(itemPath) || info == null)
+            {
+                return null;
+            }
+
+            var item = GetItemByPath<BgObjectItem>(itemPath);
+            if (item != null)
+            {
+                item.info = info;
+                return item;
+            }
+
+            var parentPath = Path.GetDirectoryName(itemPath);
+            var parentItem = GetOrCreateDirItem(parentPath);
+            if (parentItem == null)
+            {
+                MTEUtils.LogWarning("親ディレクトリが見つかりません。" + parentPath);
+                return null;
+            }
+
+            var itemName = Path.GetFileName(itemPath);
+
+            item = new BgObjectItem
+            {
+                name = info.name,
+                itemName = itemName,
+                itemPath = itemPath,
+                itemType = ModItemType.BgObject,
+                // ValidateItemFile が File.Exists で生存確認するため、
+                // フォルダではなく nei ファイル自体のパスを入れる
+                fullPath = info.neiFilePath,
+                info = info,
             };
 
             parentItem.AddChild(item);
