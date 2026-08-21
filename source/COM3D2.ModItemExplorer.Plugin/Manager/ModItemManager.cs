@@ -835,7 +835,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 if (pluginName != SelfModelPlacer.PluginName)
                 {
                     MTEUtils.Log(
-                        "背景オブジェクトは{0}でのみ配置できます。{1}",
+                        "背景オブジェクトは{0}に固定して配置します。(指定されたプラグイン: {1})",
                         SelfModelPlacer.PluginName, pluginName);
                 }
 
@@ -1449,9 +1449,11 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     // 同一フォルダで表示名が衝突すると後勝ちで消えてしまうため、
                     // 一意なアセットバンドル名を足して逃がす。
-                    // 前回ロード分の自分自身は衝突扱いにしない
+                    // 前回ロード分の BgObjectItem は自分自身なので衝突扱いにしないが、
+                    // 今回のロードで既に使った itemPath なら別のバンドルとの衝突なので逃がす
                     var existing = GetItemByPath<ModItemBase>(itemPath);
-                    if (existing != null && !(existing is BgObjectItem))
+                    if (existing != null &&
+                        (!(existing is BgObjectItem) || alivePaths.Contains(itemPath)))
                     {
                         MTEUtils.LogWarning(
                             "背景オブジェクトの名前が重複しています。{0} ({1})",

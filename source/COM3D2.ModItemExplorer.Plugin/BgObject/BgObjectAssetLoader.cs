@@ -41,6 +41,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return cached;
             }
 
+            // 失敗して抜けるときは必ず Unload する。ロードしたまま捨てると
+            // 次回の LoadFromMemory が「同じファイルを含む AssetBundle が既にロード済み」で
+            // 例外になり、そのバンドルがゲーム終了まで配置不能になる
+            AssetBundle assetBundle = null;
+
             try
             {
                 var fileName = assetBundleName + AssetBgExtension;
@@ -61,7 +66,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     buffer = file.ReadAll();
                 }
 
-                var assetBundle = AssetBundle.LoadFromMemory(buffer);
+                assetBundle = AssetBundle.LoadFromMemory(buffer);
                 if (assetBundle == null)
                 {
                     MTEUtils.LogWarning("アセットバンドルの読み込みに失敗しました。{0}", fileName);
@@ -72,6 +77,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 if (assets == null || assets.Length == 0)
                 {
                     MTEUtils.LogWarning("アセットバンドルにGameObjectがありません。{0}", fileName);
+                    UnloadQuietly(assetBundle);
                     return null;
                 }
 
@@ -91,7 +97,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 MTEUtils.LogWarning("アセットバンドルの読み込みに失敗しました。{0}", assetBundleName);
                 MTEUtils.LogException(e);
+                UnloadQuietly(assetBundle);
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// 失敗時の後始末。ここで更に例外を投げると本来の失敗理由が隠れるため握り潰す
+        /// </summary>
+        private static void UnloadQuietly(AssetBundle assetBundle)
+        {
+            if (assetBundle == null)
+            {
+                return;
+            }
+
+            try
+            {
+                assetBundle.Unload(true);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
             }
         }
     }

@@ -577,7 +577,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         public StudioModelStatWrapper CreateModel(string fileName, int group, bool visible)
         {
             GameObject modelGo = null;
-            GameObject wrapperGo = null;
             var disposables = new List<UnityEngine.Object>();
 
             try
@@ -598,10 +597,84 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 ApplyMenuChanges(modelGo, script, disposables);
 
-                // ギズモ操作でモデル内部の Transform を壊さないよう、ラッパー越しに動かす
-                var resolvedGroup = ResolveGroup(fileName, group);
-                var modelName = GetModelName(fileName, resolvedGroup);
-                wrapperGo = new GameObject(modelName);
+                return RegisterCreatedModel(modelGo, fileName, group, visible, disposables);
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("モデルの配置に失敗しました。{0}", fileName);
+                MTEUtils.LogException(e);
+
+                // 登録前に失敗した分は誰からも参照されず削除もできなくなるため、ここで片付ける
+                if (modelGo != null)
+                {
+                    UnityEngine.Object.Destroy(modelGo);
+                }
+                DestroyAll(disposables);
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// nei 由来の背景オブジェクト (.asset_bg) をシーンに配置し、生成したモデルを返す（失敗時は null）。
+        /// ラッパー生成以降は CreateModel と同じ扱いにする
+        /// </summary>
+        public StudioModelStatWrapper CreateBgObject(string assetBundleName, int group, bool visible)
+        {
+            GameObject modelGo = null;
+
+            try
+            {
+                var prefab = BgObjectAssetLoader.LoadPrefab(assetBundleName);
+                if (prefab == null)
+                {
+                    return null;
+                }
+
+                modelGo = UnityEngine.Object.Instantiate(prefab);
+                SetLayerRecursively(modelGo, GetModelLayer());
+
+                var fileName = assetBundleName + BgObjectAssetLoader.AssetBgExtension;
+
+                // Mesh/Material はアセットバンドル所有のため破棄対象に積まない。
+                // 破棄すると同じバンドルから作った他インスタンスまで壊れる
+                return RegisterCreatedModel(
+                    modelGo, fileName, group, visible, new List<UnityEngine.Object>());
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("背景オブジェクトの配置に失敗しました。{0}", assetBundleName);
+                MTEUtils.LogException(e);
+
+                if (modelGo != null)
+                {
+                    UnityEngine.Object.Destroy(modelGo);
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 生成済みの modelGo をラッパーで包んでシーンへ据え、配置中モデルとして登録する。
+        /// menu 経路 (CreateModel) と .asset_bg 経路 (CreateBgObject) の共通後半部分。
+        /// 途中で失敗した場合はラッパーだけ片付けて呼び出し側へ投げ返す
+        /// (modelGo と disposables の後始末は生成した側の責務)
+        /// </summary>
+        private StudioModelStatWrapper RegisterCreatedModel(
+            GameObject modelGo,
+            string fileName,
+            int group,
+            bool visible,
+            List<UnityEngine.Object> disposables)
+        {
+            // ギズモ操作でモデル内部の Transform を壊さないよう、ラッパー越しに動かす
+            var resolvedGroup = ResolveGroup(fileName, group);
+            var modelName = GetModelName(fileName, resolvedGroup);
+            var wrapperGo = new GameObject(modelName);
+
+            try
+            {
                 wrapperGo.transform.SetParent(GetOrCreateParent().transform, false);
                 wrapperGo.transform.position = GetDefaultPosition();
                 modelGo.transform.SetParent(wrapperGo.transform, false);
@@ -638,102 +711,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 return wrapper;
             }
-            catch (Exception e)
+            catch
             {
-                MTEUtils.LogWarning("モデルの配置に失敗しました。{0}", fileName);
-                MTEUtils.LogException(e);
-
-                // 登録前に失敗した分は誰からも参照されず削除もできなくなるため、ここで片付ける
-                if (wrapperGo != null)
-                {
-                    UnityEngine.Object.Destroy(wrapperGo);
-                }
-                else if (modelGo != null)
-                {
-                    UnityEngine.Object.Destroy(modelGo);
-                }
-                DestroyAll(disposables);
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// nei 由来の背景オブジェクト (.asset_bg) をシーンに配置し、生成したモデルを返す（失敗時は null）。
-        /// ラッパー生成以降は CreateModel と同じ扱いにする
-        /// </summary>
-        public StudioModelStatWrapper CreateBgObject(string assetBundleName, int group, bool visible)
-        {
-            GameObject modelGo = null;
-            GameObject wrapperGo = null;
-
-            try
-            {
-                var prefab = BgObjectAssetLoader.LoadPrefab(assetBundleName);
-                if (prefab == null)
-                {
-                    return null;
-                }
-
-                modelGo = UnityEngine.Object.Instantiate(prefab);
-                SetLayerRecursively(modelGo, GetModelLayer());
-
-                var fileName = assetBundleName + BgObjectAssetLoader.AssetBgExtension;
-                var resolvedGroup = ResolveGroup(fileName, group);
-                var modelName = GetModelName(fileName, resolvedGroup);
-                wrapperGo = new GameObject(modelName);
-                wrapperGo.transform.SetParent(GetOrCreateParent().transform, false);
-                wrapperGo.transform.position = GetDefaultPosition();
-                modelGo.transform.SetParent(wrapperGo.transform, false);
-                modelGo.transform.localPosition = Vector3.zero;
-                modelGo.transform.localRotation = Quaternion.identity;
-                modelGo.transform.localScale = Vector3.one;
-
-                AddGizmo(wrapperGo);
-                wrapperGo.SetActive(visible);
-
-                var wrapper = new StudioModelStatWrapper
-                {
-                    original = null,
-                    group = resolvedGroup,
-                    name = modelName,
-                    displayName = modelName,
-                    obj = wrapperGo,
-                    pluginName = PluginName,
-                    visible = visible,
-                    infoWrapper = new OfficialObjectInfoWrapper
-                    {
-                        fileName = fileName,
-                        label = fileName,
-                    },
-                };
-
-                _models.Add(wrapper);
-                // Mesh/Material はアセットバンドル所有のため破棄対象に積まない。
-                // 破棄すると同じバンドルから作った他インスタンスまで壊れる
-                _disposables[wrapper] = new List<UnityEngine.Object>();
-
-                selectedModel = wrapper;
-
-                history.RegisterCreate(wrapper, history.TryCaptureState(wrapper));
-
-                return wrapper;
-            }
-            catch (Exception e)
-            {
-                MTEUtils.LogWarning("背景オブジェクトの配置に失敗しました。{0}", assetBundleName);
-                MTEUtils.LogException(e);
-
-                if (wrapperGo != null)
-                {
-                    UnityEngine.Object.Destroy(wrapperGo);
-                }
-                else if (modelGo != null)
-                {
-                    UnityEngine.Object.Destroy(modelGo);
-                }
-
-                return null;
+                UnityEngine.Object.Destroy(wrapperGo);
+                throw;
             }
         }
 
