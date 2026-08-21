@@ -98,6 +98,32 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        /// <summary>検索バーの入力が止まってから自動検索するまでの待ち時間（秒）</summary>
+        private readonly static float SEARCH_DEBOUNCE_SECONDS = 0.5f;
+
+        /// <summary>フォーカスが戻らないまま復帰処理を諦めるまでの猶予（秒）</summary>
+        private readonly static float SEARCH_FOCUS_RESTORE_TIMEOUT = 1f;
+
+        // IMGUI のコントロール名は Unity 全体で共有されるため、他プラグインと衝突しないよう修飾する
+        private readonly static string SEARCH_FIELD_CONTROL_NAME =
+            "COM3D2.ModItemExplorer.SearchField";
+
+        /// <summary>自動検索を実行する予定時刻。負値なら予約なし</summary>
+        private float _searchScheduledTime = -1f;
+
+        /// <summary>検索バーのフォーカス復帰の進行状態</summary>
+        private enum SearchFocusRestoreStep
+        {
+            None,
+            RequestFocus,
+            MoveCaretToEnd,
+        }
+
+        private SearchFocusRestoreStep _searchFocusRestoreStep = SearchFocusRestoreStep.None;
+
+        /// <summary>フォーカス復帰を諦める時刻</summary>
+        private float _searchFocusRestoreLimitTime = 0f;
+
         private MenuInfo _mouseOverMenu = null;
         private ModItemBase _mouseOverItem = null;
         private int _mouseOverFrameCount = 0;
@@ -1070,14 +1096,21 @@ namespace COM3D2.ModItemExplorer.Plugin
                     {
                         width = searchWidth - 20,
                         value = modItemManager.searchPattern,
-                        onChanged = value => modItemManager.searchPattern = value,
+                        onChanged = value =>
+                        {
+                            modItemManager.searchPattern = value;
+                            // 1文字ごとに全アイテムを走査すると重いので入力が落ち着くまで遅延させる
+                            _searchScheduledTime = Time.realtimeSinceStartup + SEARCH_DEBOUNCE_SECONDS;
+                        },
                         hiddenButton = true,
+                        controlName = SEARCH_FIELD_CONTROL_NAME,
                     });
+
+                    RestoreSearchFieldFocus();
 
                     if (view.DrawTextureButton(PluginInfo.SearchIconTexture, 20, 20))
                     {
-                        modItemManager.UpdateSearchItems(currentDirItem);
-                        SetCurrentDirItem(modItemManager.searchRootItem);
+                        ExecuteSearch();
                     }
                 }
             }
@@ -1086,6 +1119,101 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.AddSpace(5);
 
             view.margin = GUIView.defaultMargin;
+        }
+
+        /// <summary>検索を実行し、検索結果へ遷移する。検索文字列が空なら検索元へ戻る。保留中の自動検索予約も解除する</summary>
+        private void ExecuteSearch()
+        {
+            _searchScheduledTime = -1f;
+
+            if (string.IsNullOrEmpty(modItemManager.searchPattern))
+            {
+                // 検索文字列が消されたら古い検索結果を見せ続けずに検索元へ戻す。
+                // 一度も検索していない状態で検索結果を開いていた場合は検索元が無いのでルートへ戻す
+                if (currentDirItem == modItemManager.searchRootItem)
+                {
+                    SetCurrentDirItem(modItemManager.searchTargetDirItem ?? rootItem);
+                }
+                return;
+            }
+
+            modItemManager.UpdateSearchItems(currentDirItem);
+            SetCurrentDirItem(modItemManager.searchRootItem);
+        }
+
+        /// <summary>
+        /// 検索バーのフォーカスとキャレットを復帰させる。
+        /// 自動検索でパスバーのボタン数が変わると IMGUI のコントロール ID がずれ、
+        /// 入力中のフォーカスが外れてしまうため、コントロール名を頼りに取り戻す
+        /// </summary>
+        private void RestoreSearchFieldFocus()
+        {
+            if (_searchFocusRestoreStep == SearchFocusRestoreStep.RequestFocus)
+            {
+                GUI.FocusControl(SEARCH_FIELD_CONTROL_NAME);
+                _searchFocusRestoreStep = SearchFocusRestoreStep.MoveCaretToEnd;
+                return;
+            }
+
+            if (_searchFocusRestoreStep != SearchFocusRestoreStep.MoveCaretToEnd)
+            {
+                return;
+            }
+
+            // GUI.FocusControl は次に同名コントロールが描画された時点で反映されるため、
+            // 実際にフォーカスが戻るまで待つ。戻らないまま猶予を過ぎたら諦める
+            if (GUI.GetNameOfFocusedControl() != SEARCH_FIELD_CONTROL_NAME ||
+                GUIUtility.keyboardControl == 0)
+            {
+                if (Time.realtimeSinceStartup >= _searchFocusRestoreLimitTime)
+                {
+                    _searchFocusRestoreStep = SearchFocusRestoreStep.None;
+                }
+                return;
+            }
+
+            // フォーカス復帰時は新しいコントロール ID の TextEditor が生成されて
+            // キャレットが先頭に戻るので、続けて入力できるよう末尾へ送る
+            var editor = GUIUtility.GetStateObject(
+                typeof(TextEditor), GUIUtility.keyboardControl) as TextEditor;
+            if (editor != null)
+            {
+                editor.MoveTextEnd();
+            }
+
+            _searchFocusRestoreStep = SearchFocusRestoreStep.None;
+        }
+
+        public override void Update()
+        {
+            base.Update();
+
+            // 非表示中は自動検索を走らせない。予約を持ち越すと次に開いた瞬間に
+            // 古い検索文字列で画面が飛ぶため、予約ごと破棄する
+            if (!isShowWnd || !isTabVisible)
+            {
+                _searchScheduledTime = -1f;
+                _searchFocusRestoreStep = SearchFocusRestoreStep.None;
+                return;
+            }
+
+            if (_searchScheduledTime < 0f ||
+                Time.realtimeSinceStartup < _searchScheduledTime)
+            {
+                return;
+            }
+
+            var prevDirItem = currentDirItem;
+            ExecuteSearch();
+
+            // 表示ディレクトリが変わったときだけパスバーのボタン数が変化する。
+            // 変わっていなければコントロール ID はずれないので余計なキャレット移動を避ける
+            if (currentDirItem != prevDirItem)
+            {
+                _searchFocusRestoreStep = SearchFocusRestoreStep.RequestFocus;
+                _searchFocusRestoreLimitTime =
+                    Time.realtimeSinceStartup + SEARCH_FOCUS_RESTORE_TIMEOUT;
+            }
         }
 
         private void DrawNavi()
