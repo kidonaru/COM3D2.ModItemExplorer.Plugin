@@ -26,6 +26,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_MenuCache.dat");
         }
 
+        /// <summary>選択履歴の保存先。件数が増えても設定XMLを膨らませないよう別ファイルにする</summary>
+        public static string ItemHistoryPath
+        {
+            get => MTEUtils.CombinePaths(UserDataPath, PluginInfo.PluginName + "_History.xml");
+        }
+
         public static string PluginConfigDirPath
         {
             get

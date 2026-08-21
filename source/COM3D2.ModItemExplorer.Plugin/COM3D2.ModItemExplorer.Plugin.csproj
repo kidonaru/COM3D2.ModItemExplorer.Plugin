@@ -116,6 +116,7 @@
     <Compile Include="BgObject\BgObjectItem.cs" />
     <Compile Include="BgObject\BgObjectNeiLoader.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
+    <Compile Include="Manager\ItemHistoryManager.cs" />
     <Compile Include="Manager\MaidPresetManager.cs" />
     <Compile Include="Manager\MaidPropsSnapshot.cs" />
     <Compile Include="Manager\ManagerBase.cs" />

@@ -64,6 +64,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public static readonly string TempPresetDirName = "TempPreset";
         public static readonly string SearchDirName = "Search";
         public static readonly string FavoriteDirName = "Favorite";
+        public static readonly string HistoryDirName = "History";
         public static readonly int MinLayerIndex = 2;
         public static readonly int MaxLayerIndex = 8;
 
@@ -163,6 +164,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             children = new List<ITileViewContent>(16),
         };
 
+        public TempDirItem historyRootItem { get; private set; } = new TempDirItem
+        {
+            name = "履歴",
+            itemName = HistoryDirName,
+            itemPath = HistoryDirName,
+            canFavorite = false,
+            children = new List<ITileViewContent>(16),
+        };
+
         public bool isLoading { get; private set; }
         public int officialMenuLoadedIndex { get; private set; }
         public int officialMenuTotalCount { get; private set; }
@@ -224,6 +234,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             rootItem.AddChild(tempPresetRootItem);
             rootItem.AddChild(searchRootItem);
             rootItem.AddChild(favoriteRootItem);
+            rootItem.AddChild(historyRootItem);
 
             InitItemCache();
         }
@@ -330,6 +341,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         UpdateEquippedItems();
                         UpdateSearchItems();
                         UpdateFavoriteItems();
+                        UpdateHistoryItems();
                         ResetFlatView();
 
                         _officialMenuFileNameList.Clear();
@@ -379,17 +391,24 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            var applied = false;
             if (item is MenuItem menuItem)
             {
-                ApplyMenuItem(menuItem);
+                applied = ApplyMenuItem(menuItem);
             }
             else if (item is PresetItem presetItem)
             {
-                ApplyPresetItem(presetItem);
+                applied = ApplyPresetItem(presetItem);
             }
             else if (item is AnmItem anmItem)
             {
-                ApplyAnmItem(anmItem);
+                applied = ApplyAnmItem(anmItem);
+            }
+
+            if (applied)
+            {
+                itemHistoryManager.Add(item.itemPath);
+                UpdateHistoryItems();
             }
         }
 
@@ -418,18 +437,19 @@ namespace COM3D2.ModItemExplorer.Plugin
             return colorSetMap.GetOrDefault(colorSetMenuName);
         }
 
-        public void ApplyMenuItem(MenuItem item)
+        /// <summary>アイテムを適用する。適用まで到達した場合のみ true を返す</summary>
+        public bool ApplyMenuItem(MenuItem item)
         {
             if (currentMaid == null || item == null)
             {
-                return;
+                return false;
             }
 
             var menu = item.variationMenu;
             if (menu == null)
             {
                 MTEUtils.LogWarning("Menuが見つかりません。" + item.itemPath);
-                return;
+                return false;
             }
 
             // 参照先ファイルが欠けているとゲーム側で例外が出るため、事前に弾く
@@ -437,7 +457,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (missingFileName != null)
             {
                 MTEUtils.LogWarning("参照先ファイルが見つかりません。" + missingFileName + " " + item.itemPath);
-                return;
+                return false;
             }
 
             var beforeSnapshot = CapturePropsForHistory();
@@ -474,6 +494,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             windowManager.hairLengthWindow.Call(currentMaid, menu.mpn);
 
             RegisterPropsHistory("アイテム適用: " + item.name, beforeSnapshot);
+            return true;
         }
 
         /// <summary>
@@ -608,11 +629,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void ApplyPresetItem(PresetItem item)
+        /// <summary>プリセットを適用する。適用まで到達した場合のみ true を返す</summary>
+        public bool ApplyPresetItem(PresetItem item)
         {
             if (currentMaid == null || item == null || item.preset == null)
             {
-                return;
+                return false;
             }
 
             var maid = currentMaid;
@@ -633,6 +655,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             UpdateEquippedItemsAfterProcProp();
 
             RegisterPresetHistory("プリセット適用: " + item.name, maid, beforeSnapshot, apply);
+            return true;
         }
 
         public void ApplyTempPreset(TempPreset tempPreset)
@@ -693,17 +716,18 @@ namespace COM3D2.ModItemExplorer.Plugin
                 () => maid != null);
         }
 
-        public void ApplyAnmItem(AnmItem item)
+        /// <summary>アニメーションを適用する。適用まで到達した場合のみ true を返す</summary>
+        public bool ApplyAnmItem(AnmItem item)
         {
             if (currentMaid == null || currentMaid.body0 == null || item == null)
             {
-                return;
+                return false;
             }
 
             var animation = currentMaid.GetAnimation();
             if (animation == null)
             {
-                return;
+                return false;
             }
 
             // 再呼出直後などモーション未再生のメイドは anist が null や破棄済みの
@@ -736,14 +760,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (info == null)
             {
                 MTEUtils.LogWarning("レイヤー情報が見つかりません。layer=" + layer);
-                return;
+                return false;
             }
 
             var anmTag = item.itemName.ToLower();
             if (anistName == anmTag && layer > 0)
             {
                 MTEUtils.LogWarning("デフォルトレイヤーで再生中のアニメはレイヤー変更できません。" + item.itemName);
-                return;
+                return false;
             }
 
             currentMaid.body0.StopAndDestroy(item.itemName);
@@ -785,7 +809,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (animationState == null)
             {
                 MTEUtils.LogWarning("アニメーションのロードに失敗しました。" + item.itemName);
-                return;
+                return false;
             }
 
             if (!isPlaying)
@@ -796,6 +820,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // モーションウィンドウの表示
             windowManager.motionWindow.Call(currentMaid);
+            return true;
         }
 
         public void CreateModel(ModItemBase item, string pluginName)
@@ -1945,6 +1970,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             foreach (var child in rootItem.children)
             {
+                // 履歴は新しい順が意味を持つため、ソート順の変更を反映しない
+                if (child == historyRootItem)
+                {
+                    continue;
+                }
+
                 SortItemChildren(child);
             }
         }
@@ -2156,6 +2187,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             SortItemChildren(favoriteRootItem);
+        }
+
+        /// <summary>
+        /// 選択履歴の一覧を作り直す。新しい順を保つためソートはしない。
+        /// MODの削除などで解決できないパスは表示から外すだけで、履歴自体は残す
+        /// </summary>
+        public void UpdateHistoryItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] UpdateHistoryItems");
+
+            historyRootItem.RemoveAllChildren();
+
+            foreach (var itemPath in itemHistoryManager.itemPaths)
+            {
+                var item = GetItemByPath<ModItemBase>(itemPath);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                historyRootItem.AddChild(item);
+            }
         }
 
         private List<ITileViewContent> _modelTempItems = new List<ITileViewContent>(16);

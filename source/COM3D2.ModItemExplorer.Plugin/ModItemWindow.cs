@@ -23,9 +23,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         public readonly static int COLOR_SET_WINDOW_ID = 6345715;
         /// <summary>
         /// ウィンドウの最小サイズ。
-        /// 幅は「ナビ最小 100 + 情報エリア1行目 (編集モード80 + 表示40 + モード切替70x3 + 余白) が
-        /// 折り返さない幅」、高さは「ヘッダー26 + 情報エリア110 (メイド選択時) + フッター20」に
-        /// 内容領域を確保できる値を下限とする
+        /// 幅は「ナビ最小 100 + 情報エリア1行目 (編集モード80 + モード切替60x3 + 表示40 +
+        /// 表示カテゴリ140 + 余白) が折り返さない幅」、高さは「ヘッダー26 + 情報エリア110
+        /// (メイド選択時) + フッター20」に内容領域を確保できる値を下限とする
         /// </summary>
         public readonly static int MIN_WINDOW_WIDTH = 480;
         public readonly static int DRAG_EDGE_WIDTH = 5; // 右端に確保するウィンドウドラッグ用余白
@@ -50,6 +50,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static WindowManager windowManager => WindowManager.instance;
         private static ModelPlacerManager modelPlacerManager => ModelPlacerManager.instance;
         private static ConfigManager configManager => ConfigManager.instance;
+        private static ItemHistoryManager itemHistoryManager => ItemHistoryManager.instance;
         private static Config config => ConfigManager.instance.config;
         private static DirItem rootItem => modItemManager.rootItem;
         private static CharacterMgr characterMgr => GameMain.Instance.CharacterMgr;
@@ -305,6 +306,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             _windowWidth = (int)windowRect.width;
             _windowHeight = (int)windowRect.height;
             InitView();
+
+            _categoryComboBox.onSelected = (item, _) => SetCurrentDirItem(item);
 
             // ここで isShowWnd を立ててはいけない。Init() はプラグイン無効のまま
             // 起動時に呼ばれるため、描画されない窓をドッキングホストへ
@@ -586,6 +589,50 @@ namespace COM3D2.ModItemExplorer.Plugin
             _flatViewItem.itemPath = "";
         }
 
+        private GUIComboBox<DirItem> _categoryComboBox = new GUIComboBox<DirItem>
+        {
+            getName = (item, _) => item != null ? item.name : "",
+            buttonSize = new Vector2(100, 20),
+            contentSize = new Vector2(100, 300),
+        };
+
+        /// <summary>
+        /// 表示カテゴリの切り替え。カテゴリが増えてタブでは収まらなくなったためドロップダウンで出す。
+        /// タブ時代と違い、検索バーからのみ遷移する「検索結果」も選択中の表示のために一覧へ含める
+        /// </summary>
+        private void DrawCategoryComboBox(GUIView view)
+        {
+            var items = _categoryComboBox.items;
+            items.Clear();
+            foreach (var child in rootItem.children)
+            {
+                items.Add(child as DirItem);
+            }
+
+            // ナビツリーやパンくずからの移動にも追従させる。
+            // currentItem 経由だと onSelected へ回り込んで SetCurrentDirItem を
+            // 押し返すことになるため index を直接入れる
+            var index = items.IndexOf(GetCategoryItem(currentDirItem));
+            _categoryComboBox.currentIndex = index;
+
+            // ルート表示中はどのカテゴリにも属さないため、パスバーと同じ名前を出して
+            // 直前のカテゴリ名が残って見えないようにする
+            _categoryComboBox.defaultName = index >= 0 ? null : rootItem.name;
+
+            _categoryComboBox.DrawButton(view);
+        }
+
+        /// <summary>指定アイテムが属する表示カテゴリ（rootItem 直下のディレクトリ）を返す</summary>
+        private static DirItem GetCategoryItem(DirItem item)
+        {
+            var current = item;
+            while (current != null && current.parent != rootItem)
+            {
+                current = current.parent as DirItem;
+            }
+            return current;
+        }
+
         private GUIComboBox<Maid> _maidComboBox = new GUIComboBox<Maid>
         {
             getName = (maid, _) => maid == null ? "なし" : maid.status.fullNameJpStyle,
@@ -803,22 +850,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (!modItemManager.isLoading)
             {
-                view.margin = 0;
-                foreach (var item in rootItem.children)
-                {
-                    // 検索結果は検索バーからのみ遷移するため表示タブには出さない
-                    if (item == modItemManager.searchRootItem)
-                    {
-                        continue;
-                    }
-
-                    var color = item == currentDirItem ? GUIView.option.accentColor : Color.white;
-                    if (view.DrawButton(item.name, 70, 20, color: color))
-                    {
-                        SetCurrentDirItem(item as DirItem);
-                    }
-                }
-                view.margin = GUIView.defaultMargin;
+                DrawCategoryComboBox(view);
             }
 
             view.EndLayout();
@@ -1541,6 +1573,37 @@ namespace COM3D2.ModItemExplorer.Plugin
                             config.dirty = true;
                         },
                     });
+                }
+                view.EndLayout();
+
+                view.BeginHorizontal();
+                {
+                    view.DrawLabel("履歴の最大保存数", 200, 20);
+
+                    view.DrawSliderValue(new GUIView.SliderOption
+                    {
+                        fieldType = FloatFieldType.Int,
+                        min = 1,
+                        max = 500,
+                        step = 1,
+                        defaultValue = 100,
+                        value = config.maxItemHistoryCount,
+                        onChanged = newValue =>
+                        {
+                            config.maxItemHistoryCount = (int) newValue;
+                            config.dirty = true;
+
+                            // 上限を下げた場合はその場で古い履歴を捨てる
+                            itemHistoryManager.Trim();
+                            modItemManager.UpdateHistoryItems();
+                        },
+                    });
+
+                    if (view.DrawButton("履歴をクリア", 100, 20))
+                    {
+                        itemHistoryManager.Clear();
+                        modItemManager.UpdateHistoryItems();
+                    }
                 }
                 view.EndLayout();
 

@@ -226,6 +226,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 managerRegistry.RegisterManager(TempPresetManager.instance);
                 managerRegistry.RegisterManager(MaidPresetManager.instance);
+                managerRegistry.RegisterManager(ItemHistoryManager.instance);
                 managerRegistry.RegisterManager(ModItemManager.instance);
                 managerRegistry.RegisterManager(TextureManager.instance);
                 managerRegistry.RegisterManager(WindowManager.instance);

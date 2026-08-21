@@ -41,6 +41,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool groupOfficialItemsByMPN = true;
         public bool groupModItemsByMPN = false;
         public int flatViewItemCount = 32;
+        public int maxItemHistoryCount = 100;
         public bool dumpItemInfo = false;
         public bool setumeiSerch = false;
         public ItemSortType itemSortType = ItemSortType.DefaultAsc;

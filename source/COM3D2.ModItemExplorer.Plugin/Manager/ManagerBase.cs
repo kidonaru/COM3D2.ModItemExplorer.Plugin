@@ -11,6 +11,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         protected static MaidPresetManager maidPresetManager => MaidPresetManager.instance;
         protected static TempPresetManager tempPresetManager => TempPresetManager.instance;
         protected static ModelPlacerManager modelPlacerManager => ModelPlacerManager.instance;
+        protected static ItemHistoryManager itemHistoryManager => ItemHistoryManager.instance;
         protected static CharacterMgr characterMgr => GameMain.Instance.CharacterMgr;
 
         public virtual void Init()
