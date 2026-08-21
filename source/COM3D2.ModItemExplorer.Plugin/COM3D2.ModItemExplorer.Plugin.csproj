@@ -106,8 +106,12 @@
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BgObject\BgObjectAssetLoader.cs" />
     <Compile Include="BgObject\BgObjectInfo.cs" />
     <Compile Include="BgObject\BgObjectItem.cs" />
     <Compile Include="BgObject\BgObjectNeiLoader.cs" />

@@ -659,6 +659,98 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// nei 由来の背景オブジェクト (.asset_bg) をシーンに配置し、生成したモデルを返す（失敗時は null）。
+        /// ラッパー生成以降は CreateModel と同じ扱いにする
+        /// </summary>
+        public StudioModelStatWrapper CreateBgObject(string assetBundleName, int group, bool visible)
+        {
+            GameObject modelGo = null;
+            GameObject wrapperGo = null;
+
+            try
+            {
+                var prefab = BgObjectAssetLoader.LoadPrefab(assetBundleName);
+                if (prefab == null)
+                {
+                    return null;
+                }
+
+                modelGo = UnityEngine.Object.Instantiate(prefab);
+                SetLayerRecursively(modelGo, GetModelLayer());
+
+                var fileName = assetBundleName + BgObjectAssetLoader.AssetBgExtension;
+                var resolvedGroup = ResolveGroup(fileName, group);
+                var modelName = GetModelName(fileName, resolvedGroup);
+                wrapperGo = new GameObject(modelName);
+                wrapperGo.transform.SetParent(GetOrCreateParent().transform, false);
+                wrapperGo.transform.position = GetDefaultPosition();
+                modelGo.transform.SetParent(wrapperGo.transform, false);
+                modelGo.transform.localPosition = Vector3.zero;
+                modelGo.transform.localRotation = Quaternion.identity;
+                modelGo.transform.localScale = Vector3.one;
+
+                AddGizmo(wrapperGo);
+                wrapperGo.SetActive(visible);
+
+                var wrapper = new StudioModelStatWrapper
+                {
+                    original = null,
+                    group = resolvedGroup,
+                    name = modelName,
+                    displayName = modelName,
+                    obj = wrapperGo,
+                    pluginName = PluginName,
+                    visible = visible,
+                    infoWrapper = new OfficialObjectInfoWrapper
+                    {
+                        fileName = fileName,
+                        label = fileName,
+                    },
+                };
+
+                _models.Add(wrapper);
+                // Mesh/Material はアセットバンドル所有のため破棄対象に積まない。
+                // 破棄すると同じバンドルから作った他インスタンスまで壊れる
+                _disposables[wrapper] = new List<UnityEngine.Object>();
+
+                selectedModel = wrapper;
+
+                history.RegisterCreate(wrapper, history.TryCaptureState(wrapper));
+
+                return wrapper;
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("背景オブジェクトの配置に失敗しました。{0}", assetBundleName);
+                MTEUtils.LogException(e);
+
+                if (wrapperGo != null)
+                {
+                    UnityEngine.Object.Destroy(wrapperGo);
+                }
+                else if (modelGo != null)
+                {
+                    UnityEngine.Object.Destroy(modelGo);
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// GameObject とその全子孫のレイヤーを設定する。
+        /// menu 経路 (ModelMeshLoader) が生成したボーンごとにレイヤーを設定しているのに合わせる
+        /// </summary>
+        private static void SetLayerRecursively(GameObject go, int layer)
+        {
+            go.layer = layer;
+            foreach (Transform child in go.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
+        }
+
+        /// <summary>
         /// 毎フレーム呼ぶ。ギズモ操作による回転をオイラー角キャッシュに軸単位で足し込み、
         /// 正規化した回転を書き戻す
         /// </summary>

@@ -66,6 +66,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             mteWrapper.CreateModel(label, fileName, group, pluginName, visible);
         }
 
+        /// <summary>
+        /// 背景オブジェクト (.asset_bg) を配置する。
+        /// MTE / StudioMode の配置経路は .menu 名を渡す前提でアセットバンドルを扱えないため、
+        /// 配置先は常に自前配置になる
+        /// </summary>
+        public void CreateBgObject(string assetBundleName, int group, bool visible)
+        {
+            selfPlacer.CreateBgObject(assetBundleName, group, visible);
+        }
+
         public void DeleteModel(StudioModelStatWrapper model)
         {
             if (model == null)
