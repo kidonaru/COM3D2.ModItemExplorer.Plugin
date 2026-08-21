@@ -260,12 +260,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>リセット（全削除）ボタンの幅</summary>
         private readonly static int RESET_BUTTON_WIDTH = 60;
 
-        /// <summary>リセットの確認を待つ秒数。この間に再度押されたら実行する</summary>
-        private readonly static float RESET_CONFIRM_DURATION = 3f;
-
-        /// <summary>リセットの確認待ちが切れる時刻。0 なら確認待ちではない</summary>
-        private float _resetConfirmTime = 0f;
-
         /// <summary>
         /// タブ行。右端にはタブと関係なく効くリセット（全削除）ボタンを寄せて置く
         /// </summary>
@@ -288,34 +282,23 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 配置モデルを全削除するボタン。DeleteAll は履歴ごと捨てて取り消せないため、
-        /// 誤クリックを弾くよう 2 度押しを要求する
+        /// 誤クリックを弾くよう確認ダイアログを挟む
         /// </summary>
         private void DrawResetButton(GUIView view)
         {
-            var confirming = Time.realtimeSinceStartup < _resetConfirmTime;
-
-            var pressed = view.DrawButton(
-                confirming ? "本当に?" : "リセット",
-                RESET_BUTTON_WIDTH, ROW_HEIGHT,
-                placer.modelCount > 0,
-                confirming ? Color.red : (Color?)null);
-
-            if (!pressed)
+            if (!view.DrawButton("リセット", RESET_BUTTON_WIDTH, ROW_HEIGHT, placer.modelCount > 0))
             {
                 return;
             }
 
-            if (!confirming)
-            {
-                _resetConfirmTime = Time.realtimeSinceStartup + RESET_CONFIRM_DURATION;
-                return;
-            }
-
-            _resetConfirmTime = 0f;
-
-            // 選択の解除は SelfModelPlacer.DeleteAll が行う
-            placer.DeleteAll();
-            modItemManager.UpdateModelItems();
+            DialogPopupWindow.ShowConfirmDialog(
+                "配置したモデルを全て削除します。\nよろしいですか?",
+                () =>
+                {
+                    // 選択の解除は SelfModelPlacer.DeleteAll が行う
+                    placer.DeleteAll();
+                    modItemManager.UpdateModelItems();
+                });
         }
 
         /// <summary>

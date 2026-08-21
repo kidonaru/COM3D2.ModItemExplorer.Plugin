@@ -137,6 +137,7 @@
     <Compile Include="MTEUtils\CurveData.cs" />
     <Compile Include="MTEUtils\CurveEditorWindow.cs" />
     <Compile Include="MTEUtils\CustomFieldBase.cs" />
+    <Compile Include="MTEUtils\DialogPopupWindow.cs" />
     <Compile Include="MTEUtils\DockableWindowBase.cs" />
     <Compile Include="MTEUtils\DockingClient.cs" />
     <Compile Include="MTEUtils\EditorStateClient.cs" />

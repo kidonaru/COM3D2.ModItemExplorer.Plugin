@@ -75,6 +75,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // コンボボックスのポップアップは他の窓より前面に出す必要があるため最後に登録する
             AddWindow(ComboBoxPopupWindow.instance);
+
+            // モーダルダイアログはコンボのポップアップよりさらに前面に出す
+            AddWindow(DialogPopupWindow.instance);
         }
 
         protected override void OnAfterUpdate()
