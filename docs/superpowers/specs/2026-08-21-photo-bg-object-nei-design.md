@@ -1,0 +1,254 @@
+# mod の photo_bg_object_list.nei 対応 設計
+
+**日付:** 2026-08-21
+**対象リポジトリ:** COM3D2.ModItemExplorer.Plugin (MTE)
+
+## 目的
+
+`Mod` フォルダに置かれた `*_photo_bg_object_list.nei` を読み、そこで宣言された背景オブジェクト
+(`.asset_bg` アセットバンドル) を ModItemExplorer のツリーに一覧表示し、自前配置
+(`SelfModelPlacer`) でシーンへ配置できるようにする。
+
+公式スタジオモードの「オブジェクト管理」UI には手を出さない (MaidLoader 互換のマージは行わない)。
+
+## 背景・前提
+
+### 対象 MOD の構成
+
+実例: `Mod/ゆかぺろ/手術台のような何か/mod/手術台のような何か/`
+
+```
+PhotoBG_OBJ_NEI/ykpr_operating_table_00_photo_bg_object_list.nei
+ykpr_operating_table_00.asset_bg
+ykpr_operating_table_01.asset_bg
+...
+```
+
+本来は MaidLoader が nei を公式の `phot_bg_object_list.nei` へマージする前提の MOD だが、
+この環境に MaidLoader は導入されていない。`.menu` を一切持たないため現状の
+ModItemExplorer からは完全に不可視。
+
+### nei の中身 (実機で確認済み)
+
+6 列 × 7 行 (1 行目はヘッダ)。
+
+| ＩＤ | カテゴリー | 名前 | 内部名 | アセットバンドル | 必要パック |
+|---|---|---|---|---|---|
+| 1100 | mod | 手術台のような何か | | ykpr_operating_table_00 | |
+| 1100 | mod | 手術台のような何か(ベルト付き) | | ykpr_operating_table_01 | |
+
+**ＩＤ 列は全行 1100 で重複している。** 公式 `PhotoBGObjectData` は id をキーにするが、
+本設計では id を識別子に使わず**アセットバンドル名をキーにする**。
+`内部名` (公式では `create_prefab_name`、`Resources.Load("Prefab/...")` 用) は mod では常に空。
+
+### 実機で検証済みの事実
+
+以下はすべて稼働中の COM3D2.5 で確認した (`com3d25-devbridge`)。
+
+1. `GameUty.FileSystemMod.IsExistentFile("ykpr_operating_table_00_photo_bg_object_list.nei")` = true。
+   `FileSystemMod` は Mod 配下のサブフォルダも**ファイル名のみのフラットな索引**で引ける
+2. ゲーム内蔵の `CsvParser` が mod の nei をそのまま開ける
+   (`FileSystemMod.FileOpen()` → `CsvParser.Open()` が成功)。**自前の AES 復号実装は不要**
+3. `CsvParser` は**ワーカースレッドからでも動く**。1 ファイル約 14ms。
+   → 既存の `LoadModItems` と同じ `ThreadPool` ブロック内に置ける
+4. `GameMain.Instance.BgMgr.CreateAssetBundle("ykpr_operating_table_00")` は **null を返す**。
+   `BgMgr` は `GameUty.BgFiles` (システム側 1127 件) しか見ないため、Mod 配下の
+   `.asset_bg` は解決できない。**自前でバンドルを読む必要がある**
+5. `AssetBundle.LoadFromMemory(FileSystemMod.FileOpen("ykpr_operating_table_00.asset_bg").ReadAll())`
+   → `LoadAllAssets<GameObject>()[0]` で prefab が取れる (`mainAsset` は null)。
+   バンドルサイズ 24MB、`Instantiate` して Renderer 1 個 / マテリアル 4 枚、
+   シェーダーは `Custom/ykprRimLightSpecular2Shader` (バンドル同梱) で `isSupported == true`。
+   **URP 変換なしでそのまま描画できる**
+
+### 既存コードの前提
+
+- `ModItemManager.Load()` は `MTEUtils.ExecuteAfterMenuDataBaseReady` の中で `ThreadPool` に投げ、
+  `LoadOfficialMenuItems` → `LoadModItems("*.menu")` → `LoadModItems("mod_*.mod")` →
+  … → `SaveMenuCache()` の順に流す
+- Mod アイテムのツリー位置は `GetRelativePath(MTEUtils.ModDirPath, menuFilePath)` 由来 (実フォルダ構造)
+- `SelfModelPlacer.CreateModel(fileName, group, visible)` は `.menu` 前提:
+  `ModelMenuScript.Load` → `ModelMeshLoader.LoadMesh(.model)` → ラッパー GameObject + ギズモ
+- 生成した Mesh/Material は `disposables` に積み、モデル削除時に明示 `Destroy` する
+- `ModItemManager.CreateModel(MenuItem item, string pluginName)` が UI からの唯一の配置入口
+
+## Section 1: nei パース層 (`BgObjectNeiLoader` 新設)
+
+`source/COM3D2.ModItemExplorer.Plugin/BgObject/BgObjectNeiLoader.cs`
+
+### データ
+
+```csharp
+public class BgObjectInfo
+{
+    public string category;          // nei の「カテゴリー」列 (例: "mod")
+    public string name;              // nei の「名前」列。ツリーの表示名
+    public string assetBundleName;   // nei の「アセットバンドル」列。実質の一意キー
+    public string neiFilePath;       // 由来 nei のフルパス。ツリー位置と fullPath に使う
+}
+```
+
+### 読み込み
+
+- `Directory.GetFiles(MTEUtils.ModDirPath, "*_photo_bg_object_list.nei", SearchOption.AllDirectories)`
+- 各パスについて `GameUty.FileSystemMod.FileOpen(Path.GetFileName(path))` で `AFileBase` を取り、
+  `CsvParser.Open()` に渡す。`using` で両方確実に破棄する
+- `y = 1` から `max_cell_y` まで走査。列インデックスは公式 `PhotoBGObjectData.Create()` と同じ順
+  (0:ID, 1:カテゴリー, 2:名前, 3:内部名, 4:アセットバンドル, 5:必要パック)
+- スキップ条件:
+  - `アセットバンドル` 列が空 (内部名 prefab 方式は非対応)
+  - `名前` 列が空
+  - `必要パック` 列が非空かつ `PluginData.IsEnabled(必要パック)` が false (公式と同じ判定)
+- 同一 `assetBundleName` が複数 nei に出た場合は**先勝ちで 1 件だけ採用**し、警告ログを出す
+  (AssetBundle はバンドル単位でしかロードできず、重複を両方載せると配置時に衝突するため)
+
+### 非対応と理由
+
+- `ＩＤ` 列: 実データで重複しており識別子として使えない。公式リストへのマージもしないので不要
+- `内部名` (prefab) 列: `Resources` に入るのは公式アセットのみで、mod では使われない (YAGNI)
+- `phot_bg_object_enabled_list` によるゲート: 公式リスト向けの仕組みで mod の nei には適用されない
+
+## Section 2: アイテムツリー (`BgObjectItem` 新設)
+
+`source/COM3D2.ModItemExplorer.Plugin/BgObject/BgObjectItem.cs`
+
+- `ModItemType` に `BgObject` を追加
+- `BgObjectItem : ModItemBase` を新設し `BgObjectInfo info` を保持
+  - `name` → `info.name`
+  - `setumei` → 空
+  - `tag` → `info.category` (色は固定の 1 色)
+  - `thum` → 固定アイコン (下記)
+  - `fullPath` → nei のあるフォルダ (`OpenExplorer` キーで開けるようにする)
+  - `canFavorite` は既定の true のまま
+
+### ツリー位置
+
+nei の実フォルダにそのまま展開する。
+
+```
+Mod/ゆかぺろ/手術台のような何か/mod/手術台のような何か/PhotoBG_OBJ_NEI/手術台のような何か
+```
+
+`itemPath` は `GetRelativePath(MTEUtils.ModDirPath, neiFilePath)` のディレクトリ部 + `info.name`。
+同一フォルダ内で `名前` が重複した場合は既存の `GetOrCreate` 系と同じく後勝ちになるため、
+重複を検出したら警告ログを出したうえで**アセットバンドル名を接尾に付けて一意化**する。
+
+### サムネイル
+
+固定アイコン 1 枚を `TextureManager.GetTexture(定数)` で読む。`AnmItem` が
+`cm3d2_poseicon01.tex` を使っているのと同じ方式で、`BgObjectItem` も同じ
+`cm3d2_poseicon01.tex` を使う。
+
+背景オブジェクト専用のアイコンは**ゲーム側に存在しない**。公式の「オブジェクト管理」
+(`BGObjectWindow`) は `UILabel` だけのテキスト一覧でアイコンを持たず、`noimage.tex` /
+`cm3d2_objecticon01.tex` 等の汎用アイコン候補も実機で `IsExistentFile` = false を確認済み。
+そのため既に汎用プレースホルダとして使われている `cm3d2_poseicon01.tex` を流用する。
+
+### ロード順への組み込み
+
+`ModItemManager.Load()` の `LoadModItems("mod_*.mod")` の直後に `LoadModBgObjectItems()` を挿入。
+`LoadState` に `LoadModBgObjectItems` を追加して進捗表示に載せる。
+
+`_menuMap` / menu キャッシュ (`SaveMenuCache`) は `MenuInfo` 前提なので nei は載せず、
+`Load()` のたびに再パースする (対象ファイルが数個かつ 1 ファイル 14ms のため実測上問題にならない)。
+
+検索・お気に入りは `itemPath` / `name` ベースで動くため、追加対応なしで乗る。
+
+## Section 3: 配置 (`SelfModelPlacer` に asset_bg 経路を追加)
+
+### AssetBundle キャッシュ (`BgObjectAssetLoader` 新設)
+
+`source/COM3D2.ModItemExplorer.Plugin/BgObject/BgObjectAssetLoader.cs`
+
+```csharp
+static Dictionary<string, GameObject> _prefabCache;  // assetBundleName -> prefab
+static Dictionary<string, AssetBundle> _bundleCache;
+public static GameObject LoadPrefab(string assetBundleName);
+```
+
+- `FileSystemMod.FileOpen(assetBundleName + ".asset_bg")` → `ReadAll()` →
+  `AssetBundle.LoadFromMemory` → `LoadAllAssets<GameObject>()` の先頭を prefab とする
+- **キャッシュは必須**。同一バンドルを二重に `LoadFromMemory` すると
+  「同じファイルを含む AssetBundle が既にロード済み」で例外になる
+- ロード済みバンドルは**アンロードしない**。公式 `BgMgr.asset_bundle_dic` と同じ方針
+  (トレードオフは末尾に記載)
+- 失敗時は警告ログを出して null を返す (ゲームを落とさない)
+
+### `SelfModelPlacer.CreateBgObject(BgObjectInfo info, int group, bool visible)`
+
+既存の `CreateModel` とラッパー生成以降を共通化する。
+
+- `BgObjectAssetLoader.LoadPrefab` → `Instantiate` → レイヤ設定
+- **`disposables` には何も積まない。** Mesh/Material はバンドル所有であり、
+  破棄すると同じバンドルから作った他インスタンスと次回以降の `Instantiate` が壊れる
+- 以降は既存経路と同じ: ラッパー GameObject を作り、配置親にぶら下げ、`AddGizmo`、
+  `StudioModelStatWrapper` を組んで `_models` に登録、`selectedModel` に設定、
+  `history.RegisterCreate`
+- 識別のため `infoWrapper.fileName` / `label` には `info.assetBundleName + ".asset_bg"` を入れる
+- `ResolveGroup` / `GetModelName` はこの `fileName` をそのまま使えるので変更不要
+
+### 配置先プラグインの制限
+
+MTE (MotionTimelineEditor) / StudioMode 側の配置経路は `.menu` 名を渡す前提なので
+背景オブジェクトを扱えない。`BgObjectItem` 選択時は:
+
+- 配置プラグインのコンボボックスの選択に関わらず、自前配置 (`SelfModelPlacer.PluginName`) を使う
+- 他プラグインが選ばれていた場合は「背景オブジェクトは自前配置でのみ扱えます」と情報ログを出す
+
+## Section 4: プリセット
+
+`ModelPlacementPresetItem` に `assetBundleName` を追加する。
+
+- null / 空 → 従来どおり `fileName` を `.menu` として復元
+- 非空 → `BgObjectInfo` を `assetBundleName` で引き直して `CreateBgObject` で復元
+- `ModelPlacementPreset.CurrentVersion` を 2 → 3 へ
+- version 2 のプリセットは `assetBundleName` が欠落した状態で読めるため、
+  既存プリセットの読み込み互換は保たれる (追加フィールドのみ)
+- 復元時に該当 nei / バンドルが見つからない場合は警告ログを出してその 1 件をスキップし、
+  他のモデルの復元は続行する
+
+`ModItemManager` に `BgObjectInfo GetBgObjectInfo(string assetBundleName)` を用意して引き当てる。
+
+## Section 5: UI
+
+- `ModItemManager.CreateModel(MenuItem item, string pluginName)` を
+  `CreateModel(ModItemBase item, string pluginName)` に一般化し、
+  内部で `MenuItem` / `BgObjectItem` に分岐する
+- `ModItemWindow.DrawModelPlacementRow` の「配置」ボタン活性条件を
+  `selectedMenuItem != null` から「配置可能アイテムが選択中か」(`MenuItem` または `BgObjectItem`) に変更
+- `ModItemWindow.CreateSelectedModel` が `selectedMenuItem` ではなく `selectedItem` を渡すようにする
+- フッターのツールチップ (`_mouseOverItem is MenuItem` 分岐) に `BgObjectItem` の分岐を追加し、
+  `名前 + カテゴリー` を表示する
+- バリエーション欄は `BgObjectItem` では対象外 (既存の `selectedMenuItem == null` 早期 return でそのまま空になる)
+- `DelItem` の分岐は `ModItemType.Model` 経由 (配置済みアイテム) で従来どおり動くため変更不要
+
+## エラーハンドリング方針
+
+既存コードと同じく「警告ログを出して当該 1 件をスキップし、全体は止めない」で統一する。
+
+- nei が開けない / `CsvParser.Open` が false → その nei をスキップ
+- `.asset_bg` が `FileSystemMod` に無い → 配置時に警告、null 返し
+- `LoadAllAssets<GameObject>()` が空 → 配置時に警告、null 返し
+
+## テスト・検証
+
+自動テストの基盤が無いリポジトリのため、稼働中の実機 (`com3d25-devbridge`) で確認する。
+
+1. ツリー: `Mod/ゆかぺろ/…/PhotoBG_OBJ_NEI/` に 6 件が固定アイコン付きで並ぶ
+2. 検索: 「手術台」で 6 件がヒットする
+3. 配置: 6 件それぞれを配置し、描画されること・ギズモで操作できることを確認
+4. 同一オブジェクトの 2 個目を配置してもエラーにならない (バンドル二重ロード回避の確認)
+5. 削除: 配置済みを削除しても、残った同バンドル由来のモデルが壊れない
+6. プリセット: 保存 → 全削除 → 復元で位置・回転・スケールが再現される
+7. 既存回帰: 従来の `.menu` アイテムの配置・削除・プリセット保存/復元が壊れていない
+8. version 2 の既存プリセットが読めること
+
+## 既知のトレードオフ
+
+- **AssetBundle をアンロードしない。** 今回の MOD は 1 バンドル 24MB あり、6 種すべてを
+  触ると常駐 ~140MB になる。参照カウントによるアンロードは、同一バンドルから作った
+  複数インスタンスとプリセット復元をまたいだ寿命管理が必要で、複雑さに見合わないと判断した。
+  公式 `BgMgr` も同じくアンロードしない
+- **nei をキャッシュせず毎回パースする。** menu キャッシュは `MenuInfo` 前提で、
+  nei 用に別スキーマを足すコストに見合わない。対象ファイル数が少ないため実測上の影響はない
+- **公式スタジオモードの「オブジェクト管理」には出ない。** MaidLoader 相当の
+  `PhotoBGObjectData` マージは今回のスコープ外
