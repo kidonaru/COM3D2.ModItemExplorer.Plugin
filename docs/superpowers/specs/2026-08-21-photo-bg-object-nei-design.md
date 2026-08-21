@@ -117,7 +117,9 @@ public class BgObjectInfo
   - `setumei` → 空
   - `tag` → `info.category` (色は固定の 1 色)
   - `thum` → 固定アイコン (下記)
-  - `fullPath` → nei のあるフォルダ (`OpenExplorer` キーで開けるようにする)
+  - `fullPath` → **nei ファイルのフルパス** (`AnmItem` が `.anm` のパスを入れるのと同じ)。
+    `ModItemManager.ValidateItemFile` が `fullPath` 非空のアイテムを `File.Exists` で
+    生存確認して消すため、ここにフォルダを入れるとロードのたびに消える
   - `canFavorite` は既定の true のまま
 
 ### ツリー位置
@@ -238,19 +240,29 @@ MTE (MotionTimelineEditor) / StudioMode 側の配置経路は `.menu` 名を渡�
 - 配置プラグインのコンボボックスの選択に関わらず、自前配置 (`SelfModelPlacer.PluginName`) を使う
 - 他プラグインが選ばれていた場合は「背景オブジェクトは自前配置でのみ扱えます」と情報ログを出す
 
-## Section 4: プリセット
+## Section 4: プリセット・操作履歴
 
-`ModelPlacementPresetItem` に `assetBundleName` を追加する。
+**プリセットのフォーマットは変更しない。** `ModelPlacementPresetItem.fileName` に入る
+`<assetBundleName>.asset_bg` という**拡張子そのものを種別の判別に使う**。
 
-- null / 空 → 従来どおり `fileName` を `.menu` として復元
-- 非空 → `BgObjectInfo` を `assetBundleName` で引き直して `CreateBgObject` で復元
-- `ModelPlacementPreset.CurrentVersion` を 2 → 3 へ
-- version 2 のプリセットは `assetBundleName` が欠落した状態で読めるため、
-  既存プリセットの読み込み互換は保たれる (追加フィールドのみ)
-- 復元時に該当 nei / バンドルが見つからない場合は警告ログを出してその 1 件をスキップし、
-  他のモデルの復元は続行する
+- `SelfModelPlacer.RestoreModel` で `fileName` の拡張子を見て分岐する
+  - `.asset_bg` → `CreateBgObject`
+  - それ以外 (`.menu` / `.mod`) → 従来どおり `CreateModel`
+- `BuildPresetItem` は `model.infoWrapper?.fileName` をそのまま保存しているので変更不要
+- `ModelPlacementPreset.CurrentVersion` は **2 のまま**。旧プリセットに `.asset_bg` が
+  現れることはなく、追加フィールドも無いので互換の心配がない
 
-`ModItemManager` に `BgObjectInfo GetBgObjectInfo(string assetBundleName)` を用意して引き当てる。
+`RestoreModel` はプリセット復元と**操作履歴の undo/redo の両方**が通る唯一の経路なので、
+ここで分岐すれば undo/redo も追加対応なしで動く。
+
+拡張子を判別に使うのは既存コードの流儀と揃っている
+(`ModItemManager.GetMenu` も `.menu` / `.mod` の拡張子で分岐している)。
+
+復元時に該当バンドルが見つからない場合は `CreateBgObject` が警告ログを出して null を返し、
+`RestoreModel` がその 1 件だけスキップする (他のモデルの復元は続行される)。
+
+なお `BgObjectInfo` を引き当てる必要は無い。配置に要るのは `assetBundleName` だけで、
+これは `fileName` から拡張子を外せば得られる。
 
 ## Section 5: UI
 
@@ -284,8 +296,9 @@ MTE (MotionTimelineEditor) / StudioMode 側の配置経路は `.menu` 名を渡�
 4. 同一オブジェクトの 2 個目を配置してもエラーにならない (バンドル二重ロード回避の確認)
 5. 削除: 配置済みを削除しても、残った同バンドル由来のモデルが壊れない
 6. プリセット: 保存 → 全削除 → 復元で位置・回転・スケールが再現される
-7. 既存回帰: 従来の `.menu` アイテムの配置・削除・プリセット保存/復元が壊れていない
-8. version 2 の既存プリセットが読めること
+7. 操作履歴: 配置の undo / redo が効く (`RestoreModel` 経由の確認)
+8. 既存回帰: 従来の `.menu` アイテムの配置・削除・プリセット保存/復元・undo/redo が壊れていない
+9. 既存プリセット (`.menu` のみのもの) がそのまま読めること
 
 ## 既知のトレードオフ
 
