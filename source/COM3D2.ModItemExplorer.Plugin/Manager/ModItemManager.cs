@@ -798,13 +798,59 @@ namespace COM3D2.ModItemExplorer.Plugin
             windowManager.motionWindow.Call(currentMaid);
         }
 
-        public void CreateModel(MenuItem item, string pluginName)
+        public void CreateModel(ModItemBase item, string pluginName)
         {
             if (item == null || string.IsNullOrEmpty(pluginName))
             {
                 return;
             }
 
+            if (item is BgObjectItem bgObjectItem)
+            {
+                CreateBgObjectModel(bgObjectItem, pluginName);
+                return;
+            }
+
+            if (item is MenuItem menuItem)
+            {
+                CreateMenuModel(menuItem, pluginName);
+            }
+        }
+
+        /// <summary>
+        /// 背景オブジェクトを配置する。
+        /// MTE / StudioMode の配置経路は .menu 名を渡す前提でアセットバンドルを扱えないため、
+        /// 配置プラグインの選択に関わらず自前配置を使う
+        /// </summary>
+        private void CreateBgObjectModel(BgObjectItem item, string pluginName)
+        {
+            if (item.info == null)
+            {
+                MTEUtils.LogWarning("背景オブジェクトの情報がありません。" + item.itemPath);
+                return;
+            }
+
+            try
+            {
+                if (pluginName != SelfModelPlacer.PluginName)
+                {
+                    MTEUtils.Log(
+                        "背景オブジェクトは{0}でのみ配置できます。{1}",
+                        SelfModelPlacer.PluginName, pluginName);
+                }
+
+                modelPlacerManager.CreateBgObject(item.info.assetBundleName, 0, true);
+
+                UpdateModelItems();
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogException(e);
+            }
+        }
+
+        private void CreateMenuModel(MenuItem item, string pluginName)
+        {
             try
             {
                 var group = 0;

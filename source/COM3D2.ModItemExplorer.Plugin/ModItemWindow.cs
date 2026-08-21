@@ -186,6 +186,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         private MenuItem selectedMenuItem => selectedItem as MenuItem;
+
+        /// <summary>配置できるアイテムが選択されているか。menu アイテムと背景オブジェクトが対象</summary>
+        private bool canCreateSelectedModel
+            => selectedItem is MenuItem || selectedItem is BgObjectItem;
         private ColorSetInfo selectedColorSet => selectedMenuItem?.colorSet;
 
         /// <summary>モデル操作ウィンドウの表示条件。編集モードがモデルのときのみ</summary>
@@ -967,7 +971,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     view.DrawLabel("プラグインを選択してください", 200, 20, textColor: Color.yellow);
                 }
                 // 配置対象が決まらないため、アイテム未選択時は押せないようにする
-                else if (view.DrawButton("配置", 50, 20, selectedMenuItem != null))
+                else if (view.DrawButton("配置", 50, 20, canCreateSelectedModel))
                 {
                     CreateSelectedModel();
                 }
@@ -1776,7 +1780,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            modItemManager.CreateModel(selectedMenuItem, pluginName);
+            modItemManager.CreateModel(selectedItem, pluginName);
 
             // 配置したモデルをすぐ操作できるよう操作ウィンドウを前面へ出す。
             // 一覧に載るのは自前配置分だけなので、MTE 経由では出さない
@@ -1922,6 +1926,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 if (_mouseOverItem is MenuItem menuItem)
                 {
                     var text = $"{menuItem.name} {menuItem.setumei}".Replace("\n", " ");
+                    view.DrawLabel(text, -1, 20);
+                }
+                else if (_mouseOverItem is BgObjectItem bgObjectItem)
+                {
+                    var text = $"{bgObjectItem.name} [{bgObjectItem.tag}]";
                     view.DrawLabel(text, -1, 20);
                 }
                 else if (_mouseOverItem.itemType == ModItemType.Dir ||
