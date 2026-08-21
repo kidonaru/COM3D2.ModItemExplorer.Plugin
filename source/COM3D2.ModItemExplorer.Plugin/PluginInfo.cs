@@ -100,6 +100,51 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        /// <summary>
+        /// 背景オブジェクト (nei 由来) のタイル用アイコン。128x128 PNG (base64)。
+        /// 差し替えるときは assets/icons/generate.js を実行して出力を貼り替えること
+        /// </summary>
+        public readonly static byte[] BgObjectIcon = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAFT0lEQVR42u2dP0ssVxyGBUEQQRRh" +
+            "QRYky4KwWBgUFLFQtLAQ9IKIoIJBQQuLqI2VJq0i5IJgYXOvH0DS2uUW9nc/gJCUdsk3mPBunJDM" +
+            "XefM6vw558zzwgvL7uw4e36v58wzc5jT1YUQQgghhBBCCCGEEEIIIYSQj+rv71+VaYnyFf7D6Ojo" +
+            "72NjY4Gs13qPlvFcvb2939dqtd/Cwketz3p6er6jpTxTd3f3wPDw8C+vFT5qbavv0HIeaGho6MdG" +
+            "o/Fn0uKH1ncGBgZ2aEFH1dfXN1+v17/GFXlqaqrluG20D+2LFnVEGsNHRkZ+Nf2HHx8fB81ms2W9" +
+            "Nm1frVY/cX5g+ThfqVR+MnX3KysrwcPDQ/D8/Pw/6z19ZhoW9Ddobcux7rXu/u7u7pvCR61tTMMC" +
+            "2OgI1oU+OzsLnp6ejMUPrW31HdN+wUbLsW5zc7M1xictfNT6rvYBNjqGdQsLC8H9/f2bCx+19qV9" +
+            "go0OYN3FxUVqhY9a+wYbLce6rIr/32EBbHQA67I22OgI1mVtsNEBrMvaYKMjWJfH+QHY6ADWZW2w" +
+            "0RGsy9pgowNYBzaCdWAjWAc2gnVgI1gHNoJ1YCNYBzaCdWAjWAc2GpSkuy8D1tmAjapF7lwP1tmF" +
+            "jbleN6hUKj/HHcz5+TkBSDkAatO4NldNrAmAPD09zRCQgm9ublptaWpv6wIQenV1lZPAN54Equ2S" +
+            "trO1AQh9cnICBibEwP39/aDT9i08AEKW+fl547BweXlJoV8Z59U2pu5en8/NzdkXgN3d3eD29jY4" +
+            "OjoKJiYmYn/E4uIil4Ijl4LVJnFtNj4+HqytrQWHh4fB8vKyvQGQr6+vg62tLWO3pW3KPCw8Pj4m" +
+            "aqelpaXg4OCgVXwnAhD66uqqdfCmH1g2bEyCdfLs7Gywt7f3b+GdC0Do09PTYGZmBmxMiHWTk5PB" +
+            "xsbGN4V3NgChtY3p/MBXbEyCdRrnVdzXCu98AMJhYX19vTTYmBTrdBLYrrv3LgChNQb6jI2dYJ1O" +
+            "BJMU3qsAhPYRGzvFuk7tVQB8wsa3Yl3pA+A6Nr4X6wiAw9iYBtYRAAexMU2sIwAOYWMWWEcAHMDG" +
+            "LLGOAFiOjVljHQGwFBvzwjoCYBk25o11BMAibCwC6wiABdhYJNYRgAKx0QasIwAFYqMNWEcACsbG" +
+            "orGOAFiCjUVhHQGwBBuLwjoCkLPb9QYKhu2FJwAp4mL0+G3AOwJAAAgAASAABIAAEAACQAAIAAEg" +
+            "AATAlQDo4goByMftrmZa8YwgHZgutxKAbLyzs9O6XF34M4JMD4rc3t5u3YAhAOlYN6ZMU99yX2Ci" +
+            "Xq834w5It2D10GMC8D5rlpJuTRseFdvsKkLqdhqNxl9xB6dJGZqcQQA6s86pTJNV1Pa5dv3tpEeW" +
+            "V6vVz6Z77JqmZcv5gc0B0O3odo+Ba/O4+M9WLSfzsmCEcVjQDyQA7cd5HUOS7t7qdQYHBwd/MA0L" +
+            "msKtqdwE4B9rirmmmpu6e7Vtlwt6WTTqY5KpV0UMC7YEIA7rIotGfXRyrWGNUbVa7YvpB+aNjUUH" +
+            "IAnWvSwb98WL1URfFo78wxZsLDIASbBObeXFwpG2YmMRAXAG68qAjXkGwFms8xkb8wiAN1jnIzZm" +
+            "HQDvsM43bMwqAN5jnS/YmHYASod1rmNjmgEoNda5io1pBACscxgb3xMAsM4DbHxLAMA6j7Cx0wCA" +
+            "dZ5hY9IAgHWeYqMpAGCd59gYFwCwrgTYqGVuo+/rzB6sKxE2dmqwzkNsTGKwrgTYCNaBjWAd2AjW" +
+            "lRYbwboSB4HCI4QQQgghhBBCCCGEEEIIIW/1N3ROaTvetTYwAAAAAElFTkSuQmCC");
+
+        private static Texture2D _bgObjectIconTexture = null;
+        public static Texture2D BgObjectIconTexture
+        {
+            get
+            {
+                if (_bgObjectIconTexture == null)
+                {
+                    _bgObjectIconTexture = new Texture2D(1, 1);
+                    _bgObjectIconTexture.LoadImage(BgObjectIcon);
+                }
+                return _bgObjectIconTexture;
+            }
+        }
+
         public readonly static byte[] ExpandIcon = Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAC4jAAAuIwF4pT92AAAA" +
             "q0lEQVRYhe3VUQqDMBAE0JnSA+SK3iA38kgeafpRhRa6k1RTFLoDAT/izosoUhLOzO3U9gQkIAEJ" +      

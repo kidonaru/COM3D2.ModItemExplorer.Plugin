@@ -1,0 +1,8 @@
+{
+  "name": "moditemexplorer-icons",
+  "private": true,
+  "description": "assets/icons/*.svg を PNG(base64) へラスタライズする",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

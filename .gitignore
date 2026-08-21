@@ -15,3 +15,6 @@ UnityProject/Library
 UnityProject/Temp
 UnityProject/obj
 UnityProject/Assets/PostProcessing*
+
+# アイコン生成用。assets/icons/generate.js の依存
+assets/icons/node_modules/
