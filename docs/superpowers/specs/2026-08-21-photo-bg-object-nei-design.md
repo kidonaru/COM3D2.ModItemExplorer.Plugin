@@ -134,14 +134,58 @@ Mod/ゆかぺろ/手術台のような何か/mod/手術台のような何か/Pho
 
 ### サムネイル
 
-固定アイコン 1 枚を `TextureManager.GetTexture(定数)` で読む。`AnmItem` が
-`cm3d2_poseicon01.tex` を使っているのと同じ方式で、`BgObjectItem` も同じ
-`cm3d2_poseicon01.tex` を使う。
+背景オブジェクト専用アイコンを**プラグインに同梱して新規に用意する** (Section 2.5)。
 
-背景オブジェクト専用のアイコンは**ゲーム側に存在しない**。公式の「オブジェクト管理」
-(`BGObjectWindow`) は `UILabel` だけのテキスト一覧でアイコンを持たず、`noimage.tex` /
-`cm3d2_objecticon01.tex` 等の汎用アイコン候補も実機で `IsExistentFile` = false を確認済み。
-そのため既に汎用プレースホルダとして使われている `cm3d2_poseicon01.tex` を流用する。
+ゲーム側には流用できるアイコンが無い。公式の「オブジェクト管理」(`BGObjectWindow`) は
+`UILabel` だけのテキスト一覧でアイコンを持たず、`noimage.tex` / `cm3d2_objecticon01.tex`
+等の汎用アイコン候補も実機で `IsExistentFile` = false を確認済み。`AnmItem` が使う
+`cm3d2_poseicon01.tex` はポーズ用の図案で意味が合わない。
+
+`BgObjectItem.thum` は `PluginInfo.BgObjectIconTexture` を返す
+(`TextureManager` は `.tex` 用なので経由しない)。
+
+## Section 2.5: 専用アイコンの用意
+
+### 図案
+
+アイソメトリックな立方体 (「配置する 3D オブジェクト」をそのまま表す)。
+上面・左面・右面で明度を変えた 3 面構成にする。単純な多角形の塗り分けなので
+縮小しても形が崩れない。
+
+### 生成フロー
+
+COM3D2.SceneEditor.Plugin の `assets/icons/` と同じ方式を、このリポジトリにも自前で持つ。
+SceneEditor の `node_modules` を参照すると別リポジトリに依存して壊れやすいため共用しない。
+
+新設するファイル:
+
+```
+assets/icons/package.json    # @resvg/resvg-js のみ
+assets/icons/generate.js     # SVG -> PNG(base64) 。SceneEditor 版の移植
+assets/icons/BgObject.svg    # 図案の原本
+assets/icons/BgObject.png    # 生成物 (確認用にコミットする)
+```
+
+- `generate.js` は SceneEditor 版とほぼ同一。**PNG のエンコードは Node 標準の `zlib` で自前で行う**
+  (ライブラリが吐く PNG は `Texture2D.LoadImage` が読めないことがあるため。
+  SceneEditor の `generate.js` と MTEUtils の `ResizeCursor.cs` に同じ注意書きがある)
+- **出力サイズは 128x128。** SceneEditor のツールバーアイコンは 32x32 だが、
+  こちらはタイルビューのサムネイル (タイル 120x110) に使うため大きくする
+- `.gitignore` に `assets/icons/node_modules/` を追加する
+
+### 埋め込み
+
+`PluginInfo.cs` に既存の `SearchIcon` / `OpenIcon` / `UpdateIcon` と同じ形で追加する。
+
+```csharp
+public readonly static byte[] BgObjectIcon = Convert.FromBase64String("...");
+
+private static Texture2D _bgObjectIconTexture = null;
+public static Texture2D BgObjectIconTexture { get; }  // 遅延生成 + LoadImage
+```
+
+`Texture2D.LoadImage` は COM3D2.5 でも `ImageConversionModule` 参照済みで動作する
+(既存アイコンが同じ経路で表示できている)。
 
 ### ロード順への組み込み
 
@@ -233,7 +277,8 @@ MTE (MotionTimelineEditor) / StudioMode 側の配置経路は `.menu` 名を渡�
 
 自動テストの基盤が無いリポジトリのため、稼働中の実機 (`com3d25-devbridge`) で確認する。
 
-1. ツリー: `Mod/ゆかぺろ/…/PhotoBG_OBJ_NEI/` に 6 件が固定アイコン付きで並ぶ
+1. ツリー: `Mod/ゆかぺろ/…/PhotoBG_OBJ_NEI/` に 6 件が並び、専用アイコンが
+   タイル (120x110) でぼやけずに表示される
 2. 検索: 「手術台」で 6 件がヒットする
 3. 配置: 6 件それぞれを配置し、描画されること・ギズモで操作できることを確認
 4. 同一オブジェクトの 2 個目を配置してもエラーにならない (バンドル二重ロード回避の確認)
