@@ -197,6 +197,15 @@ public static Texture2D BgObjectIconTexture { get; }  // 遅延生成 + LoadImag
 `_menuMap` / menu キャッシュ (`SaveMenuCache`) は `MenuInfo` 前提なので nei は載せず、
 `Load()` のたびに再パースする (対象ファイルが数個かつ 1 ファイル 14ms のため実測上問題にならない)。
 
+### 消えた行の掃除
+
+`Load()` のたびに「今回の nei に現れた `itemPath` の集合」を作り、そこに含まれない
+既存の `BgObjectItem` を明示的に削除する。
+
+`BgObjectItem.fullPath` は nei ファイル自体を指すため、MOD 側が nei の**行だけ**を
+削除・リネームした場合、`ValidateItemFile` の `File.Exists` は通ってしまい
+旧アイテムがゴーストとしてツリーに残る。行単位の生存確認はここでしかできない。
+
 検索・お気に入りは `itemPath` / `name` ベースで動くため、追加対応なしで乗る。
 
 ## Section 3: 配置 (`SelfModelPlacer` に asset_bg 経路を追加)
@@ -212,7 +221,10 @@ public static GameObject LoadPrefab(string assetBundleName);
 ```
 
 - `FileSystemMod.FileOpen(assetBundleName + ".asset_bg")` → `ReadAll()` →
-  `AssetBundle.LoadFromMemory` → `LoadAllAssets<GameObject>()` の先頭を prefab とする
+  `AssetBundle.LoadFromMemory` → `LoadAllAssets<GameObject>()` の先頭を prefab とする。
+  複数入っている場合の並び順は Unity が保証していないため、2 個以上あれば警告ログを出す
+  (公式 `BgMgr` も `mainAsset` が無ければ先頭を使うが、`mainAsset` は obsolete で
+  今回の対象では null なので使わない)
 - **キャッシュは必須**。同一バンドルを二重に `LoadFromMemory` すると
   「同じファイルを含む AssetBundle が既にロード済み」で例外になる
 - ロード済みバンドルは**アンロードしない**。公式 `BgMgr.asset_bundle_dic` と同じ方針
@@ -239,6 +251,11 @@ MTE (MotionTimelineEditor) / StudioMode 側の配置経路は `.menu` 名を渡�
 
 - 配置プラグインのコンボボックスの選択に関わらず、自前配置 (`SelfModelPlacer.PluginName`) を使う
 - 他プラグインが選ばれていた場合は「背景オブジェクトは自前配置でのみ扱えます」と情報ログを出す
+
+呼び出しは `ModelPlacerManager.CreateBgObject` を新設して**ファサード経由に揃える**。
+`ModItemManager` は既存の配置経路をすべて `ModelPlacerManager` 越しに呼んでおり、
+ここだけ `SelfModelPlacer.instance` を直接触ると、将来ファサードに共通処理が
+足された時にすり抜ける。
 
 ## Section 4: プリセット・操作履歴
 
