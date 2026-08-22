@@ -1461,9 +1461,16 @@ namespace COM3D2.ModItemExplorer.Plugin
                     110,
                     item =>
                     {
-                        selectedItem = item as ModItemBase;
-                        OnItemSelected(selectedItem);
-                        CheckItemDoubleClick(selectedItem);
+                        // 選択処理はアイテム一覧を作り直すことがあり（適用→履歴、配置→モデル）、
+                        // 描画中に実行すると DrawTileView が列挙中の children を壊して例外になる。
+                        // フォルダ移動による currentDirItem の差し替えも描画途中では行えないため、
+                        // 削除・右クリック戻ると同様に次フレームへ回す
+                        MTEUtils.ExecuteNextFrame(() =>
+                        {
+                            selectedItem = item as ModItemBase;
+                            OnItemSelected(selectedItem);
+                            CheckItemDoubleClick(selectedItem);
+                        });
                     },
                     item =>
                     {
