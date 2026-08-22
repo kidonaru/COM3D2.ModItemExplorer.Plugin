@@ -516,7 +516,16 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private void DrawGizmoTargetRow(GUIView view)
         {
-            GizmoTargetRowDrawer.Draw(view, LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
+            var placer = SelfModelPlacer.instance;
+
+            GizmoTargetRowDrawer.Draw(view, new GizmoTargetRowOption
+            {
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                labelStyle = GUIView.gsLabelRight,
+                getTargetType = () => placer.gizmoTargetType,
+                setTargetType = value => placer.gizmoTargetType = value,
+            });
         }
 
         /// <summary>

@@ -172,13 +172,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        /// <summary>ギズモを表示する対象</summary>
-        public enum GizmoTargetType
-        {
-            All,
-            Selected,
-        }
-
         /// <summary>
         /// ギズモを表示する対象。多数配置するとギズモが重なって選びづらくなるため、
         /// 選択中のモデルだけに絞れるようにしている。設定は Config に永続化する

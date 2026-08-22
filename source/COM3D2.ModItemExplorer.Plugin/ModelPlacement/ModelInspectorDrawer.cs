@@ -70,7 +70,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                 setUseLocalSpace = value => placer.useLocalSpace = value,
             });
 
-            GizmoTargetRowDrawer.Draw(_view, LabelWidth, RowHeight);
+            GizmoTargetRowDrawer.Draw(_view, new GizmoTargetRowOption
+            {
+                labelWidth = LabelWidth,
+                height = RowHeight,
+                getTargetType = () => placer.gizmoTargetType,
+                setTargetType = value => placer.gizmoTargetType = value,
+            });
 
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
