@@ -1677,6 +1677,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         // 前回同期時点の値。SceneEditor とどちら側が変更したかの判別に使う
         private GizmoDragType _lastSyncedDragType;
         private bool _lastSyncedUseLocalSpace;
+        private GizmoTargetType _lastSyncedGizmoTargetType;
         private bool _gizmoToolSyncStarted;
 
         // ホスト型が未解決の間の再試行間隔 (フレーム)。
@@ -1725,6 +1726,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 useLocalSpace = hostUseLocalSpace;
                 _lastSyncedDragType = dragType;
                 _lastSyncedUseLocalSpace = useLocalSpace;
+
+                // 表示対象は旧版 SceneEditor に無いため、扱えるときだけ合わせる。
+                // 扱えない間は MIE 自身の Config が正のまま
+                if (GizmoToolClient.isTargetTypeAvailable)
+                {
+                    gizmoTargetType = GizmoToolClient.targetType;
+                }
+                _lastSyncedGizmoTargetType = gizmoTargetType;
                 return;
             }
 
@@ -1747,6 +1756,19 @@ namespace COM3D2.ModItemExplorer.Plugin
                 useLocalSpace = hostUseLocalSpace;
             }
             _lastSyncedUseLocalSpace = useLocalSpace;
+
+            if (GizmoToolClient.isTargetTypeAvailable)
+            {
+                if (gizmoTargetType != _lastSyncedGizmoTargetType)
+                {
+                    GizmoToolClient.targetType = gizmoTargetType;
+                }
+                else
+                {
+                    gizmoTargetType = GizmoToolClient.targetType;
+                }
+                _lastSyncedGizmoTargetType = gizmoTargetType;
+            }
         }
 
         public static GizmoDragType FromGizmoTool(GizmoTool tool)
