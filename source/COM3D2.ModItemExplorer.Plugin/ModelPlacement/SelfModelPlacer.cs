@@ -462,7 +462,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             _inspectorHandle = InspectorHostClient.Register(
                 "ModItemExplorer",
                 _inspectorDrawer.CanDraw,
-                _inspectorDrawer.Draw);
+                _inspectorDrawer.Draw,
+                // ヘッダー行を自前のスクロールビュー内へ描き、内容と一緒にスクロールさせる。
+                // 対応していない旧ホストへは Register 側が従来どおりの登録へ倒す
+                drawsHeader: true);
 
             if (_inspectorHandle != null)
             {

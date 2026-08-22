@@ -47,8 +47,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// InspectorHost の draw。contentRect は SceneEditor Inspector のウィンドウローカル領域で、
-        /// ホストが描くヘッダー行 (アクティブ・名前・フォーカス) を除いた残り領域
+        /// InspectorHost の draw。contentRect は SceneEditor Inspector のウィンドウローカル領域。
+        /// ヘッダー行は drawsHeader: true で登録してこちらのスクロールビュー内へ描くため、
+        /// そのぶんを引かない領域が渡ってくる (旧ホストではヘッダー行の下の残り領域)
         /// </summary>
         public void Draw(GameObject go, Rect contentRect)
         {
@@ -60,13 +61,21 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _view.Init(contentRect);
 
-            // ギズモ行・表示対象行はホスト (SceneEditor Inspector) が委譲領域の外へ
-            // 常時描くため、ここでは描かない。操作結果は GizmoToolClient の同期で
-            // placer 側へ反映される
-
             // 委譲領域は Inspector を縮めると内容より狭くなる。
             // スクロールは委譲先の責務なのでここで自前で掛ける
             _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
+
+            // ギズモ行・表示対象行・オブジェクト行の中身を描くのはホスト
+            // (SceneEditor Inspector)。内容と一緒にスクロールさせるため、
+            // スクロールビューの先頭という位置だけをこちらで決める。
+            // 操作結果は GizmoToolClient の同期で placer 側へ反映される。
+            // 旧ホストでは 0 が返り、ヘッダーは委譲領域の外へ固定表示される
+            var headerHeight = InspectorHostClient.DrawHeader(go, _view.GetDrawRect(-1, 0f));
+            if (headerHeight > 0f)
+            {
+                // DrawHeader はホスト側の別ビューで描くためこちらのレイアウトは進まない
+                _view.DrawEmpty(-1, headerHeight);
+            }
 
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
