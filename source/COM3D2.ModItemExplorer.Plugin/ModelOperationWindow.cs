@@ -55,6 +55,15 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>前フレームの編集モードがモデルだったか</summary>
         private bool _prevIsModelMode = false;
 
+        /// <summary>
+        /// ギズモ・Transform 行を SceneEditor Inspector 側へ任せるか。
+        /// SceneEditor 在席時は同じ内容が Inspector に出るため、こちらでは描かず
+        /// モデル一覧をウィンドウいっぱいに広げる。
+        /// 一覧の高さ計算と下部の描画分岐の両方から参照するため、フレーム内で値がぶれないよう
+        /// Update() で 1 回だけ確定する
+        /// </summary>
+        private bool _useInspectorHost = false;
+
         public void ToggleVisible()
         {
             _userVisible = !_userVisible;
@@ -169,6 +178,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             // （他の編集モードでもギズモ自体は操作できるため）
             placer.Update();
 
+            // 登録が済むまでは自前で描く。ホストが居ても登録に失敗することはあり、
+            // そこで下部を隠すと Transform を編集する手段がどこにも無くなる
+            _useInspectorHost = placer.isInspectorRegistered;
+
             var isModelMode = windowManager.modItemWindow != null
                 && windowManager.modItemWindow.isModelMode;
 
@@ -239,11 +252,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 DrawModelList(view);
 
-                view.DrawHorizontalLine();
+                if (!_useInspectorHost)
+                {
+                    view.DrawHorizontalLine();
 
-                DrawGizmoRow(view);
-                DrawGizmoTargetRow(view);
-                DrawTransform(view);
+                    DrawGizmoRow(view);
+                    DrawGizmoTargetRow(view);
+                    DrawTransform(view);
+                }
             }
             else
             {
@@ -380,9 +396,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private float GetModelListHeight(GUIView view)
         {
-            // 区切り線 + ギズモ行 + 表示対象行 + Transform 各行。いずれも後ろに margin が付く
-            var bottomHeight = HORIZONTAL_LINE_HEIGHT + view.margin
-                + (ROW_HEIGHT + view.margin) * BOTTOM_ROW_COUNT;
+            // 区切り線 + ギズモ行 + 表示対象行 + Transform 各行。いずれも後ろに margin が付く。
+            // Inspector 側へ委譲しているときは下部が丸ごと無いので確保しない
+            var bottomHeight = _useInspectorHost
+                ? 0f
+                : HORIZONTAL_LINE_HEIGHT + view.margin
+                    + (ROW_HEIGHT + view.margin) * BOTTOM_ROW_COUNT;
 
             // padding.y は上下2回分引く（GetDrawRect の高さ自動計算と同じ規約に合わせる）
             var height = view.viewRect.height - view.currentPos.y
@@ -509,37 +528,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             });
         }
 
-        private readonly static SelfModelPlacer.GizmoTargetType[] GIZMO_TARGET_TYPES =
-        {
-            SelfModelPlacer.GizmoTargetType.All,
-            SelfModelPlacer.GizmoTargetType.Selected,
-        };
-
-        private readonly static string[] GIZMO_TARGET_NAMES = { "すべて表示", "選択中" };
-
-        /// <summary>ギズモの表示対象を選ぶ幅。最長の「すべて表示」が収まる幅にする</summary>
-        private readonly static int GIZMO_TARGET_BUTTON_WIDTH = 80;
-
         /// <summary>
-        /// ギズモを表示する対象の切替行。設定は配置モデル全体で共有される
+        /// ギズモを表示する対象の切替行
         /// </summary>
         private void DrawGizmoTargetRow(GUIView view)
         {
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("表示対象", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-
-                var current = placer.gizmoTargetType;
-                for (var i = 0; i < GIZMO_TARGET_TYPES.Length; i++)
-                {
-                    var targetType = GIZMO_TARGET_TYPES[i];
-                    view.DrawToggle(GIZMO_TARGET_NAMES[i], current == targetType,
-                        GIZMO_TARGET_BUTTON_WIDTH, ROW_HEIGHT,
-                        // 選択中の項目を再度押しても解除しない（ギズモ行と同じ規約）
-                        on => { if (on) placer.gizmoTargetType = targetType; });
-                }
-            }
-            view.EndLayout();
+            GizmoTargetRowDrawer.Draw(view, LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
         }
 
         /// <summary>

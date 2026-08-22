@@ -416,6 +416,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         private ModelInspectorDrawer _inspectorDrawer;
 
         /// <summary>
+        /// Inspector への委譲描画が実際に効いているか。
+        /// InspectorHostClient.isAvailable はホスト側 API を解決できたかを表すだけで、
+        /// 登録自体は失敗しうる。委譲を前提に自前の UI を隠す側はこちらを見ること
+        /// </summary>
+        public bool isInspectorRegistered => _inspectorHandle != null;
+
+        /// <summary>
         /// SceneEditor Inspector へ管理モデルの委譲描画を登録する。
         /// SceneEditor 不在時は InspectorHostClient が無効を返すため何もしない
         /// </summary>

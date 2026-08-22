@@ -185,6 +185,7 @@
     <Compile Include="MTEUtils\WindowManagerBase.cs" />
     <Compile Include="MTEUtils\WindowResizeController.cs" />
     <Compile Include="ModelPlacement\GizmoRenderHack.cs" />
+    <Compile Include="ModelPlacement\GizmoTargetRowDrawer.cs" />
     <Compile Include="ModelPlacement\ModelGizmoManager.cs" />
     <Compile Include="ModelPlacement\ModelInspectorDrawer.cs" />
     <Compile Include="ModelPlacement\ModelMeshLoader.cs" />

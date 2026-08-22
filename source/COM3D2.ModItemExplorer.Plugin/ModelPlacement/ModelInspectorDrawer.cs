@@ -6,7 +6,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// SceneEditor Inspector へ委譲描画する MTE 管理モデルの内容。
-    /// ギズモ行・Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
+    /// ギズモ行・表示対象行・Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
     /// アタッチのドロップダウンは MTE 側の ComboBoxPopupWindow が独立ウィンドウとして
     /// 出すため、ボタン座標をスクリーン座標へ直す基準として SceneEditor のウィンドウ矩形を借りる
     /// </summary>
@@ -69,6 +69,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 getUseLocalSpace = () => placer.useLocalSpace,
                 setUseLocalSpace = value => placer.useLocalSpace = value,
             });
+
+            GizmoTargetRowDrawer.Draw(_view, LabelWidth, RowHeight);
 
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
