@@ -55,6 +55,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool isDragging { get; private set; }
         private TransformGizmo _dragGizmo;
 
+        /// <summary>
+        /// ギズモを掴んだときに、その対象モデルを通知する。
+        /// 掴んだモデルを選択状態へ合わせるために SelfModelPlacer が購読する
+        /// </summary>
+        public Action<GameObject> onGrabbed;
+
         // ドラッグを開始した経路 (hosted / standalone)。途中で経路が切り替わると
         // 座標の基準カメラが変わって対象が飛ぶため、切替を検知したら打ち切る
         private bool _dragHosted;
@@ -247,8 +253,10 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return false;
             }
 
-            foreach (var gizmo in _gizmos.Values)
+            GameObject grabbed = null;
+            foreach (var pair in _gizmos)
             {
+                var gizmo = pair.Value;
                 if (gizmo.tool == GizmoTool.None)
                 {
                     continue;
@@ -258,10 +266,30 @@ namespace COM3D2.ModItemExplorer.Plugin
                     _dragGizmo = gizmo;
                     _dragHosted = isHosted;
                     isDragging = true;
-                    return true;
+                    grabbed = pair.Key;
+                    break;
                 }
             }
-            return false;
+
+            if (grabbed == null)
+            {
+                return false;
+            }
+
+            // 通知先が _gizmos を増減させても走査中にならないよう、ループを抜けてから呼ぶ
+            if (onGrabbed != null)
+            {
+                try
+                {
+                    onGrabbed(grabbed);
+                }
+                catch (Exception e)
+                {
+                    // 選択の反映に失敗してもギズモ操作自体は続行させる
+                    MTEUtils.LogException(e);
+                }
+            }
+            return true;
         }
 
         private void UpdateDrag(Vector2 rtPoint)

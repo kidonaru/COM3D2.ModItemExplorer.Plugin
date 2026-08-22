@@ -42,6 +42,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         private SelfModelPlacer()
         {
             ApplyGizmoTarget();
+            ModelGizmoManager.instance.onGrabbed = OnGizmoGrabbed;
+        }
+
+        /// <summary>
+        /// 掴んだギズモのモデルを選択状態へ合わせる。
+        /// 管理外・逆引き不能なモデルでは現在の選択を保つ (掴んだ操作で選択が消えると困るため)。
+        /// カメラは寄せない (掴んだ瞬間に視点が動くと操作が破綻するため)
+        /// </summary>
+        private void OnGizmoGrabbed(GameObject go)
+        {
+            var model = FindModelByGameObject(go);
+            if (model == null)
+            {
+                return;
+            }
+
+            SetSelectedModel(model, focus: false);
         }
 
         private readonly List<StudioModelStatWrapper> _models = new List<StudioModelStatWrapper>();
