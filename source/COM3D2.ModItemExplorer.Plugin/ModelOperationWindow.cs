@@ -451,7 +451,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         value => placer.SetVisible(model, value));
                     view.currentPos.y -= buttonOffsetY;
 
-                    DrawModelThumb(view, menu);
+                    DrawModelThumb(view, model, menu);
 
                     // 選択状態は文字色で表す（トグルを2つ並べると視覚ノイズになるため）
                     var selected = model == selectedModel;
@@ -485,9 +485,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>
         /// モデルのサムネ。menu 未解決やアイコン未設定でも列がずれないよう領域だけは必ず消費する
         /// </summary>
-        private void DrawModelThumb(GUIView view, MenuInfo menu)
+        private void DrawModelThumb(GUIView view, StudioModelStatWrapper model, MenuInfo menu)
         {
-            var thumb = menu != null ? textureManager.GetTexture(menu.iconName, menu.iconData) : null;
+            var thumb = GetModelThumb(model, menu);
             if (thumb == null)
             {
                 view.DrawEmpty(MODEL_ROW_HEIGHT, MODEL_ROW_HEIGHT);
@@ -495,6 +495,29 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             view.DrawTexture(thumb, MODEL_ROW_HEIGHT, MODEL_ROW_HEIGHT);
+        }
+
+        /// <summary>
+        /// モデルのサムネを解決する。nei 由来の背景オブジェクト (.asset_bg) は menu を持たないため、
+        /// アイテム一覧 (BgObjectItem.thum) と同じ共通アイコンへフォールバックする
+        /// </summary>
+        private Texture2D GetModelThumb(StudioModelStatWrapper model, MenuInfo menu)
+        {
+            if (menu != null)
+            {
+                var thumb = textureManager.GetTexture(menu.iconName, menu.iconData);
+                if (thumb != null)
+                {
+                    return thumb;
+                }
+            }
+
+            if (SelfModelPlacer.IsBgObjectFileName(model?.infoWrapper?.fileName))
+            {
+                return PluginInfo.BgObjectIconTexture;
+            }
+
+            return null;
         }
 
         /// <summary>
