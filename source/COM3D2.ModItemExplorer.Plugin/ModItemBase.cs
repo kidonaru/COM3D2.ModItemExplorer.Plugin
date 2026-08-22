@@ -49,6 +49,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public virtual long lastWriteAt { get; set; }
 
         protected static ModItemManager modItemManager => ModItemManager.instance;
+        protected static ModelPlacerManager modelPlacerManager => ModelPlacerManager.instance;
         protected static TextureManager textureManager => TextureManager.instance;
         protected static MaidPresetManager maidPresetManager => MaidPresetManager.instance;
         protected static Config config => ConfigManager.instance.config;
@@ -284,6 +285,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public StudioModelStatWrapper model { get; set; }
 
         /// <summary>
+        /// 選択状態はモデル操作ウィンドウ・ギズモと共有する。
+        /// 着用中かどうかを見る MenuItem の実装は「配置中」では意味を持たないため差し替える
+        /// </summary>
+        public override bool isSelected => modelPlacerManager.IsSelected(model);
+
+        /// <summary>
         /// menu 名そのままではなく連番付きの表示名を持たせるため、
         /// MenuItem の menu 参照ではなく格納した値を返す
         /// </summary>
@@ -297,6 +304,9 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class ModelBgObjectItem : BgObjectItem, IModelItem
     {
         public StudioModelStatWrapper model { get; set; }
+
+        /// <summary>選択状態の扱いは ModelMenuItem と同じ</summary>
+        public override bool isSelected => modelPlacerManager.IsSelected(model);
 
         public override bool canDelete => true;
         public override bool canFavorite => false;

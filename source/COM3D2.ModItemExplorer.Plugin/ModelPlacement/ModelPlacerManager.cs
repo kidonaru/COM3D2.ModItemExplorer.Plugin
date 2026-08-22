@@ -98,6 +98,23 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// 操作対象として選択中のモデルか。選択できるのは自前配置分だけなので
+        /// MTE 配置分は常に false になる
+        /// </summary>
+        public bool IsSelected(StudioModelStatWrapper model)
+        {
+            return model != null && selfPlacer.selectedModel == model;
+        }
+
+        /// <summary>
+        /// 操作対象として選択する。自前配置分以外は SelfModelPlacer 側で無視される
+        /// </summary>
+        public void SelectModel(StudioModelStatWrapper model)
+        {
+            selfPlacer.selectedModel = model;
+        }
+
+        /// <summary>
         /// 自前配置分を全て破棄する。MTE 側は MTE が自分で後始末するため触らない
         /// </summary>
         public void DeleteAllSelfModels()

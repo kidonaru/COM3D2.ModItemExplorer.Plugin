@@ -1749,6 +1749,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     modItemManager.ApplyItem(item);
                 }
+
+                // 「配置中」のアイテムはモデルの実体を指すため、
+                // 選択をモデル操作ウィンドウ・ギズモ側の選択と一致させる。
+                // 「配置中」はメイドモードからも開けるので、上の適用分岐とは排他にしない
+                if (item is IModelItem modelItem)
+                {
+                    modelPlacerManager.SelectModel(modelItem.model);
+                }
             }
         }
 
