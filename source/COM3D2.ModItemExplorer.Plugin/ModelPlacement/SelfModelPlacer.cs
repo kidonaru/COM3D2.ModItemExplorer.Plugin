@@ -372,21 +372,26 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         // ---- SceneEditor の選択連携 ----
 
-        // 購読の再試行間隔 (フレーム)。ホスト型の解決は毎フレーム行うほど安くはない
+        // 登録の再試行間隔 (フレーム)。ホスト型の解決は毎フレーム行うほど安くはない
         private const int SelectionRetryIntervalFrames = 60;
         // int.MinValue だと frame - _lastSelectionAttemptFrame がオーバーフローして負になり、
-        // リトライガードが恒久的に成立して一度も購読を試行しなくなる
+        // リトライガードが恒久的に成立して一度も登録を試行しなくなる
         private int _lastSelectionAttemptFrame = -SelectionRetryIntervalFrames;
-        private bool _selectionHandlerRegistered;
+
+        // ModelSelectClient へ購読済みか。接続の再試行と初期同期はクライアント側が持つため、
+        // ここでの購読は 1 回きりでよい。
+        // このクラスはプラグイン常駐のシングルトンで破棄されないため Unsubscribe は行わない
+        // (Inspector / ModelProvider の登録も同様に解除しない)
+        private bool _modelSelectSubscribed;
 
         /// <summary>
-        /// SceneEditor への接続（選択変更の購読と Inspector 描画の登録）を行う。
-        /// SceneEditor は後からロードされる可能性があるため、両方そろうまで一定間隔で再試行する
-        /// （ModelGizmoManager のホスト登録と同じパターン）
+        /// SceneEditor への接続（選択中モデルの購読と Inspector 描画・モデル提供の登録）を行う。
+        /// Inspector / ModelProvider のホストは後からロードされる可能性があるため、
+        /// そろうまで一定間隔で再試行する（ModelGizmoManager のホスト登録と同じパターン）
         /// </summary>
         private void TryRegisterHostConnections()
         {
-            if (_selectionHandlerRegistered && _inspectorHandle != null && _modelProviderHandle != null)
+            if (_modelSelectSubscribed && _inspectorHandle != null && _modelProviderHandle != null)
             {
                 return;
             }
@@ -398,12 +403,18 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
             _lastSelectionAttemptFrame = frame;
 
-            if (!_selectionHandlerRegistered)
-            {
-                _selectionHandlerRegistered = SelectionClient.AddSelectionChangedHandler(OnHostSelectionChanged);
-            }
             TryRegisterInspector();
             TryRegisterModelProvider();
+
+            // 購読はホスト不在でも保持され、接続できた時点で現在の選択が 1 回プッシュされる。
+            // ホスト側は選択オブジェクトを「提供中モデルの一覧」から逆引きしてモデルへ写像するため、
+            // モデル提供の登録が済むまで購読しない (済む前に購読すると初期同期で
+            // 自分のモデルが解決されず null が流れる)
+            if (!_modelSelectSubscribed && _modelProviderHandle != null)
+            {
+                ModelSelectClient.Subscribe(OnHostSelectionChanged);
+                _modelSelectSubscribed = true;
+            }
         }
 
         // SceneEditor の InspectorHost へ登録済みか。SceneEditor は後からロードされる可能性があるため
@@ -505,38 +516,35 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 選択状態を SceneEditor の SelectionManager へ反映する。Inspector に選択として表示されるが、
+        /// 選択状態を SceneEditor へ反映する。Inspector に選択として表示されるが、
         /// ギズモは常に ModelGizmoManager 側を使うため showGizmo = false で抑止する。
-        /// focus = true なら SceneView のカメラを選択対象へ寄せる
+        /// focus = true なら SceneView のカメラを選択対象へ寄せる。
+        /// SceneEditor 不在・連携設定 OFF のときは反映されないが、こちらの選択はそのまま保持する
         /// </summary>
         private void SyncSelectionToHost(GameObject previousGo, bool focus)
         {
-            if (!SelectionClient.isAvailable)
-            {
-                return;
-            }
-
             var go = _selectedModel?.obj as GameObject;
             if (go != null)
             {
-                SelectionClient.Select(go, showGizmo: false, focus: focus);
+                ModelSelectClient.TrySelectModel(go, showGizmo: false, focus: focus);
             }
-            else if (previousGo != null && SelectionClient.selectedObject == previousGo)
+            else if (previousGo != null && ModelSelectClient.selectedModel == previousGo)
             {
-                // 自分が選ばせたオブジェクトだけ解除する。
-                // SceneEditor 側でユーザーが選び直した別オブジェクトの選択は奪わない
-                SelectionClient.Select(null, showGizmo: true);
+                // 自分が選ばせたモデルだけ解除する。
+                // SceneEditor 側でユーザーが選び直した別モデルの選択は奪わない
+                ModelSelectClient.TrySelectModel(null);
             }
         }
 
         /// <summary>
-        /// SceneEditor 側の選択変更を MTE 側へ追従させる。自プラグイン管理のモデルなら選択し、
-        /// それ以外（他オブジェクト・選択解除）なら MTE 側の選択を外す
+        /// SceneEditor 側の選択中モデルの変化を追従する。自プラグイン管理のモデルなら選択し、
+        /// それ以外（他プラグインのモデル・モデル以外への切替・選択解除）なら選択を外す。
+        /// 自分の TrySelectModel もエコーされるが、SetSelectedModel の同値判定で止まる
         /// </summary>
         private void OnHostSelectionChanged(GameObject go)
         {
-            // SceneEditor のマルチキャストデリゲートから直接呼ばれるため、
-            // ここで例外を漏らすと SceneEditor 側の発火元や他の購読者を巻き込んで止めてしまう
+            // 例外はクライアント側でも握り潰されるが、ログを自前の文脈付きで残すため
+            // ここでも捕捉する
             try
             {
                 // ホスト発の選択はホスト側でカメラ制御済みなので、こちらからフォーカスし直さない

@@ -170,6 +170,7 @@
     <Compile Include="MTEUtils\MainThreadDispatcher.cs" />
     <Compile Include="MTEUtils\ManagerRegistry.cs" />
     <Compile Include="MTEUtils\ModelProviderClient.cs" />
+    <Compile Include="MTEUtils\ModelSelectClient.cs" />
     <Compile Include="MTEUtils\ModMenuLoader.cs" />
     <Compile Include="MTEUtils\MPNUtils.cs" />
     <Compile Include="MTEUtils\MTEUtils.cs" />
