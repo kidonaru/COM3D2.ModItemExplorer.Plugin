@@ -83,7 +83,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private static WindowManager windowManager => WindowManager.instance;
         private static ModItemManager modItemManager => ModItemManager.instance;
-        private static TextureManager textureManager => TextureManager.instance;
         private static SelfModelPlacer placer => SelfModelPlacer.instance;
         private static Config config => ConfigManager.instance.config;
 
@@ -439,8 +438,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             foreach (var model in models)
             {
-                var menu = modItemManager.GetMenu(model.infoWrapper?.fileName);
-
                 view.BeginHorizontal();
                 {
                     // ボタン類は行の高さまで引き伸ばさず、通常の高さのまま縦中央に置く
@@ -451,11 +448,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                         value => placer.SetVisible(model, value));
                     view.currentPos.y -= buttonOffsetY;
 
-                    DrawModelThumb(view, model, menu);
+                    DrawModelThumb(view, model);
 
                     // 選択状態は文字色で表す（トグルを2つ並べると視覚ノイズになるため）
                     var selected = model == selectedModel;
-                    view.DrawLabel(GetModelDisplayName(model, menu), nameWidth, MODEL_ROW_HEIGHT,
+                    view.DrawLabel(GetModelDisplayName(model), nameWidth, MODEL_ROW_HEIGHT,
                         textColor: selected ? GUIView.option.accentColor : Color.white,
                         // 選択済みのモデルを再度押したときは選択を解除する
                         onClickAction: () => selectedModel = selected ? null : model);
@@ -485,9 +482,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>
         /// モデルのサムネ。menu 未解決やアイコン未設定でも列がずれないよう領域だけは必ず消費する
         /// </summary>
-        private void DrawModelThumb(GUIView view, StudioModelStatWrapper model, MenuInfo menu)
+        private void DrawModelThumb(GUIView view, StudioModelStatWrapper model)
         {
-            var thumb = GetModelThumb(model, menu);
+            var thumb = modItemManager.GetModelThum(model);
             if (thumb == null)
             {
                 view.DrawEmpty(MODEL_ROW_HEIGHT, MODEL_ROW_HEIGHT);
@@ -498,40 +495,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// モデルのサムネを解決する。nei 由来の背景オブジェクト (.asset_bg) は menu を持たないため、
-        /// アイテム一覧 (BgObjectItem.thum) と同じ共通アイコンへフォールバックする
+        /// 一覧に出すモデル名。アイテム名 (menu 名 / 背景オブジェクト名) を優先し、
+        /// 同一アイテムの複数配置は連番で区別する。
+        /// どちらも引けないときは displayName (ファイル名ベース、連番込み) にフォールバックする
         /// </summary>
-        private Texture2D GetModelThumb(StudioModelStatWrapper model, MenuInfo menu)
+        private string GetModelDisplayName(StudioModelStatWrapper model)
         {
-            if (menu != null)
-            {
-                var thumb = textureManager.GetTexture(menu.iconName, menu.iconData);
-                if (thumb != null)
-                {
-                    return thumb;
-                }
-            }
-
-            if (SelfModelPlacer.IsBgObjectFileName(model?.infoWrapper?.fileName))
-            {
-                return PluginInfo.BgObjectIconTexture;
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// 一覧に出すモデル名。menu のアイテム名を優先し、同一アイテムの複数配置は連番で区別する。
-        /// menu が引けないときはファイル名ベースの名前にフォールバックする
-        /// </summary>
-        private string GetModelDisplayName(StudioModelStatWrapper model, MenuInfo menu)
-        {
-            if (menu == null || string.IsNullOrEmpty(menu.name))
+            var baseName = modItemManager.GetModelBaseName(model);
+            if (string.IsNullOrEmpty(baseName))
             {
                 return model.displayName;
             }
 
-            return model.group == 0 ? menu.name : menu.name + " (" + model.group + ")";
+            return model.group == 0 ? baseName : baseName + " (" + model.group + ")";
         }
 
         /// <summary>

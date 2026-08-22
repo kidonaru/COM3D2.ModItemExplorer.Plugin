@@ -209,6 +209,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private HashSet<string> _warnedNotFoundEquippedItems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>アセットバンドル名 -> 背景オブジェクト情報。配置中アイテムの表示名解決に使う</summary>
+        private Dictionary<string, BgObjectInfo> _bgObjectInfoMap = new Dictionary<string, BgObjectInfo>(64, StringComparer.OrdinalIgnoreCase);
+
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
         public List<AnimationState> animationStates = new List<AnimationState>();
 
@@ -935,9 +938,31 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        public void DelItem(MenuItem item)
+        public void DelItem(ModItemBase item)
         {
-            if (item == null || item.menu == null)
+            if (item == null)
+            {
+                return;
+            }
+
+            if (item.itemType == ModItemType.Model)
+            {
+                try
+                {
+                    var modelItem = item as IModelItem;
+                    modelPlacerManager.DeleteModel(modelItem?.model);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+                RemoveItem(item);
+                return;
+            }
+
+            // ここから先は menu を前提にした削除経路
+            var menuItem = item as MenuItem;
+            if (menuItem?.menu == null)
             {
                 return;
             }
@@ -948,7 +973,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     var beforeSnapshot = CapturePropsForHistory();
 
-                    currentMaid.DelProp(item.menu.mpn);
+                    currentMaid.DelProp(menuItem.menu.mpn);
                     currentMaid.AllProcPropSeqStart();
 
                     RemoveItem(item);
@@ -963,7 +988,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     var beforeSnapshot = CapturePropsForHistory();
 
-                    currentMaid.DelProp(item.menu.mpn);
+                    currentMaid.DelProp(menuItem.menu.mpn);
                     currentMaid.AllProcPropSeqStart();
 
                     // 脱いだ状態を反映するため、適用完了後に全体を更新する
@@ -971,19 +996,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     RegisterPropsHistory("アイテム削除: " + item.name, beforeSnapshot);
                 }
-            }
-            else if (item.itemType == ModItemType.Model)
-            {
-                try
-                {
-                    var modelItem = item as ModelMenuItem;
-                    modelPlacerManager.DeleteModel(modelItem?.model);
-                }
-                catch (Exception e)
-                {
-                    MTEUtils.LogException(e);
-                }
-                RemoveItem(item);
             }
         }
 
@@ -1478,10 +1490,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             var alivePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var infoList = BgObjectNeiLoader.LoadAll();
+            _bgObjectInfoMap.Clear();
+
             foreach (var info in infoList)
             {
                 try
                 {
+                    _bgObjectInfoMap[info.assetBundleName] = info;
+
                     // nei と同じフォルダに展開する。既存の Mod ツリー(実フォルダ構造)と揃える
                     var relativeDir = Path.GetDirectoryName(
                         GetRelativePath(MTEUtils.ModDirPath, info.neiFilePath));
@@ -1528,7 +1544,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             var staleItems = new List<ModItemBase>();
             foreach (var pair in _itemPathMap)
             {
-                if (pair.Value is BgObjectItem && !alivePaths.Contains(pair.Key))
+                // 配置中の ModelBgObjectItem も BgObjectItem だが nei 由来ではないので対象外
+                if (pair.Value.itemType == ModItemType.BgObject && !alivePaths.Contains(pair.Key))
                 {
                     staleItems.Add(pair.Value);
                 }
@@ -1746,6 +1763,71 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             return _menuMap.GetOrDefault(menuFileName);
+        }
+
+        /// <summary>
+        /// 配置データのファイル名から背景オブジェクトの情報を引く。
+        /// 背景オブジェクト以外、または nei から消えている場合は null
+        /// </summary>
+        public BgObjectInfo GetBgObjectInfo(string fileName)
+        {
+            if (!SelfModelPlacer.IsBgObjectFileName(fileName))
+            {
+                return null;
+            }
+
+            return _bgObjectInfoMap.GetOrDefault(Path.GetFileNameWithoutExtension(fileName));
+        }
+
+        /// <summary>
+        /// 配置中モデルの表示名。menu 由来なら menu 名、背景オブジェクトなら nei の名前。
+        /// StudioModelStatWrapper.displayName は GameObject 名 (menu/アセットバンドルのファイル名) の
+        /// 使い回しで人間向けではないため、解決規則をここに集約して呼び出し側で共有する。
+        /// どちらも引けない場合は null を返し、フォールバックは呼び出し側に任せる
+        /// </summary>
+        public string GetModelBaseName(StudioModelStatWrapper model)
+        {
+            var fileName = model?.infoWrapper?.fileName;
+
+            var menuName = GetMenu(fileName)?.name;
+            if (!string.IsNullOrEmpty(menuName))
+            {
+                return menuName;
+            }
+
+            var bgObjectName = GetBgObjectInfo(fileName)?.name;
+            if (!string.IsNullOrEmpty(bgObjectName))
+            {
+                return bgObjectName;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 配置中モデルのサムネ。背景オブジェクトは menu を持たないため、
+        /// アイテム一覧 (BgObjectItem.thum) と同じ共通アイコンへフォールバックする
+        /// </summary>
+        public Texture2D GetModelThum(StudioModelStatWrapper model)
+        {
+            var fileName = model?.infoWrapper?.fileName;
+
+            var menu = GetMenu(fileName);
+            if (menu != null)
+            {
+                var thum = TextureManager.instance.GetTexture(menu.iconName, menu.iconData);
+                if (thum != null)
+                {
+                    return thum;
+                }
+            }
+
+            if (SelfModelPlacer.IsBgObjectFileName(fileName))
+            {
+                return PluginInfo.BgObjectIconTexture;
+            }
+
+            return null;
         }
 
         private MenuInfo GetOrLoadOfficialMenu(string menuFileName)
@@ -2243,9 +2325,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _modelTempItems.Clear();
                 _modelTempItems.AddRange(modelRootItem.children);
 
-                foreach (ModelMenuItem item in _modelTempItems)
+                foreach (var content in _modelTempItems)
                 {
-                    if (!modelList.Contains(item.model))
+                    var item = content as ModItemBase;
+                    var modelItem = item as IModelItem;
+                    if (modelItem != null && !modelList.Contains(modelItem.model))
                     {
                         RemoveItem(item);
                     }
@@ -2271,6 +2355,13 @@ namespace COM3D2.ModItemExplorer.Plugin
                 var itemName = GetModelItemName(model);
                 var itemPath = MTEUtils.CombinePaths(ModelDirName, itemName);
                 var fileName = model.infoWrapper?.fileName;
+
+                // 背景オブジェクトは menu を持たないため、拡張子で見分けて別経路で作る
+                if (SelfModelPlacer.IsBgObjectFileName(fileName))
+                {
+                    GetOrCreateModelBgObjectItem(itemPath, fileName, model);
+                    return;
+                }
 
                 var menu = GetMenu(fileName);
                 if (menu == null)
@@ -2486,6 +2577,56 @@ namespace COM3D2.ModItemExplorer.Plugin
                 itemType = itemType,
                 itemName = itemName,
                 itemPath = itemPath,
+            };
+
+            parentItem.AddChild(item);
+            _itemPathMap[itemPath] = item;
+            _itemNameMap[itemName] = item;
+
+            return item;
+        }
+
+        /// <summary>
+        /// 配置中の背景オブジェクトのアイテムを取得、なければ作る。
+        /// nei が更新されて元の情報が消えていてもアセットバンドル名で表示できるようにする
+        /// </summary>
+        private ModelBgObjectItem GetOrCreateModelBgObjectItem(
+            string itemPath,
+            string fileName,
+            StudioModelStatWrapper model)
+        {
+            // nei から消えていても配置は生きているので、アセットバンドル名で表示だけは残す
+            var info = GetBgObjectInfo(fileName);
+            var name = info?.name ?? Path.GetFileNameWithoutExtension(fileName);
+
+            var item = GetItemByPath<ModelBgObjectItem>(itemPath);
+            if (item != null)
+            {
+                // nei の再読み込みで情報が付いたり消えたりするため、表示名も追従させる
+                item.info = info;
+                item.name = name;
+                item.model = model;
+                return item;
+            }
+
+            var parentPath = Path.GetDirectoryName(itemPath);
+            var parentItem = GetOrCreateDirItem(parentPath);
+            if (parentItem == null)
+            {
+                MTEUtils.LogWarning("親ディレクトリが見つかりません。" + parentPath);
+                return null;
+            }
+
+            var itemName = Path.GetFileName(itemPath);
+
+            item = new ModelBgObjectItem
+            {
+                name = name,
+                itemName = itemName,
+                itemPath = itemPath,
+                itemType = ModItemType.Model,
+                info = info,
+                model = model,
             };
 
             parentItem.AddChild(item);

@@ -270,7 +270,25 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
     }
 
-    public class ModelMenuItem : MenuItem
+    /// <summary>
+    /// 「配置中」に並ぶアイテム。menu 由来 (ModelMenuItem) と
+    /// 背景オブジェクト由来 (ModelBgObjectItem) で継承元が違うため、参照はこれで揃える
+    /// </summary>
+    public interface IModelItem
+    {
+        StudioModelStatWrapper model { get; set; }
+    }
+
+    public class ModelMenuItem : MenuItem, IModelItem
+    {
+        public StudioModelStatWrapper model { get; set; }
+
+        public override bool canDelete => true;
+        public override bool canFavorite => false;
+    }
+
+    /// <summary>配置中の背景オブジェクト 1 体。表示は元の BgObjectItem と同じ扱いにする</summary>
+    public class ModelBgObjectItem : BgObjectItem, IModelItem
     {
         public StudioModelStatWrapper model { get; set; }
 

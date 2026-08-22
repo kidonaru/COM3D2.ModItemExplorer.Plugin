@@ -1481,7 +1481,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     {
                         MTEUtils.ExecuteNextFrame(() =>
                         {
-                            OnItemDeleted(item as MenuItem);
+                            OnItemDeleted(item as ModItemBase);
                         });
                     });
             }
@@ -1752,7 +1752,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        private void OnItemDeleted(MenuItem item)
+        private void OnItemDeleted(ModItemBase item)
         {
             if (item != null)
             {
