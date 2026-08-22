@@ -283,6 +283,12 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         public StudioModelStatWrapper model { get; set; }
 
+        /// <summary>
+        /// menu 名そのままではなく連番付きの表示名を持たせるため、
+        /// MenuItem の menu 参照ではなく格納した値を返す
+        /// </summary>
+        public override string name { get; set; }
+
         public override bool canDelete => true;
         public override bool canFavorite => false;
     }

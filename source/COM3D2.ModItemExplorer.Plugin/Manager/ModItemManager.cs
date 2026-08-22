@@ -2561,6 +2561,21 @@ namespace COM3D2.ModItemExplorer.Plugin
             return item;
         }
 
+        /// <summary>
+        /// 既存アイテムの表示名を差し替える。名前が変わると折り返し行数も変わるため、
+        /// 描画側が持つ高さのキャッシュ (nameHeight) も作り直させる
+        /// </summary>
+        private static void SetItemName(ModItemBase item, string name)
+        {
+            if (item.name == name)
+            {
+                return;
+            }
+
+            item.name = name;
+            item.nameHeight = -1f;
+        }
+
         private ModelMenuItem GetOrCreateModelMenuItem(
             string itemPath,
             MenuInfo menu,
@@ -2572,11 +2587,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return null;
             }
 
+            var name = GetModelDisplayName(model);
+
             var item = GetItemByPath<ModelMenuItem>(itemPath);
             if (item != null)
             {
                 item.menu = menu;
                 item.model = model;
+                SetItemName(item, name);
                 return item;
             }
 
@@ -2594,6 +2612,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 menu = menu,
                 model = model,
+                name = name,
                 itemType = itemType,
                 itemName = itemName,
                 itemPath = itemPath,
@@ -2608,24 +2627,24 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 配置中の背景オブジェクトのアイテムを取得、なければ作る。
-        /// nei が更新されて元の情報が消えていてもアセットバンドル名で表示できるようにする
+        /// 表示名は GetModelDisplayName に任せるため、nei から情報が消えても
+        /// アセットバンドル名ベースの名前で残る
         /// </summary>
         private ModelBgObjectItem GetOrCreateModelBgObjectItem(
             string itemPath,
             string fileName,
             StudioModelStatWrapper model)
         {
-            // nei から消えていても配置は生きているので、アセットバンドル名で表示だけは残す
             var info = GetBgObjectInfo(fileName);
-            var name = info?.name ?? Path.GetFileNameWithoutExtension(fileName);
+            var name = GetModelDisplayName(model);
 
             var item = GetItemByPath<ModelBgObjectItem>(itemPath);
             if (item != null)
             {
                 // nei の再読み込みで情報が付いたり消えたりするため、表示名も追従させる
                 item.info = info;
-                item.name = name;
                 item.model = model;
+                SetItemName(item, name);
                 return item;
             }
 
