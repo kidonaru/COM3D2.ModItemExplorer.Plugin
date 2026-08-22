@@ -6,7 +6,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// SceneEditor Inspector へ委譲描画する MTE 管理モデルの内容。
-    /// ギズモ行・表示対象行・Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
+    /// Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
     /// アタッチのドロップダウンは MTE 側の ComboBoxPopupWindow が独立ウィンドウとして
     /// 出すため、ボタン座標をスクリーン座標へ直す基準として SceneEditor のウィンドウ矩形を借りる
     /// </summary>
@@ -60,29 +60,19 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _view.Init(contentRect);
 
-            GizmoToolRowDrawer.Draw(_view, new GizmoToolRowOption
-            {
-                labelWidth = LabelWidth,
-                height = RowHeight,
-                getTool = () => SelfModelPlacer.ToGizmoTool(placer.dragType),
-                setTool = tool => placer.dragType = SelfModelPlacer.FromGizmoTool(tool),
-                getUseLocalSpace = () => placer.useLocalSpace,
-                setUseLocalSpace = value => placer.useLocalSpace = value,
-            });
+            // ギズモ行・表示対象行はホスト (SceneEditor Inspector) が委譲領域の外へ
+            // 常時描くため、ここでは描かない。操作結果は GizmoToolClient の同期で
+            // placer 側へ反映される
 
-            // モデル選択中の Inspector はこの委譲描画に差し替わり、SceneEditor 自身の
-            // ギズモ行は出ない。表示対象もここで描かないと切り替え手段が無くなる
-            GizmoTargetRowDrawer.Draw(_view, new GizmoTargetRowOption
-            {
-                labelWidth = LabelWidth,
-                height = RowHeight,
-                getTargetType = () => placer.gizmoTargetType,
-                setTargetType = value => placer.gizmoTargetType = value,
-            });
+            // 委譲領域は Inspector を縮めると内容より狭くなる。
+            // スクロールは委譲先の責務なのでここで自前で掛ける
+            _view.BeginScrollView(-1, -1, GUIView.AutoScrollViewRect, false, true);
 
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
             DrawAttachRow(model);
+
+            _view.EndScrollView();
 
             if (InspectorHostClient.isWindowStateAvailable)
             {
