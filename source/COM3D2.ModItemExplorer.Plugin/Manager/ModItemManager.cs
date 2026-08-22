@@ -1805,6 +1805,26 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// 一覧表示用のモデル名。GetModelBaseName の結果に同一アイテムの連番を付与し、
+        /// 解決できない場合は displayName (ファイル名ベース、連番込み) にフォールバックする
+        /// </summary>
+        public string GetModelDisplayName(StudioModelStatWrapper model)
+        {
+            if (model == null)
+            {
+                return null;
+            }
+
+            var baseName = GetModelBaseName(model);
+            if (string.IsNullOrEmpty(baseName))
+            {
+                return model.displayName;
+            }
+
+            return model.group == 0 ? baseName : baseName + " (" + model.group + ")";
+        }
+
+        /// <summary>
         /// 配置中モデルのサムネ。背景オブジェクトは menu を持たないため、
         /// アイテム一覧 (BgObjectItem.thum) と同じ共通アイコンへフォールバックする
         /// </summary>

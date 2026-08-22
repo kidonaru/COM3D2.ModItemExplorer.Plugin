@@ -452,7 +452,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                     // 選択状態は文字色で表す（トグルを2つ並べると視覚ノイズになるため）
                     var selected = model == selectedModel;
-                    view.DrawLabel(GetModelDisplayName(model), nameWidth, MODEL_ROW_HEIGHT,
+                    view.DrawLabel(modItemManager.GetModelDisplayName(model), nameWidth, MODEL_ROW_HEIGHT,
                         textColor: selected ? GUIView.option.accentColor : Color.white,
                         // 選択済みのモデルを再度押したときは選択を解除する
                         onClickAction: () => selectedModel = selected ? null : model);
@@ -492,22 +492,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             view.DrawTexture(thumb, MODEL_ROW_HEIGHT, MODEL_ROW_HEIGHT);
-        }
-
-        /// <summary>
-        /// 一覧に出すモデル名。アイテム名 (menu 名 / 背景オブジェクト名) を優先し、
-        /// 同一アイテムの複数配置は連番で区別する。
-        /// どちらも引けないときは displayName (ファイル名ベース、連番込み) にフォールバックする
-        /// </summary>
-        private string GetModelDisplayName(StudioModelStatWrapper model)
-        {
-            var baseName = modItemManager.GetModelBaseName(model);
-            if (string.IsNullOrEmpty(baseName))
-            {
-                return model.displayName;
-            }
-
-            return model.group == 0 ? baseName : baseName + " (" + model.group + ")";
         }
 
         /// <summary>

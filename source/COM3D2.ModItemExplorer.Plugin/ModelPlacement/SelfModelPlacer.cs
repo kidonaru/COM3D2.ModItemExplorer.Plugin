@@ -497,7 +497,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             return result;
         }
 
-        /// <summary>GameObject からモデルの表示名を逆引きする。管理外なら null (ホスト側が GO 名で表示)</summary>
+        /// <summary>
+        /// GameObject からモデルの表示名を逆引きする。管理外なら null (ホスト側が GO 名で表示)。
+        /// 名前はモデル操作ウィンドウの一覧と同じ規則で解決する
+        /// </summary>
         private string GetProvidedModelName(GameObject go)
         {
             if (go == null)
@@ -509,7 +512,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if ((model.obj as GameObject) == go)
                 {
-                    return model.displayName;
+                    return modItemManager.GetModelDisplayName(model);
                 }
             }
             return null;
