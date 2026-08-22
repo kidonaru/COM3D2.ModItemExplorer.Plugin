@@ -120,10 +120,11 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// モデルごとのオイラー角キャッシュ。
-        /// ギズモは回転をローカル軸で右から合成するため、Unity のオイラー合成順(Z→X→Y)では
-        /// Z 軸ハンドル以外の操作で全成分が変動して見える。そこで1フレーム分の回転差分を
-        /// 軸単位でオイラー角に足し込み、その値を正として書き戻すことで
-        /// 「X ハンドルの操作は X の数値だけを動かす」挙動にする
+        /// Quaternion.eulerAngles は同じ回転を表す複数の解から 0〜360 の 1 つを返すだけなので、
+        /// そのまま表示すると ±90 跨ぎや 360 周回で数値が飛ぶ。前フレームの値に最も近い解を
+        /// 選び直して保持することで、表示・編集用に連続なオイラー角を得る。
+        /// 回転そのものは Transform を正としこちらから書き戻さない
+        /// (オイラー角の和は回転の合成と一致せず、書き戻すとギズモが決めた姿勢とずれるため)
         /// </summary>
         private class RotationCache
         {
@@ -763,8 +764,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 毎フレーム呼ぶ。ギズモ操作による回転をオイラー角キャッシュに軸単位で足し込み、
-        /// 正規化した回転を書き戻す
+        /// 毎フレーム呼ぶ。ギズモ操作による回転をオイラー角キャッシュへ連続な値として取り込む
         /// </summary>
         public void Update()
         {
@@ -790,13 +790,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                     continue;
                 }
 
-                // ギズモの軸ハンドルは1フレームでは単一ローカル軸の微小回転を右から掛けるため、
-                // ローカル差分のオイラー角はほぼ該当軸成分のみになる。これを足し込むことで
-                // ±90°を跨いでも数値が飛ばない連続的なオイラー角が得られる
-                var delta = (Quaternion.Inverse(cache.rotation) * t.localRotation).eulerAngles;
-                cache.eulerAngles += NormalizeEuler(delta);
-                cache.rotation = Quaternion.Euler(cache.eulerAngles);
-                t.localRotation = cache.rotation;
+                cache.eulerAngles = ContinuousEuler(t.localRotation, cache.eulerAngles);
+                cache.rotation = t.localRotation;
             }
 
             // オイラー角の確定後に見ないと、回転の差分を過渡状態のまま拾ってしまう
@@ -846,13 +841,31 @@ namespace COM3D2.ModItemExplorer.Plugin
             return cache;
         }
 
-        /// <summary>各成分を -180〜180 に正規化する</summary>
-        private static Vector3 NormalizeEuler(Vector3 euler)
+        /// <summary>
+        /// rotation を表すオイラー角のうち、prev に最も近いものを返す。
+        /// Quaternion.Euler へ戻せば必ず元の回転に一致する (表現を選び直すだけで丸めない)
+        /// </summary>
+        private static Vector3 ContinuousEuler(Quaternion rotation, Vector3 prev)
         {
-            euler.x = Mathf.DeltaAngle(0f, euler.x);
-            euler.y = Mathf.DeltaAngle(0f, euler.y);
-            euler.z = Mathf.DeltaAngle(0f, euler.z);
-            return euler;
+            var euler = rotation.eulerAngles;
+            // 同じ回転を表すもう 1 つの解。Unity の合成順 Z→X→Y では X が中間軸のため、
+            // X だけ 180-x となり Y/Z は +180 する。ジンバル付近ではこちらが前フレームに近い
+            var mirrored = new Vector3(180f - euler.x, euler.y + 180f, euler.z + 180f);
+
+            var nearestEuler = NearestEuler(euler, prev);
+            var nearestMirrored = NearestEuler(mirrored, prev);
+            return (nearestEuler - prev).sqrMagnitude <= (nearestMirrored - prev).sqrMagnitude
+                ? nearestEuler
+                : nearestMirrored;
+        }
+
+        /// <summary>各成分を 360 度単位でずらし、prev に最も近い値へ揃える</summary>
+        private static Vector3 NearestEuler(Vector3 euler, Vector3 prev)
+        {
+            return new Vector3(
+                prev.x + Mathf.DeltaAngle(prev.x, euler.x),
+                prev.y + Mathf.DeltaAngle(prev.y, euler.y),
+                prev.z + Mathf.DeltaAngle(prev.z, euler.z));
         }
 
         /// <summary>
