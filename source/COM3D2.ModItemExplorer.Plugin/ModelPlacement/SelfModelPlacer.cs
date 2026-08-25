@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
@@ -683,6 +683,108 @@ namespace COM3D2.ModItemExplorer.Plugin
                     UnityEngine.Object.Destroy(modelGo);
                 }
 
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 公式 BG プレハブ（アセットバンドル / Resources）を配置する。
+        /// 見つからなければ .menu 経路へフォールバックする
+        /// </summary>
+        public StudioModelStatWrapper CreateGameModel(string assetName, int group, bool visible)
+        {
+            GameObject modelGo = null;
+            try
+            {
+                var sourceObj = GameMain.Instance.BgMgr.CreateAssetBundle(assetName);
+                if (!sourceObj)
+                {
+                    sourceObj = Resources.Load<GameObject>("Prefab/" + assetName);
+                }
+                if (!sourceObj)
+                {
+                    sourceObj = Resources.Load<GameObject>("BG/" + assetName);
+                }
+                if (!sourceObj)
+                {
+                    return CreateModel(assetName, group, visible);
+                }
+
+                modelGo = UnityEngine.Object.Instantiate(sourceObj);
+                modelGo.name = assetName;
+                SetLayerRecursively(modelGo, GetModelLayer());
+
+                // 影・当たり判定・パーティクルの既定をスタジオ配置向けに整える
+                foreach (var renderer in modelGo.GetComponentsInChildren<Renderer>())
+                {
+                    if (renderer != null && renderer.gameObject.name.Contains("castshadow"))
+                    {
+                        renderer.shadowCastingMode = ShadowCastingMode.Off;
+                    }
+                }
+                foreach (var collider in modelGo.GetComponentsInChildren<Collider>())
+                {
+                    if (collider != null)
+                    {
+                        collider.enabled = false;
+                    }
+                }
+                foreach (var particle in modelGo.GetComponentsInChildren<ParticleSystem>())
+                {
+                    if (particle != null)
+                    {
+                        var main = particle.main;
+                        main.loop = true;
+                    }
+                }
+
+                // Mesh/Material はアセットバンドル / Resources 所有のため破棄対象に積まない
+                return RegisterCreatedModel(
+                    modelGo, assetName, group, visible, new List<UnityEngine.Object>());
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("公式BGモデルの配置に失敗しました。{0}", assetName);
+                MTEUtils.LogException(e);
+                if (modelGo != null)
+                {
+                    UnityEngine.Object.Destroy(modelGo);
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// マイルームカスタムの配置オブジェクトを配置する。
+        /// fileName は "MYR_&lt;id&gt;" 形式で、SceneEditor 側の名前解決もこの形を前提にしている
+        /// </summary>
+        public StudioModelStatWrapper CreateMyRoomObject(int myRoomId, int group, bool visible)
+        {
+            GameObject modelGo = null;
+            try
+            {
+                var data = MyRoomCustom.PlacementData.GetData(myRoomId);
+                if (data == null)
+                {
+                    MTEUtils.LogWarning("マイルームオブジェクトが見つかりません。id={0}", myRoomId);
+                    return null;
+                }
+
+                var prefab = data.GetPrefab();
+                modelGo = UnityEngine.Object.Instantiate(prefab);
+                SetLayerRecursively(modelGo, GetModelLayer());
+
+                return RegisterCreatedModel(
+                    modelGo, "MYR_" + myRoomId, group, visible, new List<UnityEngine.Object>());
+            }
+            catch (Exception e)
+            {
+                MTEUtils.LogWarning("マイルームオブジェクトの配置に失敗しました。id={0}", myRoomId);
+                MTEUtils.LogException(e);
+                if (modelGo != null)
+                {
+                    UnityEngine.Object.Destroy(modelGo);
+                }
                 return null;
             }
         }

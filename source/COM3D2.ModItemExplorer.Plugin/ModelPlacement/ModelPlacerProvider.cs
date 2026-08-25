@@ -55,9 +55,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// type は SceneEditor 側 StudioModelType の enum 名。
-        /// 現時点で対応するのは Mod (.menu) と Asset (.asset_bg) のみで、
-        /// Prefab / MyRoom は後続タスクで対応する
+        /// type は SceneEditor 側 StudioModelType の enum 名
+        /// （Mod = .menu、Asset = .asset_bg、Prefab = 公式 BG、MyRoom = マイルーム配置）
         /// </summary>
         public static GameObject CreateModel(
             string type, string fileName, int myRoomId, long bgObjectId, int group, bool visible)
@@ -70,6 +69,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                     break;
                 case "Asset":
                     model = placer.CreateBgObject(TrimAssetBgExtension(fileName), group, visible);
+                    break;
+                case "Prefab":
+                    model = placer.CreateGameModel(fileName, group, visible);
+                    break;
+                case "MyRoom":
+                    model = placer.CreateMyRoomObject(myRoomId, group, visible);
                     break;
                 default:
                     MTEUtils.LogWarning("未対応のモデル種別です。{0} ({1})", type, fileName);

@@ -106,6 +106,9 @@
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AssetBundleModule">
       <HintPath>$(GameDir)\COM3D2x64_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
     </Reference>
