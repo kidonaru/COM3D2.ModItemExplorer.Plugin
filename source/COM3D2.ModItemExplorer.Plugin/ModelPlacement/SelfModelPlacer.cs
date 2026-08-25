@@ -838,10 +838,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _models.Add(wrapper);
                 _disposables[wrapper] = disposables;
 
-                // 配置直後は操作対象にする（3D 上のハイライトと一覧の選択表示を一致させる）
-                selectedModel = wrapper;
+                // 一括操作中は選択の切り替えも履歴の登録も行わない（Undo 履歴を汚さないため）
+                if (!isBatching)
+                {
+                    // 配置直後は操作対象にする（3D 上のハイライトと一覧の選択表示を一致させる）
+                    selectedModel = wrapper;
 
-                history.RegisterCreate(wrapper, history.TryCaptureState(wrapper));
+                    history.RegisterCreate(wrapper, history.TryCaptureState(wrapper));
+                }
 
                 return wrapper;
             }
@@ -1038,7 +1042,54 @@ namespace COM3D2.ModItemExplorer.Plugin
             // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
             SetEulerAngles(model, Vector3.zero);
 
-            history.RegisterAttach(model, historyState);
+            if (!isBatching)
+            {
+                history.RegisterAttach(model, historyState);
+            }
+        }
+
+        /// <summary>
+        /// ボーン名を直接指定してアタッチする。
+        /// SceneEditor のタイムラインは AttachPoints に無いボーンも指定してくるため、
+        /// 一覧に無い場合は臨時のアタッチポイントを作って委譲する
+        /// （boneName が空なら解除）
+        /// </summary>
+        public void AttachByBoneName(StudioModelStatWrapper model, Maid maid, string boneName)
+        {
+            if (maid == null || string.IsNullOrEmpty(boneName))
+            {
+                Attach(model, null, null);
+                return;
+            }
+
+            Attach(model, maid, FindOrCreateAttachPoint(boneName));
+        }
+
+        /// <summary>
+        /// ボーン名に対応するアタッチポイントを返す。
+        /// 定番一覧に無いボーンは表示名をボーン名で代用した臨時のポイントにする
+        /// </summary>
+        private static AttachPoint FindOrCreateAttachPoint(string boneName)
+        {
+            return AttachPoints.Find(p => p.boneName == boneName)
+                ?? new AttachPoint { displayName = boneName, boneName = boneName };
+        }
+
+        /// <summary>
+        /// タイムライン読込のような一括操作の最中か。
+        /// 真の間は配置履歴の登録と選択の切り替えを行わない
+        /// （読込のたびに Undo 履歴が大量に積まれるのを防ぐ）
+        /// </summary>
+        public bool isBatching { get; private set; }
+
+        public void BeginBatch()
+        {
+            isBatching = true;
+        }
+
+        public void EndBatch()
+        {
+            isBatching = false;
         }
 
         /// <summary>
@@ -1053,8 +1104,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             var maid = FindAttachTargetMaid(item.attachMaidGuid);
-            var point = AttachPoints.Find(p => p.boneName == item.attachBoneName);
-            if (maid == null || point == null)
+            // タイムライン経由のアタッチは定番一覧に無いボーンも使うため、
+            // 一覧に無いボーン名は臨時のアタッチポイントとして復元する
+            var point = FindOrCreateAttachPoint(item.attachBoneName);
+            if (maid == null)
             {
                 MTEUtils.LogWarning("アタッチ先が見つからないためワールド配置に戻します。{0}", item.attachBoneName);
                 Attach(model, null, null);

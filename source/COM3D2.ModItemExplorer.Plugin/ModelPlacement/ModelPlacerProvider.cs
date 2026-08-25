@@ -108,16 +108,26 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// boneName は追従先ボーンの名前（SceneEditor 側で解決済み）。
-        /// ボーン名でのアタッチは Task 6 で実装するため、現時点では解除のみ受け付ける
+        /// maid が null または boneName が空なら解除する
         /// </summary>
         public static void AttachModel(GameObject obj, Maid maid, string boneName)
         {
             var model = placer.FindModelByGameObject(obj);
-            if (model == null)
+            if (model != null)
             {
-                return;
+                placer.AttachByBoneName(model, maid, boneName);
             }
-            placer.Attach(model, null, null);
+        }
+
+        /// <summary>タイムライン読込のような一括操作の開始・終了を受け取る（任意メンバ）</summary>
+        public static void BeginBatch()
+        {
+            placer.BeginBatch();
+        }
+
+        public static void EndBatch()
+        {
+            placer.EndBatch();
         }
 
         /// <summary>fileName から .asset_bg 拡張子を落としてアセットバンドル名に戻す</summary>
