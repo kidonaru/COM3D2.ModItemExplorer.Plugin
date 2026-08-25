@@ -1,7 +1,26 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace COM3D2.ModItemExplorer.Plugin
 {
+    /// <summary>
+    /// 配置モデルの生成種別。SceneEditor 側 StudioModelType の enum 名と同じ文字列を使う
+    /// （境界を越える値なので enum ではなく文字列で持つ）
+    /// </summary>
+    public static class ModelPlacementType
+    {
+        /// <summary>.menu の MOD アイテム</summary>
+        public const string Mod = "Mod";
+
+        /// <summary>公式 BG プレハブ（アセットバンドル / Resources）</summary>
+        public const string Prefab = "Prefab";
+
+        /// <summary>.asset_bg の背景オブジェクト</summary>
+        public const string Asset = "Asset";
+
+        /// <summary>マイルームカスタムの配置オブジェクト</summary>
+        public const string MyRoom = "MyRoom";
+    }
+
     /// <summary>
     /// 自前配置モデル1体分の保存データ。Transform は復元時にラッパー GameObject へ適用する
     /// </summary>
@@ -10,6 +29,15 @@ namespace COM3D2.ModItemExplorer.Plugin
         public string fileName;
         public int group;
         public bool visible = true;
+
+        /// <summary>
+        /// 生成種別。SceneEditor 側 StudioModelType の enum 名に合わせる
+        /// （Mod / Prefab / Asset / MyRoom）。要素の無い旧 XML は Mod として読む
+        /// </summary>
+        public string type = ModelPlacementType.Mod;
+
+        /// <summary>MyRoom 種別のときの配置データ ID</summary>
+        public int myRoomId;
 
         public float posX, posY, posZ;
         public float rotX, rotY, rotZ;

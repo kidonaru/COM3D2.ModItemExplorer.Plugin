@@ -1446,9 +1446,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             var attach = GetAttachState(model);
             // 回転はキャッシュ値を保存し、UI に表示している数値と一致させる
             var euler = GetEulerAngles(model);
+            var fileName = model.infoWrapper?.fileName;
             return new ModelPlacementPresetItem
             {
-                fileName = model.infoWrapper?.fileName,
+                fileName = fileName,
+                type = ResolvePlacementType(fileName),
+                myRoomId = ExtractMyRoomId(fileName),
                 group = model.group,
                 visible = model.visible,
                 // UI・アタッチと揃えるためローカル系で保存する
@@ -1494,6 +1497,49 @@ namespace COM3D2.ModItemExplorer.Plugin
             return restored;
         }
 
+        /// <summary>マイルームオブジェクトのファイル名接頭辞（"MYR_&lt;id&gt;" 形式）</summary>
+        private const string MyRoomFileNamePrefix = "MYR_";
+
+        /// <summary>
+        /// ファイル名から生成種別を判定する。
+        /// 保存・復元の双方がこの判定を通るので、種別の見分け方はここ 1 か所に閉じる
+        /// </summary>
+        internal static string ResolvePlacementType(string fileName)
+        {
+            if (IsBgObjectFileName(fileName))
+            {
+                return ModelPlacementType.Asset;
+            }
+            if (!string.IsNullOrEmpty(fileName)
+                && fileName.StartsWith(MyRoomFileNamePrefix, StringComparison.Ordinal))
+            {
+                return ModelPlacementType.MyRoom;
+            }
+            if (!string.IsNullOrEmpty(fileName)
+                && fileName.EndsWith(".menu", StringComparison.OrdinalIgnoreCase))
+            {
+                return ModelPlacementType.Mod;
+            }
+            // 拡張子を持たないものは公式 BG プレハブ名として扱う
+            return string.IsNullOrEmpty(Path.GetExtension(fileName))
+                ? ModelPlacementType.Prefab
+                : ModelPlacementType.Mod;
+        }
+
+        /// <summary>"MYR_&lt;id&gt;" 形式のファイル名から配置データ ID を取り出す。該当しなければ 0</summary>
+        internal static int ExtractMyRoomId(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)
+                || !fileName.StartsWith(MyRoomFileNamePrefix, StringComparison.Ordinal))
+            {
+                return 0;
+            }
+            int myRoomId;
+            return int.TryParse(fileName.Substring(MyRoomFileNamePrefix.Length), out myRoomId)
+                ? myRoomId
+                : 0;
+        }
+
         /// <summary>配置データのファイル名が背景オブジェクト (.asset_bg) を指すか</summary>
         internal static bool IsBgObjectFileName(string fileName)
         {
@@ -1515,11 +1561,30 @@ namespace COM3D2.ModItemExplorer.Plugin
         internal StudioModelStatWrapper RestoreModel(ModelPlacementPresetItem item)
         {
             // 保存時と同じ生成経路を再実行してから Transform を適用する。
-            // 背景オブジェクトは fileName の拡張子で見分ける
-            // (ModItemManager.GetMenu が .menu/.mod を拡張子で見分けているのと同じ流儀)
-            var wrapper = IsBgObjectFileName(item.fileName)
-                ? CreateBgObject(GetAssetBundleName(item.fileName), item.group, item.visible)
-                : CreateModel(item.fileName, item.group, item.visible);
+            // type を持たない旧 XML は既定値 (Mod) で読まれるため、
+            // 背景オブジェクトだけは従来どおり拡張子でも見分ける
+            var type = item.type;
+            if (type == ModelPlacementType.Mod && IsBgObjectFileName(item.fileName))
+            {
+                type = ModelPlacementType.Asset;
+            }
+
+            StudioModelStatWrapper wrapper;
+            switch (type)
+            {
+                case ModelPlacementType.Asset:
+                    wrapper = CreateBgObject(GetAssetBundleName(item.fileName), item.group, item.visible);
+                    break;
+                case ModelPlacementType.Prefab:
+                    wrapper = CreateGameModel(item.fileName, item.group, item.visible);
+                    break;
+                case ModelPlacementType.MyRoom:
+                    wrapper = CreateMyRoomObject(item.myRoomId, item.group, item.visible);
+                    break;
+                default:
+                    wrapper = CreateModel(item.fileName, item.group, item.visible);
+                    break;
+            }
             if (wrapper?.obj as GameObject == null)
             {
                 return null;
