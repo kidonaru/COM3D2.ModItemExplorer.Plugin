@@ -1077,7 +1077,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// タイムライン読込のような一括操作の最中か。
-        /// 真の間は配置履歴の登録と選択の切り替えを行わない
+        /// 真の間は配置履歴の登録と、生成時の選択切り替えを行わない
         /// （読込のたびに Undo 履歴が大量に積まれるのを防ぐ）
         /// </summary>
         public bool isBatching { get; private set; }
@@ -1185,10 +1185,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            // 破棄すると状態を読めなくなるため、履歴用の控えは削除前に取る
-            var historyState = history.TryCaptureState(model);
+            // 破棄すると状態を読めなくなるため、履歴用の控えは削除前に取る。
+            // 一括操作中は履歴に積まないので控えも取らない
+            var historyState = isBatching ? null : history.TryCaptureState(model);
             var historyName = model.displayName;
 
+            // 破棄済みモデルを選択したままにはできないため、これは一括操作中でも解除する
             if (selectedModel == model)
             {
                 selectedModel = null;
@@ -1220,7 +1222,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             _rotationCaches.Remove(model);
             history.Forget(model);
 
-            history.RegisterDelete(historyState, historyName);
+            if (!isBatching)
+            {
+                history.RegisterDelete(historyState, historyName);
+            }
         }
 
         /// <summary>
@@ -1500,23 +1505,28 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>マイルームオブジェクトのファイル名接頭辞（"MYR_&lt;id&gt;" 形式）</summary>
         private const string MyRoomFileNamePrefix = "MYR_";
 
+        /// <summary>MOD アイテムの menu 拡張子</summary>
+        private const string MenuExtension = ".menu";
+
         /// <summary>
         /// ファイル名から生成種別を判定する。
         /// 保存・復元の双方がこの判定を通るので、種別の見分け方はここ 1 か所に閉じる
         /// </summary>
         internal static string ResolvePlacementType(string fileName)
         {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return ModelPlacementType.Mod;
+            }
             if (IsBgObjectFileName(fileName))
             {
                 return ModelPlacementType.Asset;
             }
-            if (!string.IsNullOrEmpty(fileName)
-                && fileName.StartsWith(MyRoomFileNamePrefix, StringComparison.Ordinal))
+            if (fileName.StartsWith(MyRoomFileNamePrefix, StringComparison.Ordinal))
             {
                 return ModelPlacementType.MyRoom;
             }
-            if (!string.IsNullOrEmpty(fileName)
-                && fileName.EndsWith(".menu", StringComparison.OrdinalIgnoreCase))
+            if (fileName.EndsWith(MenuExtension, StringComparison.OrdinalIgnoreCase))
             {
                 return ModelPlacementType.Mod;
             }

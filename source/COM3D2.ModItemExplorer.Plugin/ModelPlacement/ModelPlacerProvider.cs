@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -64,16 +64,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             StudioModelStatWrapper model = null;
             switch (type)
             {
-                case "Mod":
+                case ModelPlacementType.Mod:
                     model = placer.CreateModel(fileName, group, visible);
                     break;
-                case "Asset":
+                case ModelPlacementType.Asset:
                     model = placer.CreateBgObject(TrimAssetBgExtension(fileName), group, visible);
                     break;
-                case "Prefab":
+                case ModelPlacementType.Prefab:
                     model = placer.CreateGameModel(fileName, group, visible);
                     break;
-                case "MyRoom":
+                case ModelPlacementType.MyRoom:
                     model = placer.CreateMyRoomObject(myRoomId, group, visible);
                     break;
                 default:
