@@ -195,6 +195,7 @@
     <Compile Include="ModelPlacement\ModelPlacementPreset.cs" />
     <Compile Include="ModelPlacement\ModelPlacementPresetProvider.cs" />
     <Compile Include="ModelPlacement\ModelPlacerManager.cs" />
+    <Compile Include="ModelPlacement\ModelPlacerProvider.cs" />
     <Compile Include="ModelPlacement\ModelTransformRowDrawer.cs" />
     <Compile Include="ModelPlacement\NprShaderLoader.cs" />
     <Compile Include="ModelPlacement\SceneCaptureImporter.cs" />
