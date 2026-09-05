@@ -49,6 +49,8 @@ var ok = (bool)type.GetMethod("ApplyPlacementXml").Invoke(placer, new object[] {
   それも不在・ボーン不明ならワールド配置にフォールバックする。
 - 旧形式（`version` 1、アタッチ先がスロット番号）の xml も読み込めるが、アタッチ情報は
   復元されずワールド配置になる（読み込み時に警告ログを出す）。
+- `version` 3 からモデルごとの `layer`（Unity のレイヤー番号）を保持する。要素が無い、
+  または 0〜31 の範囲外の xml は設定の既定レイヤーで復元する。
 
 ## シーンプリセットプロバイダ規約（SceneEditor プラグイン連携）
 

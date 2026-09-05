@@ -192,6 +192,7 @@
     <Compile Include="ModelPlacement\GizmoRenderHack.cs" />
     <Compile Include="ModelPlacement\ModelGizmoManager.cs" />
     <Compile Include="ModelPlacement\ModelInspectorDrawer.cs" />
+    <Compile Include="ModelPlacement\ModelLayerRowDrawer.cs" />
     <Compile Include="ModelPlacement\ModelMeshLoader.cs" />
     <Compile Include="ModelPlacement\ModelMenuScript.cs" />
     <Compile Include="ModelPlacement\ModelPlacementHistory.cs" />

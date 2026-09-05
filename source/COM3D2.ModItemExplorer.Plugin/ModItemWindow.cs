@@ -1616,6 +1616,20 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
                 view.EndLayout();
 
+                // 既定値のため配置済みモデルには遡及しない。個別の変更はモデル操作ウィンドウ側で行う
+                ModelLayerRowDrawer.Draw(view, new ModelLayerRowOption
+                {
+                    label = "配置モデルの既定レイヤー",
+                    labelWidth = 200,
+                    height = 20,
+                    getLayerType = () => config.defaultModelLayerType,
+                    setLayerType = value =>
+                    {
+                        config.defaultModelLayerType = value;
+                        config.dirty = true;
+                    },
+                });
+
                 view.DrawToggle("カスタムパーツ選択時の自動編集", config.customPartsAutoEditMode, 200, 20, newValue =>
                 {
                     config.customPartsAutoEditMode = newValue;

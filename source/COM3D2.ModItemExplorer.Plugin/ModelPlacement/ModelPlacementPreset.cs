@@ -51,6 +51,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>アタッチ先ボーン名。null/空 は未アタッチ</summary>
         public string attachBoneName = null;
+
+        /// <summary>
+        /// モデルを載せるレイヤー番号。要素の無い旧 XML は -1 (未指定) として読み、
+        /// 設定の既定レイヤーのまま復元する
+        /// </summary>
+        public int layer = UnspecifiedLayer;
+
+        /// <summary>layer が保存されていないことを表す値</summary>
+        public const int UnspecifiedLayer = -1;
     }
 
     /// <summary>
@@ -61,8 +70,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>
         /// 現行フォーマットのバージョン。
         /// version 2: アタッチ先の識別子がスロット番号から guid になった
+        /// version 3: モデルごとのレイヤーを保存するようになった
         /// </summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
+
+        /// <summary>アタッチ先が guid になった version。これ未満は復元できない</summary>
+        public const int AttachGuidVersion = 2;
 
         /// <summary>フォーマットの互換判定用。旧形式の読み込み時に警告を出すために使う</summary>
         public int version = CurrentVersion;

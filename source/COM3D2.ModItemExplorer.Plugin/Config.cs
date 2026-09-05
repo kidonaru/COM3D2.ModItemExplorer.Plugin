@@ -16,6 +16,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         GizmoScale,
     }
 
+    /// <summary>
+    /// 配置モデルを載せるレイヤー。キャラだけを対象にしたゲーム側・他プラグインの処理
+    /// （PostEffects の SSAO 除外マスク、メイド非表示の cullingMask 操作など）に
+    /// 巻き込まれるかどうかがこれで決まる
+    /// </summary>
+    public enum ModelLayerType
+    {
+        /// <summary>Room/Chair/Tree などゲーム側の背景プロップと同じ扱い</summary>
+        Default,
+        /// <summary>メイドと同じ扱い</summary>
+        Charactor,
+    }
+
     public enum ItemSortType
     {
         DefaultAsc,
@@ -48,6 +61,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool animationExtend = true;
         public ContentMode contentMode = ContentMode.メイド;
         public GizmoTargetType gizmoTargetType = GizmoTargetType.All;
+        public ModelLayerType defaultModelLayerType = ModelLayerType.Default;
 
         // 表示設定
         public int windowWidth = 960;

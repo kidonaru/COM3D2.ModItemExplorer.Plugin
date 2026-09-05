@@ -25,11 +25,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         public readonly static int MIN_MODEL_LIST_HEIGHT = MODEL_ROW_HEIGHT * 2;
 
         /// <summary>
-        /// モデル一覧より下に確保する行数（ギズモ + 表示対象 + 位置・回転・拡縮 + アタッチ）。
+        /// モデル一覧より下に確保する行数（ギズモ + 表示対象 + 位置・回転・拡縮 + アタッチ + レイヤー）。
         /// モデル未選択時は Transform が案内ラベル1行に縮むが、選択のたびに一覧の高さが
         /// 変わると操作しづらいため、常に最大の行数分を確保する
         /// </summary>
-        private readonly static int BOTTOM_ROW_COUNT = 6;
+        private readonly static int BOTTOM_ROW_COUNT = 7;
 
         /// <summary>GUIView.DrawHorizontalLine が描く区切り線の高さ</summary>
         private readonly static int HORIZONTAL_LINE_HEIGHT = 1;
@@ -545,6 +545,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 labelStyle: GUIView.gsLabelRight);
 
             DrawAttachRow(view, model);
+            DrawLayerRow(view, model);
         }
 
         /// <summary>
@@ -563,6 +564,21 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _attachPointComboBox.DrawButton(view);
             }
             view.EndLayout();
+        }
+
+        /// <summary>
+        /// 選択中モデルを載せるレイヤーの切替行
+        /// </summary>
+        private void DrawLayerRow(GUIView view, StudioModelStatWrapper model)
+        {
+            ModelLayerRowDrawer.Draw(view, new ModelLayerRowOption
+            {
+                labelWidth = LABEL_WIDTH,
+                height = ROW_HEIGHT,
+                labelStyle = GUIView.gsLabelRight,
+                getLayerType = () => placer.GetLayerType(model),
+                setLayerType = value => placer.SetLayerType(model, value),
+            });
         }
     }
 }

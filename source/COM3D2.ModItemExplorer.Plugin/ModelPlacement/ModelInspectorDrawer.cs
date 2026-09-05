@@ -80,6 +80,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
             DrawAttachRow(model);
+            DrawLayerRow(model);
 
             _view.EndScrollView();
 
@@ -114,6 +115,20 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _attachPointComboBox.DrawButton(_view);
             }
             _view.EndLayout();
+        }
+
+        /// <summary>
+        /// モデルを載せるレイヤーの切替行
+        /// </summary>
+        private void DrawLayerRow(StudioModelStatWrapper model)
+        {
+            ModelLayerRowDrawer.Draw(_view, new ModelLayerRowOption
+            {
+                labelWidth = LabelWidth + 20,
+                height = RowHeight,
+                getLayerType = () => placer.GetLayerType(model),
+                setLayerType = value => placer.SetLayerType(model, value),
+            });
         }
 
         /// <summary>

@@ -307,6 +307,33 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
+        /// レイヤーの変化を 1 件登録する（呼び出し元が無変化時は呼ばない）
+        /// </summary>
+        public void RegisterLayer(
+            StudioModelStatWrapper model, ModelPlacementPresetItem state, ModelLayerType layerType)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            // 種別ではなくレイヤー番号で往復させ、Default/Charactor 以外の番号
+            // （外部連携 XML 経由で載った値）から切り替えた場合も元の番号へ戻す
+            var beforeLayer = state.layer;
+            var afterLayer = SelfModelPlacer.ToLayer(layerType);
+
+            _baselines[model] = state;
+
+            var description = "モデルレイヤー変更: "
+                + ResolveDisplayName(state, model?.displayName);
+            HistoryClient.Register(
+                description,
+                () => RunSuppressed(() => _placer.SetLayer(model, beforeLayer)),
+                () => RunSuppressed(() => _placer.SetLayer(model, afterLayer)),
+                () => IsAlive(model));
+        }
+
+        /// <summary>
         /// アタッチ先の変更。Attach は位置・回転もリセットするため、
         /// before/after とも Transform ごと復元する
         /// </summary>

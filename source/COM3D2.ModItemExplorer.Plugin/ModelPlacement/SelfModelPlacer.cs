@@ -19,6 +19,18 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private const string ParentObjectName = "ModItemExplorer Model Parent";
 
+        /// <summary>Unity の Default レイヤー番号(0)</summary>
+        private const int DefaultLayer = 0;
+
+        /// <summary>Unity のレイヤー番号の上限（cullingMask が 32bit のため 31 まで）</summary>
+        private const int MaxLayer = 31;
+
+        /// <summary>Charactor レイヤーの名前解決に失敗したときの番号</summary>
+        private const int FallbackCharactorLayer = 10;
+
+        /// <summary>COM3D2.5 のレイヤー名。2.0 と綴りが違う可能性があるため名前解決を挟む</summary>
+        private const string CharactorLayerName = "Charactor";
+
         /// <summary>ギズモの大きさ。既定倍率では配置モデルに対して大きすぎるため縮めている</summary>
         public const float GizmoScale = 0.5f;
 
@@ -1465,6 +1477,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 sclX = t.localScale.x, sclY = t.localScale.y, sclZ = t.localScale.z,
                 attachMaidGuid = attach?.maidGuid,
                 attachBoneName = attach?.boneName,
+                layer = go.layer,
             };
         }
 
@@ -1477,7 +1490,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             DeleteAll();
 
             // 旧形式はアタッチ先がスロット番号のため復元できない。黙って世界配置に落ちると気付けないので知らせる
-            if (preset.version < ModelPlacementPreset.CurrentVersion)
+            if (preset.version < ModelPlacementPreset.AttachGuidVersion)
             {
                 MTEUtils.LogWarning(
                     "旧形式(version {0})の配置プリセットのため、アタッチ情報は復元されません", preset.version);
@@ -1604,6 +1617,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // Attach はローカル位置・回転をリセットするため、必ずアタッチの後に適用する
             ApplyTransform(wrapper, item);
+            ApplyLayer(wrapper, item);
             return wrapper;
         }
 
@@ -1623,6 +1637,22 @@ namespace COM3D2.ModItemExplorer.Plugin
             // 回転はキャッシュ経由で適用し、保存した数値がそのまま UI に出るようにする
             SetEulerAngles(model, new Vector3(item.rotX, item.rotY, item.rotZ));
             t.localScale = new Vector3(item.sclX, item.sclY, item.sclZ);
+        }
+
+        /// <summary>
+        /// 保存データのレイヤーをモデルへ適用する。
+        /// レイヤーを持たない旧データは生成時の既定（設定値）のままにする
+        /// </summary>
+        private static void ApplyLayer(StudioModelStatWrapper model, ModelPlacementPresetItem item)
+        {
+            var go = model?.obj as GameObject;
+            // 未指定 (-1) のほか、外部連携 XML から壊れた番号が来た場合も既定のままにする
+            if (go == null || !IsValidLayer(item.layer))
+            {
+                return;
+            }
+
+            SetLayerRecursively(go, item.layer);
         }
 
         /// <summary>
@@ -1832,12 +1862,88 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// モデルを載せるレイヤー。名前解決に失敗したら Character の既定値にフォールバックする
+        /// 新規配置モデルを載せるレイヤー。設定の既定値を使う。
+        /// 配置後は SetLayerType でモデルごとに変えられる
         /// </summary>
         private static int GetModelLayer()
         {
-            var layer = LayerMask.NameToLayer("Character");
-            return layer >= 0 ? layer : 10;
+            return ToLayer(config.defaultModelLayerType);
+        }
+
+        public static int ToLayer(ModelLayerType layerType)
+        {
+            if (layerType != ModelLayerType.Charactor)
+            {
+                return DefaultLayer;
+            }
+
+            var layer = LayerMask.NameToLayer(CharactorLayerName);
+            return layer >= 0 ? layer : FallbackCharactorLayer;
+        }
+
+        /// <summary>Unity のレイヤー番号として有効か（0〜31 の 32 枚）</summary>
+        private static bool IsValidLayer(int layer)
+        {
+            return layer >= 0 && layer <= MaxLayer;
+        }
+
+        /// <summary>Charactor 以外の番号はすべて Default 扱いにする</summary>
+        public static ModelLayerType ToLayerType(int layer)
+        {
+            return layer == ToLayer(ModelLayerType.Charactor)
+                ? ModelLayerType.Charactor
+                : ModelLayerType.Default;
+        }
+
+        /// <summary>
+        /// レイヤーは GameObject が持つ値を正とし、プラグイン側では別途保持しない
+        /// </summary>
+        public ModelLayerType GetLayerType(StudioModelStatWrapper model)
+        {
+            var go = model?.obj as GameObject;
+            return go != null ? ToLayerType(go.layer) : config.defaultModelLayerType;
+        }
+
+        /// <summary>
+        /// モデルのレイヤーを切り替える。自前配置分でなければ何もしない
+        /// （MTE 側モデルのレイヤーは MTE の管轄のため触らない）
+        /// </summary>
+        public void SetLayerType(StudioModelStatWrapper model, ModelLayerType layerType)
+        {
+            if (!Owns(model))
+            {
+                return;
+            }
+
+            var go = model.obj as GameObject;
+            if (go == null || ToLayerType(go.layer) == layerType)
+            {
+                return;
+            }
+
+            var historyState = isBatching ? null : history.TryCaptureState(model);
+
+            SetLayerRecursively(go, ToLayer(layerType));
+
+            if (!isBatching)
+            {
+                history.RegisterLayer(model, historyState, layerType);
+            }
+        }
+
+        /// <summary>
+        /// レイヤー番号を直接適用する。undo/redo で Default/Charactor 以外の番号
+        /// （外部連携 XML 経由で載った値）もそのまま戻せるようにするための経路
+        /// </summary>
+        internal void SetLayer(StudioModelStatWrapper model, int layer)
+        {
+            var go = Owns(model) ? model.obj as GameObject : null;
+            if (go == null || !IsValidLayer(layer))
+            {
+                return;
+            }
+
+            SetLayerRecursively(go, layer);
         }
 
         /// <summary>
