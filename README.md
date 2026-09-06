@@ -580,6 +580,8 @@ https://twitter.com/kidonaru
 
 ### プラグイン開発者向け
 
+Photo BG MODのNEI / `.asset_bg`形式については、[NEI / `.asset_bg` フォーマット](docs/nei-asset-bg-format.md)を参照してください。
+
 このプラグインの開発に手伝っていただける場合、下記手順でプルリクエストを送信してください。
 
 1. このリポジトリをフォークします
