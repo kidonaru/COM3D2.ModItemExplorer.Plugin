@@ -62,13 +62,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             string type, string fileName, int myRoomId, long bgObjectId, int group, bool visible)
         {
             StudioModelStatWrapper model = null;
-            switch (type)
+            var resolvedType = ResolveType(type, fileName);
+            switch (resolvedType)
             {
                 case ModelPlacementType.Mod:
                     model = placer.CreateModel(fileName, group, visible);
                     break;
                 case ModelPlacementType.Asset:
-                    model = placer.CreateBgObject(TrimAssetBgExtension(fileName), group, visible);
+                    model = placer.CreateBgObject(SelfModelPlacer.GetAssetBundleName(fileName), group, visible);
                     break;
                 case ModelPlacementType.Prefab:
                     model = placer.CreateGameModel(fileName, group, visible);
@@ -77,7 +78,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     model = placer.CreateMyRoomObject(myRoomId, group, visible);
                     break;
                 default:
-                    MTEUtils.LogWarning("未対応のモデル種別です。{0} ({1})", type, fileName);
+                    MTEUtils.LogWarning("未対応のモデル種別です。{0} ({1})", resolvedType, fileName);
                     break;
             }
             return model?.obj as GameObject;
@@ -130,16 +131,20 @@ namespace COM3D2.ModItemExplorer.Plugin
             placer.EndBatch();
         }
 
-        /// <summary>fileName から .asset_bg 拡張子を落としてアセットバンドル名に戻す</summary>
-        private static string TrimAssetBgExtension(string fileName)
+        /// <summary>
+        /// ホストから渡された種別を補正する。
+        /// タイムラインは種別を保存せずモデル名から引き直すが、ホスト側は公式データに
+        /// 無いファイル名をすべて既定値の Mod として扱うため、背景オブジェクトも
+        /// Mod で渡ってくる。ここで拡張子から見分け直す
+        /// （プリセット復元経路 SelfModelPlacer.RestoreModel と同じ範囲の補正）
+        /// </summary>
+        private static string ResolveType(string type, string fileName)
         {
-            if (!string.IsNullOrEmpty(fileName)
-                && fileName.EndsWith(BgObjectAssetLoader.AssetBgExtension, StringComparison.OrdinalIgnoreCase))
+            if (type == ModelPlacementType.Mod && SelfModelPlacer.IsBgObjectFileName(fileName))
             {
-                return fileName.Substring(
-                    0, fileName.Length - BgObjectAssetLoader.AssetBgExtension.Length);
+                return ModelPlacementType.Asset;
             }
-            return fileName;
+            return type;
         }
     }
 }

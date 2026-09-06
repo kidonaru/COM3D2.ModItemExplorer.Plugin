@@ -1572,7 +1572,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>"xxx.asset_bg" からアセットバンドル名 "xxx" を取り出す</summary>
-        private static string GetAssetBundleName(string fileName)
+        internal static string GetAssetBundleName(string fileName)
         {
             return Path.GetFileNameWithoutExtension(fileName);
         }
