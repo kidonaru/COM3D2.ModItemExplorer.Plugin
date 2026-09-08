@@ -355,13 +355,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 選択状態と編集モードからハイライト対象を取り直す。
-        /// 旧対象の色は必ず書き戻してから張り直すので、解除漏れの経路を作らない
+        /// 旧対象の色は必ず書き戻してから張り直すので、解除漏れの経路を作らない。
+        /// 設定の即時反映のため public にしている
         /// </summary>
-        private void RefreshHighlight()
+        public void RefreshHighlight()
         {
             EndHighlight();
 
-            if (_isModelEditMode)
+            if (_isModelEditMode && config.modelSelectHighlight)
             {
                 BeginHighlight(selectedModel);
             }

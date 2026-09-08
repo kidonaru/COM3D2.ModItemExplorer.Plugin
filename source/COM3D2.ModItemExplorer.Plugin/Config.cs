@@ -62,6 +62,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         public ContentMode contentMode = ContentMode.メイド;
         public GizmoTargetType gizmoTargetType = GizmoTargetType.All;
         public ModelLayerType defaultModelLayerType = ModelLayerType.Default;
+        // 配置モデルのマテリアル色を書き換える演出なので、色を見ながら調整したい場合に切れるようにする
+        public bool modelSelectHighlight = true;
 
         // 表示設定
         public int windowWidth = 960;

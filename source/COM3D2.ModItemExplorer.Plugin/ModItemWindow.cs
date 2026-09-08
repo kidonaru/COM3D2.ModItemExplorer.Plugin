@@ -1630,6 +1630,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                     },
                 });
 
+                view.DrawToggle("モデル選択時のハイライト", config.modelSelectHighlight, 200, 20, newValue =>
+                {
+                    config.modelSelectHighlight = newValue;
+                    config.dirty = true;
+
+                    // 選択中モデルの色を即座に戻す/掛け直す
+                    SelfModelPlacer.instance.RefreshHighlight();
+                });
+
                 view.DrawToggle("カスタムパーツ選択時の自動編集", config.customPartsAutoEditMode, 200, 20, newValue =>
                 {
                     config.customPartsAutoEditMode = newValue;
