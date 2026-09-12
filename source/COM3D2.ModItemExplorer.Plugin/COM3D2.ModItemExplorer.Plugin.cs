@@ -309,6 +309,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private void OnPluginEnable()
         {
             MTEUtils.Log("プラグインが有効になりました");
+            managerRegistry.OnPluginEnable();
             OnLoad();
         }
 

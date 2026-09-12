@@ -183,8 +183,10 @@
     <Compile Include="MTEUtils\ResizeCursor.cs" />
     <Compile Include="MTEUtils\SelectionClient.cs" />
     <Compile Include="MTEUtils\TabBarDrawer.cs" />
+    <Compile Include="MTEUtils\TabBarLayout.cs" />
     <Compile Include="MTEUtils\TextureLoader.cs" />
     <Compile Include="MTEUtils\TextureUtils.cs" />
+    <Compile Include="MTEUtils\TooltipDrawer.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
     <Compile Include="MTEUtils\TransformGizmo.cs" />
     <Compile Include="MTEUtils\WindowManagerBase.cs" />

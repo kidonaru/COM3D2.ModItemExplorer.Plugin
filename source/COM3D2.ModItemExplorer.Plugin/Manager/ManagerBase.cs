@@ -34,6 +34,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
         }
 
+        public virtual void OnPluginEnable()
+        {
+        }
+
         public virtual void OnPluginDisable()
         {
         }
