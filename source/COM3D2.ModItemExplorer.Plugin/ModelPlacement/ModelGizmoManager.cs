@@ -342,7 +342,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             // SceneEditor のビューではホスト側の表示条件 (SceneView はギズモ表示トグル、
-            // GameView はさらにボーン表示との AND) に従う。
+            // GameView はさらに編集モード＋ボーン表示との AND) に従う。
             // ホスト不在・ホストが駆動していないカメラでは true が返り従来どおり描く
             if (!GizmoHostClient.IsGizmoVisible(camera))
             {
