@@ -224,8 +224,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _hostHandle = GizmoHostClient.Register(
                 "ModItemExplorer",
                 TryBeginDrag,
-                // TransformGizmo は掴んだカメラを内部で保持し続けるため、更新時の camera は使わない
-                (camera, rtPoint) => UpdateDrag(rtPoint),
+                UpdateDragFromHost,
                 EndDrag,
                 () => isDragging,
                 DrawAll);
@@ -249,6 +248,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             // 自プラグインのウィンドウ上からの押下では掴まない。ホスト側は自分のウィンドウしか
             // 追跡していないため、この抑止は standalone / hosted の両経路で自前に行う
             if (WindowManager.instance.isMouseOverWindow)
+            {
+                return false;
+            }
+
+            // 見えていないギズモは掴ませない (描画側と同じ条件で判断する)
+            if (!GizmoHostClient.IsGizmoVisible(camera))
             {
                 return false;
             }
@@ -292,6 +297,23 @@ namespace COM3D2.ModItemExplorer.Plugin
             return true;
         }
 
+        /// <summary>
+        /// ホスト経由のドラッグ更新。TransformGizmo は掴んだカメラを内部で保持し続けるため、
+        /// 渡された camera は表示状態の判定にだけ使う。
+        /// 非表示の間は動かさないが、掴み自体は解放しない。ここで自前に EndDrag すると
+        /// ホスト側は同フレーム内でドラッグ終了とみなし、マウスを押したままでも
+        /// カメラ操作の抑止が外れてしまう (SceneViewWindow.UpdatePointerInput)。
+        /// 解放はマウスアップでホストから来る endDrag に任せる
+        /// </summary>
+        private void UpdateDragFromHost(Camera camera, Vector2 rtPoint)
+        {
+            if (!GizmoHostClient.IsGizmoVisible(camera))
+            {
+                return;
+            }
+            UpdateDrag(rtPoint);
+        }
+
         private void UpdateDrag(Vector2 rtPoint)
         {
             if (_dragGizmo == null)
@@ -315,6 +337,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             // ホストや描画フックはプラグインの有効状態を知らないため、ここで止める
             if (!isPluginEnabled)
+            {
+                return;
+            }
+
+            // SceneEditor のビューではホスト側の表示トグル (ボーン表示・ギズモ表示) に従う。
+            // ホスト不在・ホストが駆動していないカメラでは true が返り従来どおり描く
+            if (!GizmoHostClient.IsGizmoVisible(camera))
             {
                 return;
             }
@@ -344,15 +373,16 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (isDragging)
             {
-                if (Input.GetMouseButton(0))
-                {
-                    // 旧バージョンの SceneEditor 環境では InputRemapper が GameView 内で
-                    // RT 座標へ変換済みのため、Camera.main とのペアで正しく成立する
-                    UpdateDrag((Vector2)Input.mousePosition);
-                }
-                else
+                if (!Input.GetMouseButton(0))
                 {
                     EndDrag();
+                }
+                else if (GizmoHostClient.IsGizmoVisible(camera))
+                {
+                    // 旧バージョンの SceneEditor 環境では InputRemapper が GameView 内で
+                    // RT 座標へ変換済みのため、Camera.main とのペアで正しく成立する。
+                    // 非表示中は更新を止めるだけにする (ホスト経由の更新と同じ扱い)
+                    UpdateDrag((Vector2)Input.mousePosition);
                 }
                 return;
             }
