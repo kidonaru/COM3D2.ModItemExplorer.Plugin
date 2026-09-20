@@ -446,9 +446,97 @@ namespace COM3D2.ModItemExplorer.Plugin
             return colorSetMap.GetOrDefault(colorSetMenuName);
         }
 
+        private const float EquipmentReloadTimeoutSeconds = 30f;
+        public bool isReloadingEquipment { get; private set; }
+        public string equipmentReloadMessage { get; private set; } = "";
+
+        public bool CanReloadEquippedItem(MenuItem item)
+        {
+            if (isLoading || isReloadingEquipment) return false;
+            if (currentMaid == null || currentMaid.body0 == null
+                || !currentMaid.Visible || currentMaid.IsAllProcPropBusy) return false;
+
+            var menu = item?.variationMenu;
+            if (menu == null || menu.mpn == MPN.null_mpn) return false;
+            if (!string.Equals(Path.GetExtension(menu.fileName), ".menu", StringComparison.OrdinalIgnoreCase))
+                return false;
+            var prop = currentMaid.GetProp(menu.mpn);
+            return prop != null && prop.type == RuntimeAssetReload.FilePropType
+                && string.Equals(RuntimeAssetReload.GetActiveMenuName(prop), menu.fileName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>選択中かつ着用中のmenuだけを再処理する。装備名・一時装備・スケール設定は書き換えない。</summary>
+        public void ReloadEquippedItem(MenuItem item)
+        {
+            if (!CanReloadEquippedItem(item)) return;
+            var maid = currentMaid;
+            var menu = item.variationMenu;
+            var prop = maid.GetProp(menu.mpn);
+            var fileName = RuntimeAssetReload.GetActiveMenuName(prop);
+            try
+            {
+                RuntimeAssetReload.RefreshSearchPath(fileName);
+                if (!MTEUtils.IsExistentFile(fileName))
+                    throw new InvalidOperationException("着用中のmenuファイルが見つかりません。");
+                var missing = FindMissingFileName(menu);
+                if (missing != null)
+                    throw new InvalidOperationException("参照先ファイルが見つかりません。" + missing);
+
+                // SetProp は使わず既存設定をそのまま再処理する。ゲームの ProcItem と同じフラグを選ぶ。
+                RuntimeAssetReload.MarkEquippedPropDirty(prop);
+                if (menu.mpn == MPN.eye_hi && maid.IsNewFace())
+                    RuntimeAssetReload.MarkEquippedPropDirty(maid.GetProp(MPN.eye_hi_r));
+                if (item.colorSet != null && item.colorSet.colorSetMPN != MPN.null_mpn)
+                    RuntimeAssetReload.MarkEquippedPropDirty(maid.GetProp(item.colorSet.colorSetMPN));
+                isReloadingEquipment = true;
+                equipmentReloadMessage = "衣装を再読み込み中…";
+                maid.AllProcPropSeqStart();
+                GameMain.Instance.StartCoroutine(WaitForEquipmentReload(maid, menu.mpn, fileName));
+            }
+            catch (Exception e)
+            {
+                isReloadingEquipment = false;
+                equipmentReloadMessage = "衣装の再読み込みに失敗しました";
+                MTEUtils.LogWarning("衣装の再読み込みに失敗しました。{0}", e.Message);
+            }
+        }
+
+        private IEnumerator WaitForEquipmentReload(Maid maid, MPN mpn, string fileName)
+        {
+            var deadline = Time.realtimeSinceStartup + EquipmentReloadTimeoutSeconds;
+            try
+            {
+                yield return null;
+                while (maid != null && maid.IsAllProcPropBusy && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+
+                if (maid == null || maid.IsAllProcPropBusy)
+                {
+                    equipmentReloadMessage = "衣装の再読み込みを確認できませんでした";
+                    MTEUtils.LogWarning("衣装の再読み込み待機を終了しました。対象の消失またはタイムアウトです。");
+                }
+                else if (!string.Equals(RuntimeAssetReload.GetActiveMenuName(maid.GetProp(mpn)), fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    equipmentReloadMessage = "装備が変更されたため再読み込みを確認できません";
+                    MTEUtils.LogWarning("再読み込み後の装備が対象menuと一致しません。{0}", fileName);
+                }
+                else
+                {
+                    equipmentReloadMessage = "衣装の再読み込み処理が完了しました";
+                    UpdateEquippedItems();
+                    MTEUtils.Log("衣装の再読み込み処理が完了しました。{0}", fileName);
+                }
+            }
+            finally
+            {
+                isReloadingEquipment = false;
+            }
+        }
+
         /// <summary>アイテムを適用する。適用まで到達した場合のみ true を返す</summary>
         public bool ApplyMenuItem(MenuItem item)
         {
+            if (isReloadingEquipment) return false;
             if (currentMaid == null || item == null)
             {
                 return false;

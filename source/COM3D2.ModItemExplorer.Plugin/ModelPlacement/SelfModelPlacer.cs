@@ -75,6 +75,76 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private readonly List<StudioModelStatWrapper> _models = new List<StudioModelStatWrapper>();
 
+        // 外部から追加された子オブジェクトを再読み込みで巻き込まないよう、生成した中身だけを追跡する。
+        private readonly Dictionary<StudioModelStatWrapper, GameObject> _modelContents
+            = new Dictionary<StudioModelStatWrapper, GameObject>();
+
+        public string reloadMessage { get; private set; } = "";
+
+        public bool CanReloadModel(StudioModelStatWrapper model)
+        {
+            GameObject content;
+            return !isBatching && Owns(model) && model.obj is GameObject && (GameObject)model.obj != null
+                && model.infoWrapper != null
+                && string.Equals(Path.GetExtension(model.infoWrapper.fileName), MenuExtension, StringComparison.OrdinalIgnoreCase)
+                && _modelContents.TryGetValue(model, out content) && content != null;
+        }
+
+        /// <summary>外側の配置オブジェクトを保ち、中身の読み込みに成功してから交換する。</summary>
+        public bool ReloadModel(StudioModelStatWrapper model)
+        {
+            if (!CanReloadModel(model)) return false;
+
+            var wrapper = (GameObject)model.obj;
+            var oldContent = _modelContents[model];
+            var resources = new List<UnityEngine.Object>();
+            GameObject replacement = null;
+            try
+            {
+                RuntimeAssetReload.RefreshSearchPath(model.infoWrapper.fileName);
+                var script = ModelMenuScript.Load(model.infoWrapper.fileName);
+                if (script == null || string.IsNullOrEmpty(script.modelFileName))
+                    throw new InvalidOperationException("menuからモデルを取得できませんでした。");
+
+                replacement = ModelMeshLoader.LoadMesh(script.modelFileName, oldContent.layer, resources);
+                if (replacement == null)
+                    throw new InvalidOperationException("モデルを読み込めませんでした。");
+                replacement.SetActive(false);
+                // 再読み込みでは欠損を黙って無視せず、失敗として旧モデルを保持する
+                ApplyMenuChanges(replacement, script, resources, strict: true);
+                SetLayerRecursively(replacement, oldContent.layer);
+                replacement.transform.SetParent(wrapper.transform, false);
+                replacement.transform.localPosition = oldContent.transform.localPosition;
+                replacement.transform.localRotation = oldContent.transform.localRotation;
+                replacement.transform.localScale = oldContent.transform.localScale;
+            }
+            catch (Exception e)
+            {
+                if (replacement != null) UnityEngine.Object.Destroy(replacement);
+                DestroyAll(resources);
+                reloadMessage = "再読み込み失敗（元のモデルを保持）";
+                MTEUtils.LogWarning("モデルの再読み込みに失敗しました。{0}", e.Message);
+                return false;
+            }
+
+            // ここまでは元のモデルに触れない。ラッパーを残すため履歴・アタッチ・選択の参照も保たれる。
+            EndHighlight();
+            var wasActive = oldContent.activeSelf;
+            oldContent.SetActive(false);
+            oldContent.transform.SetParent(null, false);
+            _modelContents[model] = replacement;
+            List<UnityEngine.Object> oldResources;
+            _disposables.TryGetValue(model, out oldResources);
+            _disposables[model] = resources;
+            replacement.SetActive(wasActive);
+            UnityEngine.Object.Destroy(oldContent);
+            if (oldResources != null) DestroyAll(oldResources);
+            RefreshHighlight();
+            reloadMessage = "モデルを再読み込みしました";
+            MTEUtils.Log("モデルを再読み込みしました。{0}", model.infoWrapper.fileName);
+            return true;
+        }
+
         // Mesh / Material は GameObject を Destroy しても解放されないため、モデルごとに追跡して明示破棄する
         private readonly Dictionary<StudioModelStatWrapper, List<UnityEngine.Object>> _disposables
             = new Dictionary<StudioModelStatWrapper, List<UnityEngine.Object>>();
@@ -850,6 +920,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 _models.Add(wrapper);
                 _disposables[wrapper] = disposables;
+                _modelContents[wrapper] = modelGo;
 
                 // 一括操作中は選択の切り替えも履歴の登録も行わない（Undo 履歴を汚さないため）
                 if (!isBatching)
@@ -1231,6 +1302,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _models.Remove(model);
+            _modelContents.Remove(model);
             _attachStates.Remove(model);
             _rotationCaches.Remove(model);
             history.Forget(model);
@@ -1260,6 +1332,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             history.InvalidateAll();
 
             _models.Clear();
+            _modelContents.Clear();
+            reloadMessage = "";
             _disposables.Clear();
             _attachStates.Clear();
             _rotationCaches.Clear();
@@ -1717,7 +1791,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private static void ApplyMenuChanges(
             GameObject modelGo,
             ModelMenuScript script,
-            List<UnityEngine.Object> disposables)
+            List<UnityEngine.Object> disposables,
+            bool strict = false)
         {
             if (script.materialChanges.Count == 0 && script.textureChanges.Count == 0)
             {
@@ -1735,6 +1810,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     if (change.materialNo < 0 || change.materialNo >= materials.Length)
                     {
+                        if (strict) throw new InvalidOperationException("menuの材質番号がモデルの範囲外です。");
                         continue;
                     }
 
@@ -1742,6 +1818,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     // MOD の mate は GameUty.FileSystem 側には無いので Mod 側も見る MTEUtils を使う
                     if (!MTEUtils.IsExistentFile(change.fileName))
                     {
+                        if (strict) throw new InvalidOperationException("mateファイルが見つかりません。" + change.fileName);
                         MTEUtils.LogWarning("mateファイルが見つかりません。{0}", change.fileName);
                         continue;
                     }
@@ -1757,6 +1834,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         material = ImportCM.LoadMaterial(change.fileName, null);
                         if (material == null)
                         {
+                            if (strict) throw new InvalidOperationException("材質を読み込めません。" + change.fileName);
                             continue;
                         }
                     }
@@ -1771,12 +1849,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     if (change.materialNo < 0 || change.materialNo >= materials.Length)
                     {
+                        if (strict) throw new InvalidOperationException("menuのテクスチャ変更先がモデルの範囲外です。");
                         continue;
                     }
 
                     var material = materials[change.materialNo];
                     if (material == null || !material.HasProperty(change.propName))
                     {
+                        if (strict) throw new InvalidOperationException("テクスチャの変更先プロパティがありません。" + change.propName);
                         continue;
                     }
 
@@ -1784,6 +1864,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     var texture = ImportCM.TryCreateTexture(change.fileName);
                     if (texture == null)
                     {
+                        if (strict) throw new InvalidOperationException("texファイルを読み込めません。" + change.fileName);
                         MTEUtils.LogWarning("texファイルが読み込めません。{0}", change.fileName);
                         continue;
                     }

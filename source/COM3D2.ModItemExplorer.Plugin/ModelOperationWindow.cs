@@ -249,6 +249,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (_tabType == TabType.操作)
             {
+                if (view.DrawButton("選択モデルを再読込", -1, ROW_HEIGHT, placer.CanReloadModel(selectedModel)))
+                {
+                    placer.ReloadModel(selectedModel);
+                }
+                if (!string.IsNullOrEmpty(placer.reloadMessage))
+                    view.DrawLabel(placer.reloadMessage, -1, ROW_HEIGHT);
                 DrawModelList(view);
 
                 if (!_useInspectorHost)

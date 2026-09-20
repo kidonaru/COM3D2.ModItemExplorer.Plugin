@@ -206,6 +206,7 @@
     <Compile Include="ModelPlacement\NprShaderLoader.cs" />
     <Compile Include="ModelPlacement\SceneCaptureImporter.cs" />
     <Compile Include="ModelPlacement\SelfModelPlacer.cs" />
+    <Compile Include="ModelPlacement\RuntimeAssetReload.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ColorPaletteWindow.cs" />
     <Compile Include="COM3D2.ModItemExplorer.Plugin.cs" />

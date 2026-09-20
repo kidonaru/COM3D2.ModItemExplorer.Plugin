@@ -332,6 +332,8 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 配置プラグインに`ModItemExplorer`を選択している場合に、モデル配置モード中に表示されます。
 配置したモデルの選択、Transform編集、プリセット管理ができます。
 
+衣装・配置モデルのファイル更新後は、再起動せずに[モデルの再読み込み](docs/model-reload.md)を実行できます。
+
 SceneEditorが導入されている場合、ギズモ・表示対象・Transform・アタッチ・レイヤーの各行はSceneEditorのInspector側に表示され、このウィンドウはモデル一覧の表示に専念します。
 
 https://github.com/user-attachments/assets/6a24b179-7dab-4570-bdf0-d7d71e2d13a1
@@ -342,6 +344,7 @@ https://github.com/user-attachments/assets/6a24b179-7dab-4570-bdf0-d7d71e2d13a1
 
 **操作タブ**
 
+- **選択モデルを再読込**: 自前配置したmenuモデルのメッシュ・材質を読み直します。位置・回転・拡縮・アタッチは保持します。
 - **モデル一覧**: 配置中のモデルをサムネ付きで表示します
   - **チェックボックス**: モデルの表示/非表示を切り替えます
   - **モデル名**: クリックで操作対象として選択します（選択中は緑色）。再度クリックすると選択を解除します
