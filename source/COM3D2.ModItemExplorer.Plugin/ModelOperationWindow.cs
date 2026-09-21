@@ -249,12 +249,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (_tabType == TabType.操作)
             {
-                if (view.DrawButton("選択モデルを再読込", -1, ROW_HEIGHT, placer.CanReloadModel(selectedModel)))
-                {
-                    placer.ReloadModel(selectedModel);
-                }
-                if (!string.IsNullOrEmpty(placer.reloadMessage))
-                    view.DrawLabel(placer.reloadMessage, -1, ROW_HEIGHT);
                 DrawModelList(view);
 
                 if (!_useInspectorHost)
@@ -281,14 +275,24 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>リセット（全削除）ボタンの幅</summary>
         private readonly static int RESET_BUTTON_WIDTH = 60;
 
+        /// <summary>操作タブの再読込ボタンの幅</summary>
+        private readonly static int RELOAD_BUTTON_WIDTH = 100;
+
         /// <summary>
-        /// タブ行。右端にはタブと関係なく効くリセット（全削除）ボタンを寄せて置く
+        /// タブ行。右端にはタブと関係なく効くリセット（全削除）ボタンを寄せて置く。
+        /// 操作タブの再読込は行を増やさないよう、タブとリセットの間の余白へ置く
         /// </summary>
         private void DrawTabRow(GUIView view)
         {
             view.BeginHorizontal();
             {
                 _tabType = view.DrawTabs(_tabType, TAB_WIDTH, ROW_HEIGHT);
+
+                if (_tabType == TabType.操作
+                    && view.DrawButton("モデル再読込", RELOAD_BUTTON_WIDTH, ROW_HEIGHT, placer.CanReloadModel(selectedModel)))
+                {
+                    placer.ReloadModel(selectedModel);
+                }
 
                 view.currentPos.x = view.viewRect.width - view.padding.x * 2 - RESET_BUTTON_WIDTH;
 

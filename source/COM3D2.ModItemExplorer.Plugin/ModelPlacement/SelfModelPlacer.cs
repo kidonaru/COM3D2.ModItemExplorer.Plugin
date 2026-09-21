@@ -79,8 +79,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         private readonly Dictionary<StudioModelStatWrapper, GameObject> _modelContents
             = new Dictionary<StudioModelStatWrapper, GameObject>();
 
-        public string reloadMessage { get; private set; } = "";
-
         public bool CanReloadModel(StudioModelStatWrapper model)
         {
             GameObject content;
@@ -122,8 +120,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 if (replacement != null) UnityEngine.Object.Destroy(replacement);
                 DestroyAll(resources);
-                reloadMessage = "再読み込み失敗（元のモデルを保持）";
                 MTEUtils.LogWarning("モデルの再読み込みに失敗しました。{0}", e.Message);
+                MTEUtils.ShowDialog("モデルの再読み込みに失敗しました（元のモデルを保持）\n" + e.Message);
                 return false;
             }
 
@@ -140,7 +138,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             UnityEngine.Object.Destroy(oldContent);
             if (oldResources != null) DestroyAll(oldResources);
             RefreshHighlight();
-            reloadMessage = "モデルを再読み込みしました";
             MTEUtils.Log("モデルを再読み込みしました。{0}", model.infoWrapper.fileName);
             return true;
         }
@@ -1333,7 +1330,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _models.Clear();
             _modelContents.Clear();
-            reloadMessage = "";
             _disposables.Clear();
             _attachStates.Clear();
             _rotationCaches.Clear();

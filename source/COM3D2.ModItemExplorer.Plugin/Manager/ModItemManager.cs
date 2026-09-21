@@ -448,7 +448,6 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private const float EquipmentReloadTimeoutSeconds = 30f;
         public bool isReloadingEquipment { get; private set; }
-        public string equipmentReloadMessage { get; private set; } = "";
 
         public bool CanReloadEquippedItem(MenuItem item)
         {
@@ -489,15 +488,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 if (item.colorSet != null && item.colorSet.colorSetMPN != MPN.null_mpn)
                     RuntimeAssetReload.MarkEquippedPropDirty(maid.GetProp(item.colorSet.colorSetMPN));
                 isReloadingEquipment = true;
-                equipmentReloadMessage = "衣装を再読み込み中…";
                 maid.AllProcPropSeqStart();
                 GameMain.Instance.StartCoroutine(WaitForEquipmentReload(maid, menu.mpn, fileName));
             }
             catch (Exception e)
             {
                 isReloadingEquipment = false;
-                equipmentReloadMessage = "衣装の再読み込みに失敗しました";
                 MTEUtils.LogWarning("衣装の再読み込みに失敗しました。{0}", e.Message);
+                MTEUtils.ShowDialog("衣装の再読み込みに失敗しました\n" + e.Message);
             }
         }
 
@@ -512,17 +510,16 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 if (maid == null || maid.IsAllProcPropBusy)
                 {
-                    equipmentReloadMessage = "衣装の再読み込みを確認できませんでした";
                     MTEUtils.LogWarning("衣装の再読み込み待機を終了しました。対象の消失またはタイムアウトです。");
+                    MTEUtils.ShowDialog("衣装の再読み込みを確認できませんでした");
                 }
                 else if (!string.Equals(RuntimeAssetReload.GetActiveMenuName(maid.GetProp(mpn)), fileName, StringComparison.OrdinalIgnoreCase))
                 {
-                    equipmentReloadMessage = "装備が変更されたため再読み込みを確認できません";
                     MTEUtils.LogWarning("再読み込み後の装備が対象menuと一致しません。{0}", fileName);
+                    MTEUtils.ShowDialog("装備が変更されたため再読み込みを確認できません");
                 }
                 else
                 {
-                    equipmentReloadMessage = "衣装の再読み込み処理が完了しました";
                     UpdateEquippedItems();
                     MTEUtils.Log("衣装の再読み込み処理が完了しました。{0}", fileName);
                 }

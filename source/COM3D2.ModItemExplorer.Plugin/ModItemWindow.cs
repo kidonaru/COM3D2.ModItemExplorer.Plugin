@@ -259,10 +259,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             config.dirty = true;
         }
 
-        /// <summary>メイド編集モードは一時記録と再読み込みの行を追加する。</summary>
-        // メイド0人時は案内1行だけにする。
+        /// <summary>メイド編集モードは一時記録が2行目に増えるため、情報エリアを1行分高くする</summary>
+        // メイド0人時は案内1行だけなので2行分の高さを確保しない
         private int currentInfoHeight => _contentMode == ContentMode.メイド && modItemManager.currentMaid != null
-            ? INFO_HEIGHT + MAID_INFO_ROW_OFFSET * 2
+            ? INFO_HEIGHT + MAID_INFO_ROW_OFFSET
             : INFO_HEIGHT;
 
         private int _infoHeight = INFO_HEIGHT;
@@ -955,17 +955,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 modItemManager.ApplyTempPreset(_tempPresetComboBox.currentItem);
             }
 
-            view.EndLayout();
-
-            view.currentPos.y = startY + MAID_INFO_ROW_OFFSET * 2;
-            view.BeginHorizontal();
-            if (view.DrawButton("選択衣装を再読込", 125, 20, modItemManager.CanReloadEquippedItem(selectedMenuItem)))
+            // 行を増やさないよう一時記録の行末に置く。結果はログと失敗時のダイアログで伝える
+            if (view.DrawButton("衣装再読込", 90, 20, modItemManager.CanReloadEquippedItem(selectedMenuItem)))
             {
                 modItemManager.ReloadEquippedItem(selectedMenuItem);
             }
-            view.DrawLabel(string.IsNullOrEmpty(modItemManager.equipmentReloadMessage)
-                ? "着用中のアイテムを選択してください"
-                : modItemManager.equipmentReloadMessage, -1, 20);
 
             view.EndLayout();
         }
