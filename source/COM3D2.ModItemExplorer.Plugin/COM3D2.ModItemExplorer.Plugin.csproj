@@ -139,6 +139,7 @@
     <Compile Include="MTEHack\StudioModelManagerField.cs" />
     <Compile Include="MTEHack\StudioModelStatField.cs" />
     <Compile Include="MTEUtils\AnimationLayerInfo.cs" />
+    <Compile Include="MTEUtils\AutoEditModeClient.cs" />
     <Compile Include="MTEUtils\BinaryExtensions.cs" />
     <Compile Include="MTEUtils\BinaryLoader.cs" />
     <Compile Include="MTEUtils\BoneUtils.cs" />
