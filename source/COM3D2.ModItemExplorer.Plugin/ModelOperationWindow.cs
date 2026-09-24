@@ -570,7 +570,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _attachPointComboBox.currentIndex = placer.GetAttachPointIndex(model);
 
                 _attachPointComboBox.onSelected = (point, _) =>
-                    placer.Attach(model, modItemManager.currentMaid, point);
+                    placer.AttachFromUI(model, modItemManager.currentMaid, point);
                 _attachPointComboBox.DrawButton(view);
             }
             view.EndLayout();

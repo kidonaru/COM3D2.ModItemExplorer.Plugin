@@ -120,6 +120,20 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        /// <summary>
+        /// アタッチ中の親ボーン。未アタッチなら null（任意メンバ）。
+        /// SceneEditor が UI での付け替えをモデルのキーへ取り込むのに使う
+        /// </summary>
+        public static Transform GetModelAttachBone(GameObject obj)
+        {
+            var model = placer.FindModelByGameObject(obj);
+            if (model == null || placer.GetAttachState(model) == null)
+            {
+                return null;
+            }
+            return obj.transform.parent;
+        }
+
         /// <summary>タイムライン読込のような一括操作の開始・終了を受け取る（任意メンバ）</summary>
         public static void BeginBatch()
         {

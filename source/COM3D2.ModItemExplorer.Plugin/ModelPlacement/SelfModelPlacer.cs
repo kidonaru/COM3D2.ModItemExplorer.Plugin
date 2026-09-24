@@ -176,9 +176,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public static readonly List<AttachPoint> AttachPoints = new List<AttachPoint>
         {
             new AttachPoint { displayName = "なし", boneName = null },
+            new AttachPoint { displayName = "原点", boneName = "Bip01" },
             new AttachPoint { displayName = "頭", boneName = "Bip01 Head" },
             new AttachPoint { displayName = "首", boneName = "Bip01 Neck" },
             new AttachPoint { displayName = "胸", boneName = "Bip01 Spine1a" },
+            new AttachPoint { displayName = "右胸", boneName = "Mune_R" },
+            new AttachPoint { displayName = "左胸", boneName = "Mune_L" },
             new AttachPoint { displayName = "骨盤", boneName = "Bip01 Pelvis" },
             new AttachPoint { displayName = "左肩", boneName = "Bip01 L UpperArm" },
             new AttachPoint { displayName = "右肩", boneName = "Bip01 R UpperArm" },
@@ -1072,6 +1075,20 @@ namespace COM3D2.ModItemExplorer.Plugin
             var state = GetAttachState(model);
             var boneName = state != null ? state.boneName : null;
             return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == boneName));
+        }
+
+        /// <summary>SceneEditor 側のモデルのタイムラインレイヤー名 (AutoEditModeClient へ渡す)</summary>
+        private const string ModelTimelineLayerName = "ModelTimelineLayer";
+
+        /// <summary>
+        /// UI からの付け替え。SceneEditor の編集モードへ入ってから付け替える
+        /// (編集モード外はタイムラインが毎フレーム再生値を書き戻し、付け替えが元に戻るため)。
+        /// SceneEditor から来る付け替え (AttachByBoneName) では呼ばないこと
+        /// </summary>
+        public void AttachFromUI(StudioModelStatWrapper model, Maid maid, AttachPoint point)
+        {
+            AutoEditModeClient.Enter(ModelTimelineLayerName);
+            Attach(model, maid, point);
         }
 
         /// <summary>
