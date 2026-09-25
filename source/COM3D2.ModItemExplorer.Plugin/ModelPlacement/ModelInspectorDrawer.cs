@@ -6,7 +6,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 {
     /// <summary>
     /// SceneEditor Inspector へ委譲描画する MTE 管理モデルの内容。
-    /// Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
+    /// 行の委譲に対応したホストでは、共通のモデル表示 (ヘッダー・管理行・アタッチ・Transform) を
+    /// ホストが描き、こちらは末尾のレイヤー行だけを足す (DrawRows)。
+    /// 旧ホストでは内容を丸ごと描く (Draw)。Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
     /// アタッチのドロップダウンは MTE 側の ComboBoxPopupWindow が独立ウィンドウとして
     /// 出すため、ボタン座標をスクリーン座標へ直す基準として SceneEditor のウィンドウ矩形を借りる
     /// </summary>
@@ -16,6 +18,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         private const float RowHeight = 20f;
 
         private readonly GUIView _view = new GUIView();
+
+        /// <summary>
+        /// DrawRows 用。ホストのスクロールビュー内の座標だけを共有する別ビューで、
+        /// Draw 側の _view とは初期化のタイミングが違うため分ける
+        /// </summary>
+        private readonly GUIView _rowsView = new GUIView();
 
         private readonly GUIComboBox<SelfModelPlacer.AttachPoint> _attachPointComboBox
             = new GUIComboBox<SelfModelPlacer.AttachPoint>
@@ -80,7 +88,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
             DrawAttachRow(model);
-            DrawLayerRow(model);
+            DrawLayerRow(_view, model);
 
             _view.EndScrollView();
 
@@ -98,6 +106,29 @@ namespace COM3D2.ModItemExplorer.Plugin
                 // 決められない。開かずに捨てて前後送りボタンだけで選ばせる
                 _view.CancelFocusComboBox();
             }
+        }
+
+        /// <summary>
+        /// InspectorHost の drawRows。ホストが描く共通のモデル表示の末尾へ、
+        /// ModItemExplorer 固有のレイヤー行だけを足す。戻り値は使った高さ (末尾の余白を含まない)
+        /// </summary>
+        public float DrawRows(GameObject go, Rect rect)
+        {
+            var model = placer.FindModelByGameObject(go);
+            if (model == null)
+            {
+                return 0f;
+            }
+
+            // ホストが確保した矩形をそのまま使う (内側で二重に余白を取らない)
+            _rowsView.padding = Vector2.zero;
+            _rowsView.Init(rect);
+
+            DrawLayerRow(_rowsView, model);
+
+            // EndLayout 後の currentPos.y は最後の要素の下端 + margin なので、
+            // ホストが余白を重ねないよう 1 個ぶん差し引いて返す
+            return Mathf.Max(0f, _rowsView.currentPos.y - _rowsView.margin);
         }
 
         /// <summary>
@@ -120,9 +151,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>
         /// モデルを載せるレイヤーの切替行
         /// </summary>
-        private void DrawLayerRow(StudioModelStatWrapper model)
+        private void DrawLayerRow(GUIView view, StudioModelStatWrapper model)
         {
-            ModelLayerRowDrawer.Draw(_view, new ModelLayerRowOption
+            ModelLayerRowDrawer.Draw(view, new ModelLayerRowOption
             {
                 labelWidth = LabelWidth + 20,
                 height = RowHeight,

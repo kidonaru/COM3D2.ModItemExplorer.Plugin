@@ -523,7 +523,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>
         /// Inspector への委譲描画が実際に効いているか。
         /// InspectorHostClient.isAvailable はホスト側 API を解決できたかを表すだけで、
-        /// 登録自体は失敗しうる。委譲を前提に自前の UI を隠す側はこちらを見ること
+        /// 登録自体は失敗しうる。委譲を前提に自前の UI を隠す側はこちらを見ること。
+        /// 行の登録 (RegisterRows) でも true になる。その場合 Transform・アタッチはホストの共通表示に出る
         /// </summary>
         public bool isInspectorRegistered => _inspectorHandle != null;
 
@@ -543,13 +544,26 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _inspectorDrawer = new ModelInspectorDrawer();
             }
 
-            _inspectorHandle = InspectorHostClient.Register(
-                "ModItemExplorer",
-                _inspectorDrawer.CanDraw,
-                _inspectorDrawer.Draw,
-                // ヘッダー行を自前のスクロールビュー内へ描き、内容と一緒にスクロールさせる。
-                // 対応していない旧ホストへは Register 側が従来どおりの登録へ倒す
-                drawsHeader: true);
+            if (InspectorHostClient.isRowsDrawAvailable)
+            {
+                // 共通のモデル表示 (ヘッダー・管理行・アタッチ・Transform) はホストが描く。
+                // こちらは固有のレイヤー行だけを末尾へ足す
+                _inspectorHandle = InspectorHostClient.RegisterRows(
+                    "ModItemExplorer",
+                    _inspectorDrawer.CanDraw,
+                    _inspectorDrawer.DrawRows);
+            }
+            else
+            {
+                // 行の委譲に対応していない旧ホストへは、内容を丸ごと描く従来の登録にする
+                _inspectorHandle = InspectorHostClient.Register(
+                    "ModItemExplorer",
+                    _inspectorDrawer.CanDraw,
+                    _inspectorDrawer.Draw,
+                    // ヘッダー行を自前のスクロールビュー内へ描き、内容と一緒にスクロールさせる。
+                    // 対応していない旧ホストへは Register 側が従来どおりの登録へ倒す
+                    drawsHeader: true);
+            }
 
             if (_inspectorHandle != null)
             {
