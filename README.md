@@ -337,6 +337,10 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 
 SceneEditorが導入されている場合、ギズモ・表示対象・Transform・アタッチ・レイヤーの各行はSceneEditorのInspector側に表示され、このウィンドウはモデル一覧の表示に専念します。
 
+SceneEditorでタイムラインを読み込んでいる場合、モデルのアタッチ先とレイヤーもタイムラインへ記録されます。
+タイムラインにモデルレイヤーが無いときは、操作タブに注意文と追加ボタンが表示されます。
+レイヤーを追加するまで、モデル一覧やTransformなどタブ行より下の項目は使えません。
+
 https://github.com/user-attachments/assets/6a24b179-7dab-4570-bdf0-d7d71e2d13a1
 
 - **x**: ウィンドウを閉じます（モデル配置ヘッダーの`操作`ボタンで再表示できます）
