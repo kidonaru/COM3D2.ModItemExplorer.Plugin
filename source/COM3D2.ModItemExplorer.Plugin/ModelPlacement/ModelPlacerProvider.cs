@@ -134,6 +134,29 @@ namespace COM3D2.ModItemExplorer.Plugin
             return obj.transform.parent;
         }
 
+        /// <summary>
+        /// モデルの表示レイヤー (Unity のレイヤー番号)。自前配置でなければ -1（任意メンバ）。
+        /// SceneEditor がタイムラインのモデル定義として保存するのに使う
+        /// </summary>
+        public static int GetModelLayer(GameObject obj)
+        {
+            var model = placer.FindModelByGameObject(obj);
+            return model != null ? obj.layer : -1;
+        }
+
+        /// <summary>
+        /// 表示レイヤーを変える（任意メンバ）。SceneEditor のタイムライン読込・複製から呼ばれる。
+        /// 0〜31 以外は SetLayer が無視する。Undo 履歴は積まない
+        /// </summary>
+        public static void SetModelLayer(GameObject obj, int layer)
+        {
+            var model = placer.FindModelByGameObject(obj);
+            if (model != null)
+            {
+                placer.SetLayer(model, layer);
+            }
+        }
+
         /// <summary>タイムライン読込のような一括操作の開始・終了を受け取る（任意メンバ）</summary>
         public static void BeginBatch()
         {
