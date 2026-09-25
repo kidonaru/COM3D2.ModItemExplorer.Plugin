@@ -40,6 +40,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>全行共通のラベル幅。列を揃えるためどの行もこの幅を使う</summary>
         public readonly static int LABEL_WIDTH = 70;
 
+        /// <summary>SceneEditor 側 ModelTimelineLayer のクラス名 (TimelineLayerGateHost との文字列契約)</summary>
+        private const string MODEL_LAYER_NAME = "ModelTimelineLayer";
+
         /// <summary>ウィンドウ内のタブ</summary>
         private enum TabType
         {
@@ -234,7 +237,15 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             _rootView.ResetLayout();
 
-            DrawMainContent();
+            try
+            {
+                DrawMainContent();
+            }
+            finally
+            {
+                // レイヤーゲートで強制無効にした状態を、早期 return や例外に関わらずここで必ず解く
+                TimelineLayerGateDrawer.End(_contentView);
+            }
 
             ComboBoxPopupWindow.instance.ProcessFocus(_rootView, this);
         }
@@ -249,6 +260,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             if (_tabType == TabType.操作)
             {
+                // タブ行の後に置き、タブ切替・リセットは無効化しない。
+                // モデル一覧は GetModelListHeight が currentPos から残り高さを取るため、注意文の分だけ自動で縮む
+                TimelineLayerGateDrawer.Begin(view, MODEL_LAYER_NAME, ROW_HEIGHT);
+
                 DrawModelList(view);
 
                 if (!_useInspectorHost)
