@@ -1482,8 +1482,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>選択中のタグ。フォルダを移動しても維持する</summary>
         private string _tagFilter = AllTagsFilter;
 
-        /// <summary>タグの重複除け。毎 Layout 全件を回すため List.Contains を避ける</summary>
+        /// <summary>タグの重複除け。一覧の全件を回すため List.Contains を避ける</summary>
         private readonly HashSet<string> _tagFilterSeenTags = new HashSet<string>();
+
+        // 絞り込みを作ったときの元の一覧・子の並び・タグ。一致する間は作り直さない
+        private DirItem _tagFilterSource = null;
+        private readonly List<ITileViewContent> _tagFilterSourceChildren = new List<ITileViewContent>(1024);
+        private string _tagFilterBuiltTag = null;
 
         /// <summary>絞り込み結果。Layout イベントで RefreshTagFilter が作り直す</summary>
         private TempDirItem _tagFilterViewItem = new TempDirItem
@@ -1526,12 +1531,53 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 絞り込み結果とタグの選択肢を作り直す。検索結果・履歴・お気に入り・配置中は
+        /// 前回作ったときと同じ一覧・同じタグのままか。検索結果・履歴・お気に入り・配置中は
         /// マネージャー側が同じフォルダの中身を入れ替える (件数が同じこともある) ため、
-        /// キャッシュせず Layout イベントのたびに呼ぶ。フォルダは移動に要るので絞り込まない
+        /// 子の参照を並び順ごと突き合わせる。タグ名の取得 (1 万件超で数 ms) より十分安い
+        /// </summary>
+        private bool IsTagFilterUpToDate(DirItem source)
+        {
+            if (source != _tagFilterSource || _tagFilterBuiltTag != _tagFilter)
+            {
+                return false;
+            }
+
+            var children = source?.children;
+            var builtCount = _tagFilterSourceChildren.Count;
+            if ((children?.Count ?? 0) != builtCount)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < builtCount; i++)
+            {
+                if (!ReferenceEquals(children[i], _tagFilterSourceChildren[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 絞り込み結果とタグの選択肢を作り直す。Layout イベントのたびに呼び、
+        /// 一覧が変わっていなければ何もしない。フォルダは移動に要るので絞り込まない
         /// </summary>
         private void RefreshTagFilter(DirItem source)
         {
+            if (IsTagFilterUpToDate(source))
+            {
+                return;
+            }
+
+            _tagFilterSource = source;
+            _tagFilterBuiltTag = _tagFilter;
+            _tagFilterSourceChildren.Clear();
+            if (source?.children != null)
+            {
+                _tagFilterSourceChildren.AddRange(source.children);
+            }
+
             var tags = _tagFilterComboBox.items;
             tags.Clear();
             tags.Add(AllTagsFilter);
