@@ -60,7 +60,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// ギズモ・Transform 行を SceneEditor Inspector 側へ任せるか。
-        /// SceneEditor 在席時は同じ内容が Inspector に出るため、こちらでは描かず
+        /// SceneEditor が開いている間は同じ内容が Inspector に出るため、こちらでは描かず
         /// モデル一覧をウィンドウいっぱいに広げる。
         /// 一覧の高さ計算と下部の描画分岐の両方から参照するため、フレーム内で値がぶれないよう
         /// Update() で 1 回だけ確定する
@@ -181,8 +181,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             placer.Update();
 
             // 登録が済むまでは自前で描く。ホストが居ても登録に失敗することはあり、
-            // そこで下部を隠すと Transform を編集する手段がどこにも無くなる
-            _useInspectorHost = placer.isInspectorRegistered;
+            // そこで下部を隠すと Transform を編集する手段がどこにも無くなる。
+            // SceneEditor が無効の間も Inspector が出ないため自前で描く
+            // (連動設定が ON なら本プラグインも一緒に無効になるので、効くのは連動 OFF のとき)
+            _useInspectorHost = placer.isInspectorRegistered && EditorStateClient.isEditorEnabled;
 
             var isModelMode = windowManager.modItemWindow != null
                 && windowManager.modItemWindow.isModelMode;
