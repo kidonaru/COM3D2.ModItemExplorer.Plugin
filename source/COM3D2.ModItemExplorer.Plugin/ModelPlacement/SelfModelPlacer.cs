@@ -794,6 +794,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             try
             {
                 var sourceObj = GameMain.Instance.BgMgr.CreateAssetBundle(assetName);
+#if COM3D25
+                // 2.5 は新ボディ向けの差し替え prefab を持つものがあり、ゲームの
+                // PhotoBGObjectData.Instantiate もこちらを先に探す
+                if (!sourceObj)
+                {
+                    sourceObj = Resources.Load<GameObject>("Prefab/" + assetName + "_for25");
+                }
+#endif
                 if (!sourceObj)
                 {
                     sourceObj = Resources.Load<GameObject>("Prefab/" + assetName);

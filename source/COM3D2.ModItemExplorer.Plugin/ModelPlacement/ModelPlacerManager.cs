@@ -76,6 +76,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             selfPlacer.CreateBgObject(assetBundleName, group, visible);
         }
 
+        /// <summary>
+        /// 公式背景オブジェクト (prefab / アセットバンドル) を配置する。
+        /// MTE 側の配置経路は .menu 名前提なので、背景オブジェクトと同じく常に自前配置にする
+        /// </summary>
+        public void CreateOfficialBgObject(string assetName, int group, bool visible)
+        {
+            selfPlacer.CreateGameModel(assetName, group, visible);
+        }
+
         public void DeleteModel(StudioModelStatWrapper model)
         {
             if (model == null)

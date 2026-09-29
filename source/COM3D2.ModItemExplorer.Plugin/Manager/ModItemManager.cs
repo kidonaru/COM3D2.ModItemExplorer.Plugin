@@ -971,7 +971,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                         SelfModelPlacer.PluginName, pluginName);
                 }
 
-                modelPlacerManager.CreateBgObject(item.info.assetBundleName, 0, true);
+                if (item.info.isOfficial)
+                {
+                    modelPlacerManager.CreateOfficialBgObject(item.info.officialAssetName, 0, true);
+                }
+                else
+                {
+                    modelPlacerManager.CreateBgObject(item.info.assetBundleName, 0, true);
+                }
 
                 UpdateModelItems();
                 return true;
@@ -1905,16 +1912,28 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 配置データのファイル名から背景オブジェクトの情報を引く。
-        /// 背景オブジェクト以外、または nei から消えている場合は null
+        /// Mod は .asset_bg のファイル名、公式は拡張子なしの prefab / アセットバンドル名で引く。
+        /// 該当しない、または一覧から消えている場合は null
         /// </summary>
         public BgObjectInfo GetBgObjectInfo(string fileName)
         {
-            if (!SelfModelPlacer.IsBgObjectFileName(fileName))
+            if (SelfModelPlacer.IsBgObjectFileName(fileName))
             {
-                return null;
+                return _bgObjectInfoMap.GetOrDefault(Path.GetFileNameWithoutExtension(fileName));
             }
 
-            return _bgObjectInfoMap.GetOrDefault(Path.GetFileNameWithoutExtension(fileName));
+            if (SelfModelPlacer.ResolvePlacementType(fileName) == ModelPlacementType.Prefab)
+            {
+                return _officialBgObjectInfoMap.GetOrDefault(fileName);
+            }
+
+            return null;
+        }
+
+        /// <summary>背景オブジェクト (Mod / 公式) として配置中一覧に出すファイル名か</summary>
+        private bool IsBgObjectModelFileName(string fileName)
+        {
+            return SelfModelPlacer.IsBgObjectFileName(fileName) || GetBgObjectInfo(fileName) != null;
         }
 
         /// <summary>
@@ -1980,7 +1999,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
             }
 
-            if (SelfModelPlacer.IsBgObjectFileName(fileName))
+            if (IsBgObjectModelFileName(fileName))
             {
                 return PluginInfo.BgObjectIconTexture;
             }
@@ -2514,8 +2533,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 var itemPath = MTEUtils.CombinePaths(ModelDirName, itemName);
                 var fileName = model.infoWrapper?.fileName;
 
-                // 背景オブジェクトは menu を持たないため、拡張子で見分けて別経路で作る
-                if (SelfModelPlacer.IsBgObjectFileName(fileName))
+                // 背景オブジェクト (Mod / 公式) は menu を持たないため、ファイル名で見分けて別経路で作る
+                if (IsBgObjectModelFileName(fileName))
                 {
                     GetOrCreateModelBgObjectItem(itemPath, fileName, model);
                     return;
