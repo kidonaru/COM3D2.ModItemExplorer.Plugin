@@ -1184,7 +1184,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                     _itemSortTypeComboBox.DrawTextureButton(view);
 
                     // ロード中はワーカーがツリーを書き換えるため走査しない
-                    if (!modItemManager.isLoading)
+                    if (modItemManager.isLoading)
+                    {
+                        // フォルダ配下の入れ替わりは直下の参照比較では拾えないため、ロード後に必ず作り直す
+                        _tagFilterSource = null;
+                    }
+                    else
                     {
                         if (Event.current.type == EventType.Layout)
                         {
@@ -1490,6 +1495,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         private readonly List<ITileViewContent> _tagFilterSourceChildren = new List<ITileViewContent>(1024);
         private string _tagFilterBuiltTag = null;
 
+        /// <summary>フォルダ配下のアイテムを集める作業用。毎回の割り当てを避けるため使い回す</summary>
+        private readonly List<ITileViewContent> _tagFilterDescendants = new List<ITileViewContent>(1024);
+
         /// <summary>絞り込み結果。Layout イベントで RefreshTagFilter が作り直す</summary>
         private TempDirItem _tagFilterViewItem = new TempDirItem
         {
@@ -1509,6 +1517,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private void InvalidateViewCache()
         {
             _flatViewItem.itemPath = "";
+            _tagFilterSource = null;
         }
 
         /// <summary>今の一覧の元になるアイテム (フラットビュー時は展開済みの一時フォルダ)。ロード中は呼ばない</summary>
@@ -1561,7 +1570,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 絞り込み結果とタグの選択肢を作り直す。Layout イベントのたびに呼び、
-        /// 一覧が変わっていなければ何もしない。フォルダは移動に要るので絞り込まない
+        /// 一覧が変わっていなければ何もしない。フォルダは配下に該当アイテムを含むものだけ残す
         /// </summary>
         private void RefreshTagFilter(DirItem source)
         {
@@ -1593,14 +1602,13 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 foreach (var child in source.children)
                 {
-                    var tag = child.isDir ? null : child.tag;
-                    if (!string.IsNullOrEmpty(tag) && _tagFilterSeenTags.Add(tag))
-                    {
-                        tags.Add(tag);
-                    }
+                    // フォルダは中のアイテムのタグも選べるようにし、絞り込み中は該当アイテムを含むものだけ残す
+                    var matches = child.isDir
+                        ? CollectDescendantTags(child, tags)
+                        : AddTagOption(child.tag, tags);
 
                     // フラットビューと同じく、親を書き換えずに children へ直接積む
-                    if (buildsFilteredList && (child.isDir || tag == _tagFilter))
+                    if (buildsFilteredList && matches)
                     {
                         _tagFilterViewItem.children.Add(child);
                     }
@@ -1614,6 +1622,31 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _tagFilterComboBox.currentIndex = tags.IndexOf(_tagFilter);
+        }
+
+        /// <summary>タグを選択肢へ足し、選択中のタグと一致するかを返す</summary>
+        private bool AddTagOption(string tag, List<string> tags)
+        {
+            if (!string.IsNullOrEmpty(tag) && _tagFilterSeenTags.Add(tag))
+            {
+                tags.Add(tag);
+            }
+            return tag == _tagFilter;
+        }
+
+        /// <summary>フォルダ配下の全アイテムのタグを選択肢へ足し、選択中のタグのアイテムを含むかを返す</summary>
+        private bool CollectDescendantTags(ITileViewContent dir, List<string> tags)
+        {
+            _tagFilterDescendants.Clear();
+            dir.GetAllFiles(_tagFilterDescendants);
+
+            var containsTag = false;
+            foreach (var file in _tagFilterDescendants)
+            {
+                containsTag |= AddTagOption(file.tag, tags);
+            }
+            _tagFilterDescendants.Clear();
+            return containsTag;
         }
 
         private void DrawContentMain()
