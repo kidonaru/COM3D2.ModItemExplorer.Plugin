@@ -8,7 +8,8 @@ namespace COM3D2.ModItemExplorer.Plugin
     /// SceneEditor Inspector へ委譲描画する MTE 管理モデルの内容。
     /// 行の委譲に対応したホストでは、共通のモデル表示 (ヘッダー・管理行・アタッチ・Transform) を
     /// ホストが描き、こちらは末尾のレイヤー行だけを足す (DrawRows)。
-    /// 旧ホストでは内容を丸ごと描く (Draw)。Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
+    /// 旧ホストと、ホストが共通表示を描かない間 (CanDrawWhenHostDoesNot) は内容を丸ごと描く (Draw)。
+    /// Transform 行・アタッチ行は ModelOperationWindow と同じ部品で描く。
     /// アタッチのドロップダウンは MTE 側の ComboBoxPopupWindow が独立ウィンドウとして
     /// 出すため、ボタン座標をスクリーン座標へ直す基準として SceneEditor のウィンドウ矩形を借りる
     /// </summary>
@@ -52,6 +53,29 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return false;
             }
             return placer.FindModelByGameObject(go) != null;
+        }
+
+        /// <summary>
+        /// 行の登録と併用する全面委譲の canDraw。ホストの共通モデル表示は
+        /// SceneEditor のモデル一覧に載ったモデルにしか出ないため、
+        /// 出ない間はこちらで内容を丸ごと描き、アタッチ行を出す。
+        /// 問い合わせ API の無いホストではタイムライン未読込かで近似する
+        /// (読込中でも一覧が更新されない間はどちらの表示も出ない)
+        /// </summary>
+        public bool CanDrawWhenHostDoesNot(GameObject go)
+        {
+            if (!CanDraw(go))
+            {
+                return false;
+            }
+
+            if (InspectorHostClient.isDrawsModelAvailable)
+            {
+                return !InspectorHostClient.DrawsModel(go);
+            }
+
+            return TimelineLayerGateClient.GetState(SelfModelPlacer.ModelTimelineLayerName)
+                == TimelineLayerGateClient.StateNoTimeline;
         }
 
         /// <summary>

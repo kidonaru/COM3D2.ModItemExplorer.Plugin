@@ -552,6 +552,23 @@ namespace COM3D2.ModItemExplorer.Plugin
                     "ModItemExplorer",
                     _inspectorDrawer.CanDraw,
                     _inspectorDrawer.DrawRows);
+
+                // ホストが共通表示を描かない間の代替として全面委譲も併用する (切り分けは canDraw 側)
+                if (_inspectorHandle != null)
+                {
+                    var fallbackHandle = InspectorHostClient.Register(
+                        "ModItemExplorer",
+                        _inspectorDrawer.CanDrawWhenHostDoesNot,
+                        _inspectorDrawer.Draw,
+                        drawsHeader: true);
+                    if (fallbackHandle == null)
+                    {
+                        // 行だけ登録済みだと操作ウィンドウが自前のアタッチ行を隠し、
+                        // ホストが描かない間にアタッチ行がどこにも出ない。両方そろうまで未登録として再試行する
+                        InspectorHostClient.Unregister(_inspectorHandle);
+                        _inspectorHandle = null;
+                    }
+                }
             }
             else
             {
@@ -1126,8 +1143,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == boneName));
         }
 
-        /// <summary>SceneEditor 側のモデルのタイムラインレイヤー名 (AutoEditModeClient へ渡す)</summary>
-        private const string ModelTimelineLayerName = "ModelTimelineLayer";
+        /// <summary>SceneEditor 側のモデルのタイムラインレイヤー名 (AutoEditModeClient / TimelineLayerGateClient へ渡す)</summary>
+        internal const string ModelTimelineLayerName = "ModelTimelineLayer";
 
         /// <summary>
         /// UI からの付け替え。SceneEditor の編集モードへ入ってから付け替える
