@@ -188,6 +188,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             LoadOfficialMenuItems,
             LoadOfficialAnmItems,
             LoadOfficialBgObjectItems,
+            LoadOfficialHandItems,
             LoadModItems,
             LoadModBgObjectItems,
             UpdateModPresetItems,
@@ -218,6 +219,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>公式背景オブジェクトを置く Official 直下のフォルダ名</summary>
         public static readonly string OfficialBgObjectDirName = "背景オブジェクト";
+
+        /// <summary>ハンドアイテムを置く Official 直下のフォルダ名</summary>
+        public static readonly string OfficialHandItemDirName = "ハンドアイテム";
 
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
         public List<AnimationState> animationStates = new List<AnimationState>();
@@ -332,6 +336,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         LoadOfficialMenuItems();
                         LoadOfficialAnmItems();
                         LoadOfficialBgObjectItems();
+                        LoadOfficialHandItems();
                         ValidateItemChildren(officialRootItem);
                         SortItemChildren(officialRootItem);
 
@@ -548,6 +553,11 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return false;
             }
 
+            if (item is HandMenuItem handItem)
+            {
+                return ApplyHandItem(handItem);
+            }
+
             var menu = item.variationMenu;
             if (menu == null)
             {
@@ -597,6 +607,32 @@ namespace COM3D2.ModItemExplorer.Plugin
             windowManager.hairLengthWindow.Call(currentMaid, menu.mpn);
 
             RegisterPropsHistory("アイテム適用: " + item.name, beforeSnapshot);
+            return true;
+        }
+
+        /// <summary>
+        /// ハンドアイテムをフォトモードと同じく一時装備で持たせる。
+        /// 一時装備は操作履歴 (MaidPropsSnapshot は通常装備のみ控える) の対象外
+        /// </summary>
+        private bool ApplyHandItem(HandMenuItem item)
+        {
+            var info = item.handItemInfo;
+            var menu = item.menu;
+            if (info == null || menu == null)
+            {
+                MTEUtils.LogWarning("ハンドアイテムの情報がありません。" + item.itemPath);
+                return false;
+            }
+
+            var missingFileName = FindMissingFileName(menu);
+            if (missingFileName != null)
+            {
+                MTEUtils.LogWarning("参照先ファイルが見つかりません。" + missingFileName + " " + item.itemPath);
+                return false;
+            }
+
+            currentMaid.SetProp(info.mpn, info.menuFileName, 0, f_bTemp: true);
+            currentMaid.AllProcPropSeqStart();
             return true;
         }
 
@@ -1621,6 +1657,72 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             _officialBgObjectInfoMap = infoMap;
+        }
+
+        private void LoadOfficialHandItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] LoadOfficialHandItems");
+            loadState = LoadState.LoadOfficialHandItems;
+
+            foreach (var info in HandItemNeiLoader.LoadAll())
+            {
+                try
+                {
+                    // 公式 menu 一覧 (MenuDataBase) には載らないため個別に読む。
+                    // 未所持パックなどで本体が無い行はここで落ちる (正常系なので警告しない)
+                    var menu = GetOrLoadOfficialMenu(info.menuFileName);
+                    if (menu == null)
+                    {
+                        MTEUtils.LogDebug("[ModMenuItemManager] ハンドアイテムのmenuがありません: " + info.menuFileName);
+                        continue;
+                    }
+
+                    var itemPath = MTEUtils.CombinePaths(
+                        OfficialDirName, OfficialHandItemDirName, info.category, info.menuFileName);
+                    GetOrCreateHandMenuItem(itemPath, menu, info);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+            }
+        }
+
+        private HandMenuItem GetOrCreateHandMenuItem(string itemPath, MenuInfo menu, HandItemInfo info)
+        {
+            var item = GetItemByPath<HandMenuItem>(itemPath);
+            if (item != null)
+            {
+                item.menu = menu;
+                item.handItemInfo = info;
+                return item;
+            }
+
+            var parentPath = Path.GetDirectoryName(itemPath);
+            var parentItem = GetOrCreateDirItem(parentPath);
+            if (parentItem == null)
+            {
+                MTEUtils.LogWarning("親ディレクトリが見つかりません。" + parentPath);
+                return null;
+            }
+
+            var itemName = Path.GetFileName(itemPath);
+
+            item = new HandMenuItem
+            {
+                itemType = ModItemType.Official,
+                itemName = itemName,
+                itemPath = itemPath,
+                menu = menu,
+                handItemInfo = info,
+            };
+
+            parentItem.AddChild(item);
+            _itemPathMap[itemPath] = item;
+            // _itemNameMap には載せない。名前引きは着用中の通常装備 (strFileName) の解決に使われ、
+            // 一時装備で持たせるハンドアイテムが引っかかると着用判定の意味が食い違う
+
+            return item;
         }
 
         private void LoadModBgObjectItems()
@@ -3053,7 +3155,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             item.RemoveFromParent();
-            _itemNameMap.Remove(item.itemName);
+            // 名前引きに載せないアイテム (HandMenuItem) もあるため、同名の別アイテムを巻き込まないよう自分のときだけ消す
+            ModItemBase namedItem;
+            if (_itemNameMap.TryGetValue(item.itemName, out namedItem) && namedItem == item)
+            {
+                _itemNameMap.Remove(item.itemName);
+            }
             _itemPathMap.Remove(item.itemPath);
         }
 

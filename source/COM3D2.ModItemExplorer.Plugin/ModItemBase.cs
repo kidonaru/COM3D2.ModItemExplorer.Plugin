@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -301,6 +302,64 @@ namespace COM3D2.ModItemExplorer.Plugin
     }
 
     /// <summary>配置中の背景オブジェクト 1 体。表示は元の BgObjectItem と同じ扱いにする</summary>
+    /// <summary>
+    /// フォトモードのハンドアイテム。menu は普通の MenuInfo だが、装着先 MPN と
+    /// 一時装備で入る点がフォトモードに従うため、装着判定と削除可否を差し替える
+    /// </summary>
+    public class HandMenuItem : MenuItem
+    {
+        /// <summary>CRC ボディでは Maid.SetPropIn が対応版へ差し替えるときにこの接頭辞を付ける</summary>
+        private const string CrcReplacementPrefix = "crx_";
+
+        public HandItemInfo handItemInfo { get; set; }
+
+        public override string name => handItemInfo?.name ?? base.name;
+
+        public override string tag => handItemInfo?.category ?? base.tag;
+
+        /// <summary>一時装備は strTempFileName に入るため、そちらで着用中を判定する</summary>
+        public override bool isSelected
+        {
+            get
+            {
+                var maid = modItemManager.currentMaid;
+                if (maid == null || handItemInfo == null)
+                {
+                    return false;
+                }
+
+                var prop = maid.GetProp(handItemInfo.mpn);
+                var tempFileName = prop?.strTempFileName;
+                if (string.IsNullOrEmpty(tempFileName))
+                {
+                    return false;
+                }
+
+                if (tempFileName.StartsWith(CrcReplacementPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    tempFileName = tempFileName.Substring(CrcReplacementPrefix.Length);
+                }
+
+                return string.Equals(
+                    tempFileName, handItemInfo.menuFileName, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>外すのは同カテゴリの「アイテムなし」行で行う (既存の削除は通常装備の DelProp 前提)</summary>
+        public override bool canDelete => false;
+
+        /// <summary>画面に出す nei の名前でも検索に当たるようにする</summary>
+        public override bool IsMatch(Regex pattern)
+        {
+            if (handItemInfo != null && !string.IsNullOrEmpty(handItemInfo.name)
+                && pattern.IsMatch(handItemInfo.name))
+            {
+                return true;
+            }
+            return base.IsMatch(pattern);
+        }
+    }
+
     public class ModelBgObjectItem : BgObjectItem, IModelItem
     {
         public StudioModelStatWrapper model { get; set; }
