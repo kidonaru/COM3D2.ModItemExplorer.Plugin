@@ -1039,6 +1039,18 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     windowManager.modelOperationWindow.ToggleVisible();
                 }
+
+                // モデル操作ウィンドウを開かずに読み直せるよう、同じ処理をここにも置く。
+                // 対象は自前配置の選択中モデルなので、配置プラグインの選択とは無関係に判定する
+                var placer = SelfModelPlacer.instance;
+                if (view.DrawButton(
+                    "モデル再読込",
+                    ModelOperationWindow.RELOAD_BUTTON_WIDTH,
+                    20,
+                    placer.CanReloadModel(placer.selectedModel)))
+                {
+                    placer.ReloadModel(placer.selectedModel);
+                }
             }
             catch (Exception e)
             {

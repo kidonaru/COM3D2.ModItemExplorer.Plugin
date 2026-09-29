@@ -291,7 +291,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         private readonly static int RESET_BUTTON_WIDTH = 60;
 
         /// <summary>操作タブの再読込ボタンの幅</summary>
-        private readonly static int RELOAD_BUTTON_WIDTH = 100;
+        public readonly static int RELOAD_BUTTON_WIDTH = 100;
 
         /// <summary>
         /// タブ行。右端にはタブと関係なく効くリセット（全削除）ボタンを寄せて置く。
