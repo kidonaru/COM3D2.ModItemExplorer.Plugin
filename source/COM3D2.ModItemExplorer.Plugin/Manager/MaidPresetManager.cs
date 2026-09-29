@@ -13,6 +13,27 @@ namespace COM3D2.ModItemExplorer.Plugin
     {
         private Dictionary<string, PresetData> _presetDataCache = new Dictionary<string, PresetData>();
 
+        private int _loadedVersion = 0;
+
+        /// <summary>プリセットの読み込みが終わるたびに増える。タグ絞り込みの作り直し判定に使う</summary>
+        public int loadedVersion => Thread.VolatileRead(ref _loadedVersion);
+
+        /// <summary>読み込み済みのプリセットだけを返す。読み込み要求もサムネ生成もしない</summary>
+        public PresetData PeekLoadedPreset(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+            {
+                return null;
+            }
+
+            PresetData presetData;
+            lock (_presetDataCache)
+            {
+                _presetDataCache.TryGetValue(filePath, out presetData);
+            }
+            return presetData;
+        }
+
         private static MaidPresetManager _instance;
         public static MaidPresetManager instance
         {
@@ -113,6 +134,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                         {
                             _presetDataCache[filePath] = presetData;
                         }
+                        Interlocked.Increment(ref _loadedVersion);
 
                         lock (_requestPresetFilePathSet)
                         {

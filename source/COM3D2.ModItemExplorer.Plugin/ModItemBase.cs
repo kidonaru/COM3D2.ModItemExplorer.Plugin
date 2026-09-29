@@ -380,6 +380,25 @@ namespace COM3D2.ModItemExplorer.Plugin
 
     public class DirItem : ModItemBase
     {
+        // 子の増減はタグ絞り込みの作り直しの合図になる (ItemTagFilter は配下の変化を直接は見ない)
+        public override void AddChild(ITileViewContent child)
+        {
+            base.AddChild(child);
+            ModItemManager.NotifyTreeChanged();
+        }
+
+        public override void RemoveChild(ITileViewContent child)
+        {
+            base.RemoveChild(child);
+            ModItemManager.NotifyTreeChanged();
+        }
+
+        public override void RemoveAllChildren()
+        {
+            base.RemoveAllChildren();
+            ModItemManager.NotifyTreeChanged();
+        }
+
         public override Texture2D thum
         {
             get
@@ -431,6 +450,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
     public class TempDirItem : DirItem
     {
+        /// <summary>
+        /// 子の増減をツリーの更新として通知するか。表示用に作り直す一時フォルダ
+        /// (フラットビュー・タグ絞り込み) は、通知すると自分の作り直しを誘発するので切る
+        /// </summary>
+        public bool notifiesTreeChange { get; set; } = true;
+
         public override void AddChild(ITileViewContent child)
         {
             if (children == null)
@@ -439,6 +464,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             children.Add(child);
+            NotifyTreeChangedIfNeeded();
         }
 
         public override void RemoveChild(ITileViewContent child)
@@ -447,6 +473,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 children.Remove(child);
             }
+            NotifyTreeChangedIfNeeded();
         }
 
         public override void RemoveAllChildren()
@@ -454,6 +481,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (children != null)
             {
                 children.Clear();
+            }
+            NotifyTreeChangedIfNeeded();
+        }
+
+        private void NotifyTreeChangedIfNeeded()
+        {
+            if (notifiesTreeChange)
+            {
+                ModItemManager.NotifyTreeChanged();
             }
         }
     }
@@ -482,6 +518,19 @@ namespace COM3D2.ModItemExplorer.Plugin
         public override string tag
         {
             get => preset != null ? MTEUtils.GetPresetTypeName(preset.ePreType) : "";
+        }
+
+        /// <summary>
+        /// 読み込み済みのときだけ種別名を返す。tag と違って読み込み要求もサムネ生成も起こさない。
+        /// 未読み込みなら null
+        /// </summary>
+        public string loadedTag
+        {
+            get
+            {
+                var loadedPreset = _preset ?? maidPresetManager.PeekLoadedPreset(fullPath)?.preset;
+                return loadedPreset != null ? MTEUtils.GetPresetTypeName(loadedPreset.ePreType) : null;
+            }
         }
 
         public override Color tagColor

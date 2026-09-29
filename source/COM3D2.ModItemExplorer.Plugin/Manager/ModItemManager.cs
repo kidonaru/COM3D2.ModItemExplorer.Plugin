@@ -200,6 +200,18 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public LoadState loadState { get; private set; }
 
+        private static int _treeVersion = 0;
+
+        /// <summary>
+        /// アイテムツリーの子の増減・並べ替えのたびに増える。ロード中はワーカーからも増えるため Interlocked で扱う
+        /// </summary>
+        public static int treeVersion => Thread.VolatileRead(ref _treeVersion);
+
+        public static void NotifyTreeChanged()
+        {
+            Interlocked.Increment(ref _treeVersion);
+        }
+
         public static readonly int menuCapacity = 1024 * 16;
 
         private Dictionary<string, MenuInfo> _menuMap = new Dictionary<string, MenuInfo>(menuCapacity, StringComparer.OrdinalIgnoreCase);
@@ -2332,6 +2344,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
 
             item.children.Sort(CompareItem);
+            NotifyTreeChanged();
 
             foreach (var child in item.children)
             {

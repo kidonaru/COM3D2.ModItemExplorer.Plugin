@@ -121,6 +121,7 @@
     <Compile Include="BgObject\OfficialBgObjectLoader.cs" />
     <Compile Include="HandItem\HandItemInfo.cs" />
     <Compile Include="HandItem\HandItemNeiLoader.cs" />
+    <Compile Include="ItemTagFilter.cs" />
     <Compile Include="Manager\ConfigManager.cs" />
     <Compile Include="Manager\ItemHistoryManager.cs" />
     <Compile Include="Manager\MaidPresetManager.cs" />

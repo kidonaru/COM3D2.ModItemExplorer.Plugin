@@ -313,7 +313,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _categoryComboBox.onSelected = (item, _) => SetCurrentDirItem(item);
             _tagFilterComboBox.onSelected = (tag, _) =>
             {
-                _tagFilter = tag ?? AllTagsFilter;
+                _tagFilter.selectedTag = tag;
                 // 絞り込み結果は別の一覧なので、前の位置のままだと項目が見えないことがある
                 _contentView.scrollPosition = Vector2.zero;
             };
@@ -1187,13 +1187,15 @@ namespace COM3D2.ModItemExplorer.Plugin
                     if (modItemManager.isLoading)
                     {
                         // フォルダ配下の入れ替わりは直下の参照比較では拾えないため、ロード後に必ず作り直す
-                        _tagFilterSource = null;
+                        _tagFilter.Invalidate();
                     }
                     else
                     {
                         if (Event.current.type == EventType.Layout)
                         {
-                            RefreshTagFilter(GetViewSourceItem());
+                            var tagOptions = _tagFilterComboBox.items;
+                            _tagFilter.Refresh(GetViewSourceItem(), tagOptions);
+                            _tagFilterComboBox.currentIndex = tagOptions.IndexOf(_tagFilter.selectedTag);
                         }
                         _tagFilterComboBox.DrawButton(view);
                     }
@@ -1476,33 +1478,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         private TempDirItem _flatViewItem = new TempDirItem
         {
             children = new List<ITileViewContent>(1024),
+            notifiesTreeChange = false,
         };
-
-        /// <summary>タグ絞り込みの「すべて」を表す値</summary>
-        private const string AllTagsFilter = "";
 
         private static readonly string AllTagsLabel = "すべて";
         private static readonly int TAG_FILTER_WIDTH = 90;
 
-        /// <summary>選択中のタグ。フォルダを移動しても維持する</summary>
-        private string _tagFilter = AllTagsFilter;
-
-        /// <summary>タグの重複除け。一覧の全件を回すため List.Contains を避ける</summary>
-        private readonly HashSet<string> _tagFilterSeenTags = new HashSet<string>();
-
-        // 絞り込みを作ったときの元の一覧・子の並び・タグ。一致する間は作り直さない
-        private DirItem _tagFilterSource = null;
-        private readonly List<ITileViewContent> _tagFilterSourceChildren = new List<ITileViewContent>(1024);
-        private string _tagFilterBuiltTag = null;
-
-        /// <summary>フォルダ配下のアイテムを集める作業用。毎回の割り当てを避けるため使い回す</summary>
-        private readonly List<ITileViewContent> _tagFilterDescendants = new List<ITileViewContent>(1024);
-
-        /// <summary>絞り込み結果。Layout イベントで RefreshTagFilter が作り直す</summary>
-        private TempDirItem _tagFilterViewItem = new TempDirItem
-        {
-            children = new List<ITileViewContent>(1024),
-        };
+        private readonly ItemTagFilter _tagFilter = new ItemTagFilter();
 
         private GUIComboBox<string> _tagFilterComboBox = new GUIComboBox<string>
         {
@@ -1513,11 +1495,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             showArrow = false,
         };
 
-        /// <summary>フラットビューの展開結果を捨て、次の描画で作り直させる</summary>
+        /// <summary>フラットビューの展開結果とタグ絞り込みの結果を捨て、次の描画で作り直させる</summary>
         private void InvalidateViewCache()
         {
             _flatViewItem.itemPath = "";
-            _tagFilterSource = null;
+            _tagFilter.Invalidate();
         }
 
         /// <summary>今の一覧の元になるアイテム (フラットビュー時は展開済みの一時フォルダ)。ロード中は呼ばない</summary>
@@ -1539,116 +1521,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             return _flatViewItem;
         }
 
-        /// <summary>
-        /// 前回作ったときと同じ一覧・同じタグのままか。検索結果・履歴・お気に入り・配置中は
-        /// マネージャー側が同じフォルダの中身を入れ替える (件数が同じこともある) ため、
-        /// 子の参照を並び順ごと突き合わせる。タグ名の取得 (1 万件超で数 ms) より十分安い
-        /// </summary>
-        private bool IsTagFilterUpToDate(DirItem source)
-        {
-            if (source != _tagFilterSource || _tagFilterBuiltTag != _tagFilter)
-            {
-                return false;
-            }
-
-            var children = source?.children;
-            var builtCount = _tagFilterSourceChildren.Count;
-            if ((children?.Count ?? 0) != builtCount)
-            {
-                return false;
-            }
-
-            for (var i = 0; i < builtCount; i++)
-            {
-                if (!ReferenceEquals(children[i], _tagFilterSourceChildren[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// 絞り込み結果とタグの選択肢を作り直す。Layout イベントのたびに呼び、
-        /// 一覧が変わっていなければ何もしない。フォルダは配下に該当アイテムを含むものだけ残す
-        /// </summary>
-        private void RefreshTagFilter(DirItem source)
-        {
-            if (IsTagFilterUpToDate(source))
-            {
-                return;
-            }
-
-            _tagFilterSource = source;
-            _tagFilterBuiltTag = _tagFilter;
-            _tagFilterSourceChildren.Clear();
-            if (source?.children != null)
-            {
-                _tagFilterSourceChildren.AddRange(source.children);
-            }
-
-            var tags = _tagFilterComboBox.items;
-            tags.Clear();
-            tags.Add(AllTagsFilter);
-            _tagFilterSeenTags.Clear();
-
-            _tagFilterViewItem.itemPath = source?.itemPath ?? "";
-            _tagFilterViewItem.RemoveAllChildren();
-
-            // 「すべて」のときは一覧に元の子をそのまま使うので、絞り込み結果は作らない
-            var buildsFilteredList = _tagFilter != AllTagsFilter;
-
-            if (source?.children != null)
-            {
-                foreach (var child in source.children)
-                {
-                    // フォルダは中のアイテムのタグも選べるようにし、絞り込み中は該当アイテムを含むものだけ残す
-                    var matches = child.isDir
-                        ? CollectDescendantTags(child, tags)
-                        : AddTagOption(child.tag, tags);
-
-                    // フラットビューと同じく、親を書き換えずに children へ直接積む
-                    if (buildsFilteredList && matches)
-                    {
-                        _tagFilterViewItem.children.Add(child);
-                    }
-                }
-            }
-
-            // 移動先に無いタグでも、選択中であることが見えるよう選択肢に残す
-            if (!tags.Contains(_tagFilter))
-            {
-                tags.Add(_tagFilter);
-            }
-
-            _tagFilterComboBox.currentIndex = tags.IndexOf(_tagFilter);
-        }
-
-        /// <summary>タグを選択肢へ足し、選択中のタグと一致するかを返す</summary>
-        private bool AddTagOption(string tag, List<string> tags)
-        {
-            if (!string.IsNullOrEmpty(tag) && _tagFilterSeenTags.Add(tag))
-            {
-                tags.Add(tag);
-            }
-            return tag == _tagFilter;
-        }
-
-        /// <summary>フォルダ配下の全アイテムのタグを選択肢へ足し、選択中のタグのアイテムを含むかを返す</summary>
-        private bool CollectDescendantTags(ITileViewContent dir, List<string> tags)
-        {
-            _tagFilterDescendants.Clear();
-            dir.GetAllFiles(_tagFilterDescendants);
-
-            var containsTag = false;
-            foreach (var file in _tagFilterDescendants)
-            {
-                containsTag |= AddTagOption(file.tag, tags);
-            }
-            _tagFilterDescendants.Clear();
-            return containsTag;
-        }
-
         private void DrawContentMain()
         {
             var view = _contentView;
@@ -1666,16 +1538,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 view.DrawLabel("アイテムがありません", -1, 20);
             }
-            else if (_tagFilter != AllTagsFilter && _tagFilterViewItem.children.Count == 0)
+            else if (_tagFilter.isActive && _tagFilter.filteredItem.children.Count == 0)
             {
-                view.DrawLabel("タグ「" + _tagFilter + "」に一致するアイテムがありません", -1, 20);
+                view.DrawLabel("タグ「" + _tagFilter.selectedTag + "」に一致するアイテムがありません", -1, 20);
             }
             else
             {
-                // 絞り込み結果はパスバー描画時 (Layout) に RefreshTagFilter が作っている
-                DirItem targetItem = _tagFilter == AllTagsFilter
-                    ? GetViewSourceItem()
-                    : _tagFilterViewItem;
+                // 絞り込み結果はパスバー描画時 (Layout) に ItemTagFilter.Refresh が作っている
+                DirItem targetItem = _tagFilter.isActive
+                    ? _tagFilter.filteredItem
+                    : GetViewSourceItem();
 
                 view.DrawTileView(
                     targetItem,
