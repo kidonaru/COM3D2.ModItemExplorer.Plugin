@@ -66,6 +66,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         public bool modelSelectHighlight = true;
 
         // 表示設定
+        // UI 倍率 (1 = 100%)。SceneEditor が有効ならそちらに従い、この値は使わない
+        public float uiScale = 1f;
         public int windowWidth = 960;
         public int windowHeight = 480;
         public int windowPosX = -1;

@@ -150,8 +150,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             base.Init();
 
-            _windowWidth = (int)windowRect.width;
-            _windowHeight = (int)windowRect.height;
+            _windowWidth = (int)localWindowRect.width;
+            _windowHeight = (int)localWindowRect.height;
             InitView();
         }
 

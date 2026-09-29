@@ -63,6 +63,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         private Rect _variationWindowRect;
         private Rect _colorSetWindowRect;
 
+        private readonly UIScaleSliderRow _uiScaleRow = new UIScaleSliderRow();
+
         private int _windowWidth = 960;
         private int _windowHeight = 480;
         private int _naviWidth = 200;
@@ -303,8 +305,8 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             base.Init();
 
-            _windowWidth = (int)windowRect.width;
-            _windowHeight = (int)windowRect.height;
+            _windowWidth = (int)localWindowRect.width;
+            _windowHeight = (int)localWindowRect.height;
             InitView();
 
             _categoryComboBox.onSelected = (item, _) => SetCurrentDirItem(item);
@@ -318,8 +320,15 @@ namespace COM3D2.ModItemExplorer.Plugin
         public override void Close()
         {
             base.Close();
+            _uiScaleRow.Discard();
 
             plugin.isEnable = false;
+        }
+
+        // 描かれない間は操作の終わりを判定できないため、保留中の UI 倍率は反映せず捨てる
+        protected override void OnTabVisibleChanged(bool visible)
+        {
+            _uiScaleRow.Discard();
         }
 
         /// <summary>
@@ -397,7 +406,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // variation / colorSet は本体窓と同階層の兄弟ウィンドウとして描く。
             // DrawContent 内 (= 本体窓のコールバック内) へ移すと GUI.Window の入れ子になり
-            // 入力と重なり順が壊れるため、必ずここで呼ぶこと
+            // 入力と重なり順が壊れるため、必ずここで呼ぶこと。
+            // 従属窓も UI 倍率で拡大し、本体窓の実矩形の右隣へ並べる (窓矩形のサイズは論理サイズ)
+            var scale = GUIScale.scale;
             Vector2 offset;
             offset.x = windowRect.x + windowRect.width;
             offset.y = windowRect.y;
@@ -405,28 +416,28 @@ namespace COM3D2.ModItemExplorer.Plugin
             if (isVariationVisible)
             {
                 _variationWindowRect.width = VARIATION_WIDTH;
-                _variationWindowRect.height = windowRect.height;
+                _variationWindowRect.height = windowRect.height / scale;
                 _variationWindowRect.position = offset;
 
-                _variationWindowRect = GUI.Window(VARIATION_WINDOW_ID, _variationWindowRect, DrawVariationWindow, "", gsWin);
-                MTEUtils.ResetInputOnScroll(_variationWindowRect);
+                _variationWindowRect = GUIScale.Window(VARIATION_WINDOW_ID, _variationWindowRect, DrawVariationWindow, "", gsWin);
+                MTEUtils.ResetInputOnScroll(GUIScale.ToScreenRect(_variationWindowRect));
 
                 var diffPosition = _variationWindowRect.position - offset;
                 var rect = windowRect;
                 rect.position += diffPosition;
                 windowRect = rect;
 
-                offset.x += VARIATION_WIDTH;
+                offset.x += VARIATION_WIDTH * scale;
             }
 
             if (isColorSetVisible)
             {
                 _colorSetWindowRect.width = COLOR_SET_WIDTH;
-                _colorSetWindowRect.height = windowRect.height;
+                _colorSetWindowRect.height = windowRect.height / scale;
                 _colorSetWindowRect.position = offset;
 
-                _colorSetWindowRect = GUI.Window(COLOR_SET_WINDOW_ID, _colorSetWindowRect, DrawColorSetWindow, "", gsWin);
-                MTEUtils.ResetInputOnScroll(_colorSetWindowRect);
+                _colorSetWindowRect = GUIScale.Window(COLOR_SET_WINDOW_ID, _colorSetWindowRect, DrawColorSetWindow, "", gsWin);
+                MTEUtils.ResetInputOnScroll(GUIScale.ToScreenRect(_colorSetWindowRect));
 
                 var diffPosition = _colorSetWindowRect.position - offset;
                 var rect = windowRect;
@@ -774,6 +785,14 @@ namespace COM3D2.ModItemExplorer.Plugin
         protected override void DrawContent()
         {
             InitGUI();
+
+            // 設定タブ以外へ切り替えても保留が残らないよう、タブに関係なく毎回判定する
+            float newScale;
+            if (_uiScaleRow.TryCommit(config.uiScale, out newScale))
+            {
+                config.uiScale = newScale;
+                config.dirty = true;
+            }
 
             _rootView.ResetLayout();
 
@@ -1503,6 +1522,15 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.BeginScrollView();
             {
+                // SceneEditor が有効な間はそちらの UI 倍率に従うため操作できない
+                var followingHost = UIScaleClient.isFollowingHost;
+                _uiScaleRow.Draw(view, "UI 倍率 %", 200, config.uiScale, !followingHost);
+                if (followingHost)
+                {
+                    view.DrawLabel("SceneEditor の UI 倍率に従っています (SceneEditor の設定ウィンドウ「表示」タブで変更)",
+                        -1, 20, textColor: Color.gray);
+                }
+
                 view.DrawToggle("公式アイテムをMPN毎に表示する", config.groupOfficialItemsByMPN, 200, 20, newValue =>
                 {
                     config.groupOfficialItemsByMPN = newValue;

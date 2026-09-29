@@ -82,6 +82,9 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         protected override void OnAfterUpdate()
         {
+            // SceneEditor が有効ならその倍率、無ければ自前の設定。窓側は GUIScale の変化を自分で拾う
+            GUIScale.scale = UIScaleClient.Resolve(ConfigManager.instance.config.uiScale);
+
             UpdateInputBlock();
         }
 

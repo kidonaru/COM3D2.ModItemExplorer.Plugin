@@ -161,6 +161,7 @@
     <Compile Include="MTEUtils\GizmoToolRowDrawer.cs" />
     <Compile Include="MTEUtils\GUICache.cs" />
     <Compile Include="MTEUtils\GUIComboBox.cs" />
+    <Compile Include="MTEUtils\GUIScale.cs" />
     <Compile Include="MTEUtils\GUIView.cs" />
     <Compile Include="MTEUtils\HistoryClient.cs" />
     <Compile Include="MTEUtils\IGUIWindow.cs" />
@@ -191,6 +192,8 @@
     <Compile Include="MTEUtils\TooltipDrawer.cs" />
     <Compile Include="MTEUtils\TransformCache.cs" />
     <Compile Include="MTEUtils\TransformGizmo.cs" />
+    <Compile Include="MTEUtils\UIScaleClient.cs" />
+    <Compile Include="MTEUtils\UIScaleSliderRow.cs" />
     <Compile Include="MTEUtils\WindowManagerBase.cs" />
     <Compile Include="MTEUtils\WindowResizeController.cs" />
     <Compile Include="ModelPlacement\GizmoRenderHack.cs" />
