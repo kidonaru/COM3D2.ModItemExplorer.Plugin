@@ -80,11 +80,17 @@ namespace COM3D2.ModItemExplorer.Plugin
             AddWindow(DialogPopupWindow.instance);
         }
 
-        protected override void OnAfterUpdate()
+        public override void Update()
         {
-            // SceneEditor が有効ならその倍率、無ければ自前の設定。窓側は GUIScale の変化を自分で拾う
+            // SceneEditor が有効ならその倍率、無ければ自前の設定。
+            // 窓の Update が倍率の変化を拾ってビューを組み直すため、それより前に入れる (同フレームの描画に間に合わせる)
             GUIScale.scale = UIScaleClient.Resolve(ConfigManager.instance.config.uiScale);
 
+            base.Update();
+        }
+
+        protected override void OnAfterUpdate()
+        {
             UpdateInputBlock();
         }
 

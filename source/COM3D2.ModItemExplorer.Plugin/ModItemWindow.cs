@@ -1522,13 +1522,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.BeginScrollView();
             {
-                // SceneEditor が有効な間はそちらの UI 倍率に従うため操作できない
+                // SceneEditor が有効な間はそちらの UI 倍率に従うため操作できない。
+                // その間は使われない自前の値ではなく実際の倍率を見せる
                 var followingHost = UIScaleClient.isFollowingHost;
-                _uiScaleRow.Draw(view, "UI 倍率 %", 200, config.uiScale, !followingHost);
+                _uiScaleRow.Draw(view, "UI 倍率 %", 200,
+                    followingHost ? GUIScale.scale : config.uiScale, !followingHost);
                 if (followingHost)
                 {
-                    view.DrawLabel("SceneEditor の UI 倍率に従っています (SceneEditor の設定ウィンドウ「表示」タブで変更)",
-                        -1, 20, textColor: Color.gray);
+                    view.DrawLabel(UIScaleClient.FollowingHostMessage, -1, 20, textColor: Color.gray);
                 }
 
                 view.DrawToggle("公式アイテムをMPN毎に表示する", config.groupOfficialItemsByMPN, 200, 20, newValue =>
