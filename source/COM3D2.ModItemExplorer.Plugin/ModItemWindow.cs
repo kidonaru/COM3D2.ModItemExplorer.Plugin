@@ -310,6 +310,12 @@ namespace COM3D2.ModItemExplorer.Plugin
             InitView();
 
             _categoryComboBox.onSelected = (item, _) => SetCurrentDirItem(item);
+            _tagFilterComboBox.onSelected = (tag, _) =>
+            {
+                _tagFilter = tag ?? AllTagsFilter;
+                // 絞り込み結果は別の一覧なので、前の位置のままだと項目が見えないことがある
+                _contentView.scrollPosition = Vector2.zero;
+            };
 
             // ここで isShowWnd を立ててはいけない。Init() はプラグイン無効のまま
             // 起動時に呼ばれるため、描画されない窓をドッキングホストへ
@@ -356,7 +362,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             _mouseOverFrameCount = 0;
             _focusedItem = null;
 
-            _flatViewItem.itemPath = "";
+            InvalidateViewCache();
             _flatViewItem.RemoveAllChildren();
 
             ResetCurrentDirItem();
@@ -546,7 +552,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _focusedItem = item;
             selectedItem = null;
-            _flatViewItem.itemPath = "";
+            InvalidateViewCache();
         }
 
         private void ResetCurrentDirItem()
@@ -575,7 +581,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _focusedItem = item;
             selectedItem = null;
-            _flatViewItem.itemPath = "";
+            InvalidateViewCache();
         }
 
         private void PrevCurrentDirItem()
@@ -597,7 +603,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _focusedItem = item;
             selectedItem = null;
-            _flatViewItem.itemPath = "";
+            InvalidateViewCache();
         }
 
         private GUIComboBox<DirItem> _categoryComboBox = new GUIComboBox<DirItem>
@@ -1097,7 +1103,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 var searchWidth = 170;
                 var pathWidth = _windowWidth - view.padding.x * 2 - view.currentPos.x - searchWidth;
-                var pathButtonWidth = 20 * 3 + 10;
+                var pathButtonWidth = 20 * 3 + 10 + TAG_FILTER_WIDTH;
 
                 // パスバー
                 {
@@ -1172,9 +1178,19 @@ namespace COM3D2.ModItemExplorer.Plugin
                         config.itemSortType = sortType;
                         config.dirty = true;
                         modItemManager.SortAllItems();
-                        _flatViewItem.itemPath = "";
+                        InvalidateViewCache();
                     };
                     _itemSortTypeComboBox.DrawTextureButton(view);
+
+                    // ロード中はワーカーがツリーを書き換えるため走査しない (カテゴリのドロップダウンと同じ)
+                    if (!modItemManager.isLoading)
+                    {
+                        if (Event.current.type == EventType.Layout)
+                        {
+                            RefreshTagFilter(GetViewSourceItem());
+                        }
+                        _tagFilterComboBox.DrawButton(view);
+                    }
                 }
 
                 // 検索バー
@@ -1456,6 +1472,96 @@ namespace COM3D2.ModItemExplorer.Plugin
             children = new List<ITileViewContent>(1024),
         };
 
+        /// <summary>タグ絞り込みの「すべて」を表す値</summary>
+        private const string AllTagsFilter = "";
+
+        private static readonly string AllTagsLabel = "すべて";
+        private static readonly int TAG_FILTER_WIDTH = 90;
+
+        /// <summary>選択中のタグ。フォルダを移動しても維持する</summary>
+        private string _tagFilter = AllTagsFilter;
+
+        /// <summary>絞り込み結果。Layout イベントで RefreshTagFilter が作り直す</summary>
+        private TempDirItem _tagFilterViewItem = new TempDirItem
+        {
+            children = new List<ITileViewContent>(1024),
+        };
+
+        private GUIComboBox<string> _tagFilterComboBox = new GUIComboBox<string>
+        {
+            getName = (tag, _) => string.IsNullOrEmpty(tag) ? AllTagsLabel : tag,
+            buttonSize = new Vector2(TAG_FILTER_WIDTH, 20),
+            contentSize = new Vector2(TAG_FILTER_WIDTH + 30, 300),
+            // パスバーの右端に固定幅で並べるため、ソートと同じく矢印を出さない
+            showArrow = false,
+        };
+
+        /// <summary>フラットビューの展開結果を捨て、次の描画で作り直させる</summary>
+        private void InvalidateViewCache()
+        {
+            _flatViewItem.itemPath = "";
+        }
+
+        /// <summary>今の一覧の元になるアイテム (フラットビュー時は展開済みの一時フォルダ)。ロード中は呼ばない</summary>
+        private DirItem GetViewSourceItem()
+        {
+            if (currentDirItem == null || !currentDirItem.isFlatView)
+            {
+                return currentDirItem;
+            }
+
+            if (_flatViewItem.itemPath != currentDirItem.itemPath)
+            {
+                MTEUtils.LogDebug("Update FlatView: " + currentDirItem.itemPath);
+                _flatViewItem.itemPath = currentDirItem.itemPath;
+                _flatViewItem.RemoveAllChildren();
+                currentDirItem.GetAllFiles(_flatViewItem.children);
+                ModItemManager.SortItemChildren(_flatViewItem);
+            }
+            return _flatViewItem;
+        }
+
+        /// <summary>
+        /// 絞り込み結果とタグの選択肢を作り直す。検索結果・履歴・お気に入り・配置中は
+        /// マネージャー側が同じフォルダの中身を入れ替える (件数が同じこともある) ため、
+        /// キャッシュせず Layout イベントのたびに呼ぶ。フォルダは移動に要るので絞り込まない
+        /// </summary>
+        private void RefreshTagFilter(DirItem source)
+        {
+            var tags = _tagFilterComboBox.items;
+            tags.Clear();
+            tags.Add(AllTagsFilter);
+
+            _tagFilterViewItem.itemPath = source?.itemPath ?? "";
+            _tagFilterViewItem.RemoveAllChildren();
+
+            if (source?.children != null)
+            {
+                foreach (var child in source.children)
+                {
+                    var tag = child.isDir ? null : child.tag;
+                    if (!string.IsNullOrEmpty(tag) && !tags.Contains(tag))
+                    {
+                        tags.Add(tag);
+                    }
+
+                    // フラットビューと同じく、親を書き換えずに children へ直接積む
+                    if (child.isDir || tag == _tagFilter)
+                    {
+                        _tagFilterViewItem.children.Add(child);
+                    }
+                }
+            }
+
+            // 移動先に無いタグでも、選択中であることが見えるよう選択肢に残す
+            if (!tags.Contains(_tagFilter))
+            {
+                tags.Add(_tagFilter);
+            }
+
+            _tagFilterComboBox.currentIndex = tags.IndexOf(_tagFilter);
+        }
+
         private void DrawContentMain()
         {
             var view = _contentView;
@@ -1473,22 +1579,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 view.DrawLabel("アイテムがありません", -1, 20);
             }
+            else if (_tagFilter != AllTagsFilter && _tagFilterViewItem.children.Count == 0)
+            {
+                view.DrawLabel("タグ「" + _tagFilter + "」に一致するアイテムがありません", -1, 20);
+            }
             else
             {
-                DirItem targetItem = currentDirItem;
-
-                if (currentDirItem.isFlatView)
-                {
-                    if (_flatViewItem.itemPath != currentDirItem.itemPath)
-                    {
-                        MTEUtils.LogDebug("Update FlatView: " + currentDirItem.itemPath);
-                        _flatViewItem.itemPath = currentDirItem.itemPath;
-                        _flatViewItem.RemoveAllChildren();
-                        currentDirItem.GetAllFiles(_flatViewItem.children);
-                        ModItemManager.SortItemChildren(_flatViewItem);
-                    }
-                    targetItem = _flatViewItem;
-                }
+                // 絞り込み結果はパスバー描画時 (Layout) に RefreshTagFilter が作っている
+                DirItem targetItem = _tagFilter == AllTagsFilter
+                    ? GetViewSourceItem()
+                    : _tagFilterViewItem;
 
                 view.DrawTileView(
                     targetItem,
