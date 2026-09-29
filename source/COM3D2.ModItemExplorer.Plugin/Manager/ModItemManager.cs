@@ -187,6 +187,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             LoadOfficialNameCsv,
             LoadOfficialMenuItems,
             LoadOfficialAnmItems,
+            LoadOfficialBgObjectItems,
             LoadModItems,
             LoadModBgObjectItems,
             UpdateModPresetItems,
@@ -211,6 +212,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>アセットバンドル名 -> 背景オブジェクト情報。配置中アイテムの表示名解決に使う</summary>
         private Dictionary<string, BgObjectInfo> _bgObjectInfoMap = new Dictionary<string, BgObjectInfo>(64, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>公式背景オブジェクトの配置名 (officialAssetName) -> 情報。配置中アイテムの表示名解決に使う</summary>
+        private Dictionary<string, BgObjectInfo> _officialBgObjectInfoMap = new Dictionary<string, BgObjectInfo>(512, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>公式背景オブジェクトを置く Official 直下のフォルダ名</summary>
+        public static readonly string OfficialBgObjectDirName = "背景オブジェクト";
 
         public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
         public List<AnimationState> animationStates = new List<AnimationState>();
@@ -291,6 +298,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 try
                 {
                     LoadOfficialMenuFileNameList();
+                    OfficialBgObjectLoader.EnsureGameDataCreated();
                 }
                 catch (Exception e)
                 {
@@ -323,6 +331,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                         LoadOfficialMenuItems();
                         LoadOfficialAnmItems();
+                        LoadOfficialBgObjectItems();
                         ValidateItemChildren(officialRootItem);
                         SortItemChildren(officialRootItem);
 
@@ -1566,6 +1575,47 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
+        private void LoadOfficialBgObjectItems()
+        {
+            MTEUtils.LogDebug("[ModMenuItemManager] LoadOfficialBgObjectItems");
+            loadState = LoadState.LoadOfficialBgObjectItems;
+
+            var infoList = OfficialBgObjectLoader.LoadAll();
+
+            // 配置中一覧の描画 (メインスレッド) が GetBgObjectInfo で毎フレーム引くため、
+            // 別の辞書に組み上げてから参照ごと差し替える
+            var infoMap = new Dictionary<string, BgObjectInfo>(infoList.Count, StringComparer.OrdinalIgnoreCase);
+
+            // 同一カテゴリ内で表示名が重複したときの逃がし先を決めるため、今回使った itemPath を覚えておく
+            var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var info in infoList)
+            {
+                try
+                {
+                    infoMap[info.officialAssetName] = info;
+
+                    var itemPath = MTEUtils.CombinePaths(
+                        OfficialDirName, OfficialBgObjectDirName, info.category, info.name);
+                    if (!usedPaths.Add(itemPath))
+                    {
+                        itemPath = MTEUtils.CombinePaths(
+                            OfficialDirName, OfficialBgObjectDirName, info.category,
+                            info.name + "_" + info.officialAssetName);
+                        usedPaths.Add(itemPath);
+                    }
+
+                    GetOrCreateBgObjectItem(itemPath, info);
+                }
+                catch (Exception e)
+                {
+                    MTEUtils.LogException(e);
+                }
+            }
+
+            _officialBgObjectInfoMap = infoMap;
+        }
+
         private void LoadModBgObjectItems()
         {
             MTEUtils.LogDebug("[ModMenuItemManager] LoadModBgObjectItems");
@@ -1629,8 +1679,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             var staleItems = new List<ModItemBase>();
             foreach (var pair in _itemPathMap)
             {
-                // 配置中の ModelBgObjectItem も BgObjectItem だが nei 由来ではないので対象外
-                if (pair.Value.itemType == ModItemType.BgObject && !alivePaths.Contains(pair.Key))
+                // 配置中の ModelBgObjectItem も BgObjectItem だが nei 由来ではないので対象外。
+                // 公式は Mod の nei と無関係にロードされるため、ここで消してはいけない
+                if (pair.Value.itemType == ModItemType.BgObject
+                    && !(pair.Value is BgObjectItem bgItem && bgItem.info != null && bgItem.info.isOfficial)
+                    && !alivePaths.Contains(pair.Key))
                 {
                     staleItems.Add(pair.Value);
                 }

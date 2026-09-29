@@ -19,5 +19,17 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>由来した nei のフルパス。ツリー位置と生存確認に使う</summary>
         public string neiFilePath;
+
+        /// <summary>
+        /// ゲーム本体の phot_bg_object_list.nei 由来なら true。
+        /// 公式は nei ファイルを持たないため neiFilePath は null になる
+        /// </summary>
+        public bool isOfficial;
+
+        /// <summary>
+        /// 公式のみ。配置時に渡すファイル名 (prefab 名、無ければアセットバンドル名)。
+        /// SelfModelPlacer.CreateGameModel と配置プリセットの fileName はこの値で一致させる
+        /// </summary>
+        public string officialAssetName;
     }
 }
