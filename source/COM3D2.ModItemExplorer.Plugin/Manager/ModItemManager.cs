@@ -302,7 +302,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 try
                 {
                     LoadOfficialMenuFileNameList();
-                    OfficialBgObjectLoader.EnsureGameDataCreated();
+                    OfficialBgObjectLoader.PrepareOnMainThread();
                 }
                 catch (Exception e)
                 {

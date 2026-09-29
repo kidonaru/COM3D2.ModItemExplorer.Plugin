@@ -54,7 +54,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                     fileSystem = GameUty.FileSystemOld;
                     if (fileSystem == null || !fileSystem.IsExistentFile(NeiFileName))
                     {
-                        MTEUtils.LogWarning("ハンドアイテム一覧が見つかりません。{0}", NeiFileName);
+                        // 2.5 で CM3D2 のデータを連携していない環境では無いのが正常なので警告しない
+                        MTEUtils.LogDebug("ハンドアイテム一覧が見つかりません。{0}", NeiFileName);
                         return result;
                     }
 

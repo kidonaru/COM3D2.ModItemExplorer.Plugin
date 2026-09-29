@@ -192,7 +192,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>配置できるアイテムが選択されているか。menu アイテムと背景オブジェクトが対象</summary>
         private bool canCreateSelectedModel
-            => selectedItem is MenuItem || selectedItem is BgObjectItem;
+            => (selectedItem is MenuItem && !(selectedItem is HandMenuItem handItem && handItem.isRemoveItem))
+                || selectedItem is BgObjectItem;
         private ColorSetInfo selectedColorSet => selectedMenuItem?.colorSet;
 
         /// <summary>モデル操作ウィンドウの表示条件。編集モードがモデルのときのみ</summary>
@@ -1182,7 +1183,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                     };
                     _itemSortTypeComboBox.DrawTextureButton(view);
 
-                    // ロード中はワーカーがツリーを書き換えるため走査しない (カテゴリのドロップダウンと同じ)
+                    // ロード中はワーカーがツリーを書き換えるため走査しない
                     if (!modItemManager.isLoading)
                     {
                         if (Event.current.type == EventType.Layout)
@@ -1481,6 +1482,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>選択中のタグ。フォルダを移動しても維持する</summary>
         private string _tagFilter = AllTagsFilter;
 
+        /// <summary>タグの重複除け。毎 Layout 全件を回すため List.Contains を避ける</summary>
+        private readonly HashSet<string> _tagFilterSeenTags = new HashSet<string>();
+
         /// <summary>絞り込み結果。Layout イベントで RefreshTagFilter が作り直す</summary>
         private TempDirItem _tagFilterViewItem = new TempDirItem
         {
@@ -1531,22 +1535,26 @@ namespace COM3D2.ModItemExplorer.Plugin
             var tags = _tagFilterComboBox.items;
             tags.Clear();
             tags.Add(AllTagsFilter);
+            _tagFilterSeenTags.Clear();
 
             _tagFilterViewItem.itemPath = source?.itemPath ?? "";
             _tagFilterViewItem.RemoveAllChildren();
+
+            // 「すべて」のときは一覧に元の子をそのまま使うので、絞り込み結果は作らない
+            var buildsFilteredList = _tagFilter != AllTagsFilter;
 
             if (source?.children != null)
             {
                 foreach (var child in source.children)
                 {
                     var tag = child.isDir ? null : child.tag;
-                    if (!string.IsNullOrEmpty(tag) && !tags.Contains(tag))
+                    if (!string.IsNullOrEmpty(tag) && _tagFilterSeenTags.Add(tag))
                     {
                         tags.Add(tag);
                     }
 
                     // フラットビューと同じく、親を書き換えずに children へ直接積む
-                    if (child.isDir || tag == _tagFilter)
+                    if (buildsFilteredList && (child.isDir || tag == _tagFilter))
                     {
                         _tagFilterViewItem.children.Add(child);
                     }

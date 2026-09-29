@@ -301,7 +301,6 @@ namespace COM3D2.ModItemExplorer.Plugin
         public override bool canFavorite => false;
     }
 
-    /// <summary>配置中の背景オブジェクト 1 体。表示は元の BgObjectItem と同じ扱いにする</summary>
     /// <summary>
     /// フォトモードのハンドアイテム。menu は普通の MenuInfo だが、装着先 MPN と
     /// 一時装備で入る点がフォトモードに従うため、装着判定と削除可否を差し替える
@@ -311,7 +310,14 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>CRC ボディでは Maid.SetPropIn が対応版へ差し替えるときにこの接頭辞を付ける</summary>
         private const string CrcReplacementPrefix = "crx_";
 
+        /// <summary>各カテゴリの「アイテムなし」を示す menu 名の目印。PhotoMaidItemData の init_item 判定と同じ</summary>
+        private const string RemoveItemMarker = "_del";
+
         public HandItemInfo handItemInfo { get; set; }
+
+        /// <summary>装着中のものを外すための「アイテムなし」行か。モデルを持たないため配置できない</summary>
+        public bool isRemoveItem =>
+            handItemInfo?.menuFileName?.IndexOf(RemoveItemMarker, StringComparison.OrdinalIgnoreCase) >= 0;
 
         public override string name => handItemInfo?.name ?? base.name;
 
@@ -360,6 +366,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
     }
 
+    /// <summary>配置中の背景オブジェクト 1 体。表示は元の BgObjectItem と同じ扱いにする</summary>
     public class ModelBgObjectItem : BgObjectItem, IModelItem
     {
         public StudioModelStatWrapper model { get; set; }

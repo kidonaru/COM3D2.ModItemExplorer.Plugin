@@ -793,7 +793,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             GameObject modelGo = null;
             try
             {
-                var sourceObj = GameMain.Instance.BgMgr.CreateAssetBundle(assetName);
+                // 公式の prefab 行と同名のアセットバンドルが実在する (シンプルテーブル等) ため、
+                // prefab 行ではゲームの PhotoBGObjectData.Instantiate と同じく prefab を先に探す
+                var isOfficialPrefab = IsOfficialPhotoPrefabName(assetName);
+                GameObject sourceObj = null;
+                if (!isOfficialPrefab)
+                {
+                    sourceObj = GameMain.Instance.BgMgr.CreateAssetBundle(assetName);
+                }
 #if COM3D25
                 // 2.5 は新ボディ向けの差し替え prefab を持つものがあり、ゲームの
                 // PhotoBGObjectData.Instantiate もこちらを先に探す
@@ -857,6 +864,26 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
                 return null;
             }
+        }
+
+        /// <summary>フォトモードの背景オブジェクト一覧で prefab として宣言されている名前か</summary>
+        private static bool IsOfficialPhotoPrefabName(string assetName)
+        {
+            var dataList = PhotoBGObjectData.data;
+            if (dataList == null)
+            {
+                return false;
+            }
+
+            foreach (var data in dataList)
+            {
+                if (data != null && string.Equals(
+                    data.create_prefab_name, assetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

@@ -14,11 +14,17 @@ namespace COM3D2.ModItemExplorer.Plugin
         private const string MyObjectCategory = "マイオブジェクト";
 
         /// <summary>
-        /// ゲーム側の一覧を用意する。メインスレッドから呼ぶこと。
+        /// PrepareOnMainThread で作った一覧。ゲーム側のリストはフォトモードのマイオブジェクト追加で
+        /// メインスレッドから書き換わるため、ワーカーはこちらだけを読む
+        /// </summary>
+        private static List<BgObjectInfo> _snapshot = new List<BgObjectInfo>();
+
+        /// <summary>
+        /// ゲーム側の一覧を用意し、ワーカー用の控えを作る。メインスレッドから呼ぶこと。
         /// Create() は bg_data_ を先に代入してから残りを組み立てるため、ワーカーで走らせると
         /// フォトモードが同時に触ったときや途中で例外が出たときに半初期化のまま固定される
         /// </summary>
-        public static void EnsureGameDataCreated()
+        public static void PrepareOnMainThread()
         {
             try
             {
@@ -26,6 +32,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 {
                     PhotoBGObjectData.Create();
                 }
+                _snapshot = CreateInfoList(PhotoBGObjectData.data);
             }
             catch (Exception e)
             {
@@ -34,12 +41,15 @@ namespace COM3D2.ModItemExplorer.Plugin
             }
         }
 
-        /// <summary>EnsureGameDataCreated 済みのゲーム側一覧から列挙する。ワーカーから呼んでよい</summary>
+        /// <summary>PrepareOnMainThread で作った一覧を返す。ワーカーから呼んでよい</summary>
         public static List<BgObjectInfo> LoadAll()
         {
-            var result = new List<BgObjectInfo>(512);
+            return _snapshot;
+        }
 
-            var dataList = PhotoBGObjectData.data;
+        private static List<BgObjectInfo> CreateInfoList(List<PhotoBGObjectData> dataList)
+        {
+            var result = new List<BgObjectInfo>(512);
             if (dataList == null)
             {
                 return result;
