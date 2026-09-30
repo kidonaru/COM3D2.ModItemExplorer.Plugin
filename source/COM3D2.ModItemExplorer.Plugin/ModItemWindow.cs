@@ -795,10 +795,14 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // 設定タブ以外へ切り替えても保留が残らないよう、タブに関係なく毎回判定する
             float newScale;
-            if (_uiScaleRow.TryCommit(config.uiScale, out newScale))
+            if (_uiScaleRow.TryCommit(UIScaleClient.Resolve(config.uiScale), out newScale))
             {
-                config.uiScale = newScale;
-                config.dirty = true;
+                // SceneEditor に従っている間はそちらの設定へ書き、書けなければ自前の設定へ書く
+                if (!UIScaleClient.TrySetHostScale(newScale))
+                {
+                    config.uiScale = newScale;
+                    config.dirty = true;
+                }
             }
 
             _rootView.ResetLayout();
@@ -1593,14 +1597,13 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             view.BeginScrollView();
             {
-                // SceneEditor が有効な間はそちらの UI 倍率に従うため操作できない。
+                // SceneEditor が有効な間はそちらの UI 倍率に従い、変更もそちらへ書く (旧版の SceneEditor では操作できない)。
                 // その間は使われない自前の値ではなく実際の倍率を見せる
-                var followingHost = UIScaleClient.isFollowingHost;
                 _uiScaleRow.Draw(view, "UI 倍率 %", 200,
-                    followingHost ? GUIScale.scale : config.uiScale, !followingHost);
-                if (followingHost)
+                    UIScaleClient.Resolve(config.uiScale), UIScaleClient.isScaleEditable);
+                if (UIScaleClient.isFollowingHost)
                 {
-                    view.DrawLabel(UIScaleClient.FollowingHostMessage, -1, 20, textColor: Color.gray);
+                    view.DrawLabel(UIScaleClient.followingHostMessage, -1, 20, textColor: Color.gray);
                 }
 
                 view.DrawToggle("公式アイテムをMPN毎に表示する", config.groupOfficialItemsByMPN, 200, 20, newValue =>
