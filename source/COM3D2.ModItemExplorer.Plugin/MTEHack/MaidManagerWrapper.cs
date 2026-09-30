@@ -1,7 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using COM3D2.MotionTimelineEditor;
 
 namespace COM3D2.ModItemExplorer.Plugin
@@ -80,25 +78,29 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public bool initialized { get; private set; } = false;
 
+        // 型やメンバーが見つからないのはバージョン差による恒久的な問題なので、以降は再試行しない
+        private bool _incompatible = false;
+
         public bool Init()
         {
-            var assemblyPath = Path.GetFullPath(MTEUtils.CombinePaths(
-                "Sybaris", "UnityInjector", "COM3D2.MotionTimelineEditor.Plugin.dll"));
-            if (!File.Exists(assemblyPath))
+            if (initialized || _incompatible)
             {
-                MTEUtils.LogWarning("MotionTimelineEditor.Plugin" + " not found");
+                return initialized;
+            }
+
+            // SceneEditor 不在やロード順が自分より後の場合は見つからない。次回の IsValid で再試行する
+            var assembly = SceneEditorAssembly.Find();
+            if (assembly == null)
+            {
                 return false;
             }
 
-            var assembly = Assembly.LoadFile(assemblyPath);
-
-            if (!maidManagerField.Init(assembly))
+            // レイヤー情報の読み書きができないとラッパーが既定値のまま毎フレーム差し替わるので、併せて接続条件にする
+            if (!maidManagerField.Init(assembly) || !maidCacheField.Init(assembly) ||
+                !AnimationLayerInfoField.instance.initialized)
             {
-                return false;
-            }
-
-            if (!maidCacheField.Init(assembly))
-            {
+                _incompatible = true;
+                MTEUtils.LogWarning("MaidManagerWrapper: SceneEditor のメイド情報に接続できませんでした");
                 return false;
             }
 
@@ -107,9 +109,10 @@ namespace COM3D2.ModItemExplorer.Plugin
             return true;
         }
 
+        /// <summary>未接続なら接続を試みてから結果を返す</summary>
         public bool IsValid()
         {
-            return initialized;
+            return Init();
         }
     }
 }

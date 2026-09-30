@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using COM3D2.MotionTimelineEditor;
 using UnityEngine;
@@ -40,15 +39,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         public override bool LoadAssembly()
         {
-            var assemblyPath = Path.GetFullPath(MTEUtils.CombinePaths(
-                "Sybaris", "UnityInjector", "COM3D2.MotionTimelineEditor.Plugin.dll"));
-            if (!File.Exists(assemblyPath))
+            assembly = SceneEditorAssembly.Find();
+            if (assembly == null)
             {
-                MTEUtils.LogWarning("MotionTimelineEditor.Plugin" + " not found");
+                MTEUtils.LogWarning("AnimationLayerInfoField: SceneEditor プラグインが見つかりません");
                 return false;
             }
-
-            assembly = Assembly.LoadFile(assemblyPath);
             return true;
         }
 

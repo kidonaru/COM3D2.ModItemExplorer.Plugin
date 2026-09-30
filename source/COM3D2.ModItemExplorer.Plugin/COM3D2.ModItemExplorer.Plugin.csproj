@@ -140,6 +140,7 @@
     <Compile Include="MTEHack\ModelHackManagerField.cs" />
     <Compile Include="MTEHack\ModelHackManagerWrapper.cs" />
     <Compile Include="MTEHack\OfficialObjectInfoField.cs" />
+    <Compile Include="MTEHack\SceneEditorAssembly.cs" />
     <Compile Include="MTEHack\StudioModelManagerField.cs" />
     <Compile Include="MTEHack\StudioModelStatField.cs" />
     <Compile Include="MTEUtils\AnimationLayerInfo.cs" />

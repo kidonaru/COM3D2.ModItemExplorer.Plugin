@@ -235,7 +235,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// <summary>ハンドアイテムを置く Official 直下のフォルダ名</summary>
         public static readonly string OfficialHandItemDirName = "ハンドアイテム";
 
-        public List<AnimationLayerInfo> animationLayerInfos = new List<AnimationLayerInfo>();
+        /// <summary>今のメイドのレイヤー情報。SceneEditor に接続中はそちらの MaidCache を指す</summary>
+        public List<AnimationLayerInfo> animationLayerInfos;
+        /// <summary>SceneEditor 不在時・今のメイドが SceneEditor に無いときに使う自前のレイヤー情報</summary>
+        private readonly List<AnimationLayerInfo> _localAnimationLayerInfos = new List<AnimationLayerInfo>();
         public List<AnimationState> animationStates = new List<AnimationState>();
 
         public static Config config => ConfigManager.instance.config;
@@ -245,9 +248,10 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             for (int i = 0; i <= MaxLayerIndex; i++)
             {
-                animationLayerInfos.Add(new AnimationLayerInfo(i));
+                _localAnimationLayerInfos.Add(new AnimationLayerInfo(i));
                 animationStates.Add(null);
             }
+            animationLayerInfos = _localAnimationLayerInfos;
         }
 
         public override void Init()
@@ -1157,10 +1161,12 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             currentMaid = maid;
 
-            foreach (var info in animationLayerInfos)
+            // SceneEditor の info は持ち主が消すので、自前のリストだけ初期化する
+            foreach (var info in _localAnimationLayerInfos)
             {
                 info.Reset();
             }
+            animationLayerInfos = _localAnimationLayerInfos;
 
             for (int i = 0; i < animationStates.Count; i++)
             {
@@ -3280,15 +3286,20 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
+            MaidCacheWrapper maidCache = null;
             if (maidManagerWrapper.IsValid())
             {
                 var maidCaches = maidManagerWrapper.maidCaches;
-                var maidCache = maidCaches.FirstOrDefault(x => x.maid == currentMaid);
-                if (maidCache != null)
+                if (maidCaches != null)
                 {
-                    animationLayerInfos = maidCache.animationLayerInfos;
+                    maidCache = maidCaches.FirstOrDefault(x => x.maid == currentMaid);
                 }
             }
+
+            // SceneEditor に今のメイドが無ければ自前のリストへ戻す
+            // (前のメイドの info を指したままだと、別メイドの状態を書き込んでしまう)
+            var isSceneEditorOwned = maidCache != null;
+            animationLayerInfos = isSceneEditorOwned ? maidCache.animationLayerInfos : _localAnimationLayerInfos;
 
             for (int i = 0; i <= MaxLayerIndex; i++)
             {
@@ -3322,13 +3333,44 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 var state = animationStates.GetOrDefault(i);
-                if (state != info.state)
+                if (state == info.state)
+                {
+                    continue;
+                }
+
+                if (isSceneEditorOwned)
+                {
+                    // SceneEditor は層を無効化したまま info に保持することがあるため、
+                    // 有効な state が無くても空へ戻さない (層の破棄は SceneEditor 側が判断する)
+                    if (state == null)
+                    {
+                        continue;
+                    }
+
+                    // state 名は小文字化したファイル名なので、同じアニメなら Mod のフルパスを残す
+                    if (!IsSameAnm(info.anmName, state.name))
+                    {
+                        info.anmName = state.name;
+                    }
+                }
+                else
                 {
                     info.anmName = state != null ? state.name : "";
-                    info.state = state;
-                    info.ApplyToObject();
                 }
+
+                info.state = state;
+                info.ApplyToObject();
             }
+        }
+
+        /// <summary>SceneEditor の層読み込みと同じく、ファイル名の小文字で比べる</summary>
+        private static bool IsSameAnm(string anmName, string stateName)
+        {
+            if (string.IsNullOrEmpty(anmName) || string.IsNullOrEmpty(stateName))
+            {
+                return false;
+            }
+            return Path.GetFileName(anmName).ToLower() == Path.GetFileName(stateName).ToLower();
         }
     }
 }
