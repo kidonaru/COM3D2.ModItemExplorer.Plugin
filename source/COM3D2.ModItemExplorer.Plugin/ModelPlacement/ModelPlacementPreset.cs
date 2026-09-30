@@ -53,6 +53,12 @@ namespace COM3D2.ModItemExplorer.Plugin
         public string attachBoneName = null;
 
         /// <summary>
+        /// アタッチ先モデルの名前。null/空 はモデルへのアタッチなし。
+        /// 指定時は attachBoneName を親モデル内のボーン名 (空なら原点) として読む
+        /// </summary>
+        public string attachModelName = null;
+
+        /// <summary>
         /// モデルを載せるレイヤー番号。要素の無い旧 XML は -1 (未指定) として読み、
         /// 設定の既定レイヤーのまま復元する
         /// </summary>
@@ -71,8 +77,9 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// 現行フォーマットのバージョン。
         /// version 2: アタッチ先の識別子がスロット番号から guid になった
         /// version 3: モデルごとのレイヤーを保存するようになった
+        /// version 4: アタッチ先にモデルを指定できるようになった
         /// </summary>
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         /// <summary>アタッチ先が guid になった version。これ未満は復元できない</summary>
         public const int AttachGuidVersion = 2;

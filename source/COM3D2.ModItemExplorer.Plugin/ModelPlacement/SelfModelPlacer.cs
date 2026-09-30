@@ -163,11 +163,16 @@ namespace COM3D2.ModItemExplorer.Plugin
             public string boneName;
         }
 
-        /// <summary>アタッチ中のモデルの状態。復元用にメイドの guid とボーン名を持つ</summary>
+        /// <summary>アタッチ中のモデルの状態。復元用にメイドの guid とボーン名、またはアタッチ先モデル名を持つ</summary>
         public class AttachState
         {
             public string maidGuid;
+
+            /// <summary>メイドのボーン名。モデルへのアタッチでは親モデル内のボーン名 (空なら原点。今は常に空)</summary>
             public string boneName;
+
+            /// <summary>アタッチ先モデルの名前 (StudioModelStatWrapper.name)。メイドへのアタッチでは null</summary>
+            public string parentModelName;
         }
 
         /// <summary>
@@ -382,13 +387,14 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private void BeginHighlight(StudioModelStatWrapper model)
         {
-            var go = model?.obj as GameObject;
-            if (go == null)
+            // ラッパー直下には別モデルがアタッチされうるため、モデルの中身だけを対象にする
+            GameObject content;
+            if (model == null || !_modelContents.TryGetValue(model, out content) || content == null)
             {
                 return;
             }
 
-            foreach (var renderer in go.GetComponentsInChildren<Renderer>(true))
+            foreach (var renderer in content.GetComponentsInChildren<Renderer>(true))
             {
                 // materials は複製を作ってしまうため sharedMaterials を使う
                 foreach (var material in renderer.sharedMaterials)
@@ -1139,8 +1145,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         public int GetAttachPointIndex(StudioModelStatWrapper model)
         {
             var state = GetAttachState(model);
-            var boneName = state != null ? state.boneName : null;
-            return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == boneName));
+            if (state == null || state.parentModelName != null)
+            {
+                return 0;
+            }
+            return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == state.boneName));
         }
 
         /// <summary>SceneEditor 側のモデルのタイムラインレイヤー名 (AutoEditModeClient / TimelineLayerGateClient へ渡す)</summary>
@@ -1200,15 +1209,122 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _attachStates.Remove(model);
             }
 
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = Vector3.zero;
-            // 拡縮はアタッチ後も見た目を保ちたいため維持する
-            // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
-            SetEulerAngles(model, Vector3.zero);
+            ReparentAndReset(model, go, parent);
 
             if (!isBatching)
             {
                 history.RegisterAttach(model, historyState);
+            }
+        }
+
+        public StudioModelStatWrapper FindModelByName(string name)
+        {
+            return string.IsNullOrEmpty(name) ? null : _models.Find(m => m.name == name);
+        }
+
+        /// <summary>アタッチ先のモデル。モデルへアタッチしていなければ null</summary>
+        public StudioModelStatWrapper GetParentModel(StudioModelStatWrapper model)
+        {
+            var state = GetAttachState(model);
+            return state != null ? FindModelByName(state.parentModelName) : null;
+        }
+
+        /// <summary>循環したデータでも止まるよう、親をたどる深さの上限</summary>
+        private const int MaxAttachDepth = 64;
+
+        /// <summary>model を parent へ付けられるか。自分自身・自分の子孫・管理外のモデルは不可</summary>
+        public bool CanAttachToModel(StudioModelStatWrapper model, StudioModelStatWrapper parent)
+        {
+            if (!Owns(model) || !Owns(parent) || model == parent || !(parent.obj is GameObject))
+            {
+                return false;
+            }
+
+            var current = parent;
+            for (var depth = 0; depth < MaxAttachDepth && current != null; depth++)
+            {
+                if (current == model)
+                {
+                    return false;
+                }
+                current = GetParentModel(current);
+            }
+            return true;
+        }
+
+        /// <summary>UI からモデルへ付け替える。AttachFromUI と同じく先に SceneEditor の編集モードへ入る</summary>
+        public void AttachToModelFromUI(StudioModelStatWrapper model, StudioModelStatWrapper parent)
+        {
+            AutoEditModeClient.Enter(ModelTimelineLayerName);
+            AttachToModel(model, parent, "");
+        }
+
+        /// <summary>
+        /// モデルを別のモデルへアタッチする。boneName は親モデル内のボーン名だが、今は原点 (空) だけに対応する。
+        /// 付け替え時の位置・回転のリセットはメイドへのアタッチと同じ。付けられなければ何もせず false
+        /// </summary>
+        public bool AttachToModel(StudioModelStatWrapper model, StudioModelStatWrapper parent, string boneName)
+        {
+            var go = Owns(model) ? model.obj as GameObject : null;
+            if (go == null)
+            {
+                return false;
+            }
+
+            if (!CanAttachToModel(model, parent))
+            {
+                MTEUtils.LogWarning("このモデルにはアタッチできません。{0} → {1}",
+                    model.displayName, parent != null ? parent.displayName : "(なし)");
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(boneName))
+            {
+                MTEUtils.LogWarning("モデル内のボーンへのアタッチには未対応のため、原点へ付けます。{0}", boneName);
+            }
+
+            var historyState = history.TryCaptureState(model);
+            _attachStates[model] = new AttachState { parentModelName = parent.name, boneName = "" };
+            ReparentAndReset(model, go, ((GameObject)parent.obj).transform);
+
+            if (!isBatching)
+            {
+                history.RegisterAttach(model, historyState);
+            }
+            return true;
+        }
+
+        /// <summary>付け替え先の直下に置き、ローカル位置・回転をリセットする。拡縮はアタッチ後も見た目を保つため維持する</summary>
+        private void ReparentAndReset(StudioModelStatWrapper model, GameObject go, Transform parent)
+        {
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+            // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
+            SetEulerAngles(model, Vector3.zero);
+        }
+
+        /// <summary>
+        /// model に付いている子モデルを、ワールド位置を保ったまま配置ルートへ戻す。
+        /// 親のラッパーを破棄すると子も一緒に破棄されるため、削除の前に呼ぶ。履歴には積まない
+        /// </summary>
+        private void DetachChildModels(StudioModelStatWrapper model)
+        {
+            var root = GetOrCreateParent().transform;
+            foreach (var child in _models)
+            {
+                var state = GetAttachState(child);
+                if (child == model || state == null || state.parentModelName != model.name)
+                {
+                    continue;
+                }
+
+                var childGo = child.obj as GameObject;
+                if (childGo != null)
+                {
+                    childGo.transform.SetParent(root, true);
+                }
+                // ローカル回転の変化は Update がオイラー角キャッシュへ取り込み直す
+                _attachStates.Remove(child);
             }
         }
 
@@ -1257,14 +1373,31 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// 保存データのアタッチ状態を復元する。未アタッチならワールド配置へ戻す
+        /// 保存データのアタッチ状態を復元する。未アタッチならワールド配置へ戻す。
+        /// アタッチ先モデルがまだ無いときは false (呼び出し側で親の復元後に再試行する)
         /// </summary>
-        internal void RestoreAttachState(StudioModelStatWrapper model, ModelPlacementPresetItem item)
+        internal bool RestoreAttachState(StudioModelStatWrapper model, ModelPlacementPresetItem item)
         {
+            if (!string.IsNullOrEmpty(item.attachModelName))
+            {
+                var parent = FindModelByName(item.attachModelName);
+                if (parent == null)
+                {
+                    Attach(model, null, null);
+                    return false;
+                }
+                if (!AttachToModel(model, parent, item.attachBoneName))
+                {
+                    // 循環するデータなど。ワールド配置に落として位置だけは入れ直せるようにする
+                    Attach(model, null, null);
+                }
+                return true;
+            }
+
             if (string.IsNullOrEmpty(item.attachMaidGuid) || string.IsNullOrEmpty(item.attachBoneName))
             {
                 Attach(model, null, null);
-                return;
+                return true;
             }
 
             var maid = FindAttachTargetMaid(item.attachMaidGuid);
@@ -1275,10 +1408,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             {
                 MTEUtils.LogWarning("アタッチ先が見つからないためワールド配置に戻します。{0}", item.attachBoneName);
                 Attach(model, null, null);
-                return;
+                return true;
             }
 
             Attach(model, maid, point);
+            return true;
         }
 
         /// <summary>
@@ -1362,6 +1496,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             try
             {
+                DetachChildModels(model);
+
                 var go = model.obj as GameObject;
                 if (go != null)
                 {
@@ -1631,6 +1767,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 sclX = t.localScale.x, sclY = t.localScale.y, sclZ = t.localScale.z,
                 attachMaidGuid = attach?.maidGuid,
                 attachBoneName = attach?.boneName,
+                attachModelName = attach?.parentModelName,
                 layer = go.layer,
             };
         }
@@ -1652,14 +1789,32 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             // プリセット復元は全体の入れ替えなので、1 体ずつは履歴に積まない
             var restored = 0;
+            var pending = new List<KeyValuePair<StudioModelStatWrapper, ModelPlacementPresetItem>>();
             history.RunSuppressed(() =>
             {
                 foreach (var item in preset.items)
                 {
-                    if (RestoreModel(item) != null)
+                    var model = RestoreModel(item);
+                    if (model == null)
                     {
-                        restored++;
+                        continue;
                     }
+                    restored++;
+                    if (!string.IsNullOrEmpty(item.attachModelName) && GetAttachState(model) == null)
+                    {
+                        pending.Add(new KeyValuePair<StudioModelStatWrapper, ModelPlacementPresetItem>(model, item));
+                    }
+                }
+
+                // 親が後ろに並んでいた子は、全員の復元後に付け直す (付け替えは位置を戻すので Transform も入れ直す)
+                foreach (var pair in pending)
+                {
+                    if (!RestoreAttachState(pair.Key, pair.Value))
+                    {
+                        MTEUtils.LogWarning("アタッチ先モデルが見つからないためワールド配置に戻します。{0}",
+                            pair.Value.attachModelName);
+                    }
+                    ApplyTransform(pair.Key, pair.Value);
                 }
             });
 
@@ -1797,7 +1952,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// 保存データのレイヤーをモデルへ適用する。
         /// レイヤーを持たない旧データは生成時の既定（設定値）のままにする
         /// </summary>
-        private static void ApplyLayer(StudioModelStatWrapper model, ModelPlacementPresetItem item)
+        private void ApplyLayer(StudioModelStatWrapper model, ModelPlacementPresetItem item)
         {
             var go = model?.obj as GameObject;
             // 未指定 (-1) のほか、外部連携 XML から壊れた番号が来た場合も既定のままにする
@@ -1806,7 +1961,24 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            SetLayerRecursively(go, item.layer);
+            SetModelLayer(model, go, item.layer);
+        }
+
+        /// <summary>
+        /// ラッパーとモデルの中身のレイヤーを変える。ラッパー直下にアタッチされた別モデルは変えない
+        /// </summary>
+        private void SetModelLayer(StudioModelStatWrapper model, GameObject go, int layer)
+        {
+            go.layer = layer;
+            GameObject content;
+            if (_modelContents.TryGetValue(model, out content) && content != null)
+            {
+                SetLayerRecursively(content, layer);
+            }
+            else
+            {
+                SetLayerRecursively(go, layer);
+            }
         }
 
         /// <summary>
@@ -2084,7 +2256,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             var historyState = isBatching ? null : history.TryCaptureState(model);
 
-            SetLayerRecursively(go, ToLayer(layerType));
+            SetModelLayer(model, go, ToLayer(layerType));
 
             if (!isBatching)
             {
@@ -2104,7 +2276,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            SetLayerRecursively(go, layer);
+            SetModelLayer(model, go, layer);
         }
 
         /// <summary>

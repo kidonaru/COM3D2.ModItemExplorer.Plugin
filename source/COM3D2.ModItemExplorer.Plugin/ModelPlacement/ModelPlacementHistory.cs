@@ -443,6 +443,10 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         private static string GetAttachLabel(ModelPlacementPresetItem state)
         {
+            if (!string.IsNullOrEmpty(state.attachModelName))
+            {
+                return "モデル: " + state.attachModelName;
+            }
             var point = SelfModelPlacer.AttachPoints.Find(p => p.boneName == state.attachBoneName);
             return point != null ? point.displayName : "なし";
         }

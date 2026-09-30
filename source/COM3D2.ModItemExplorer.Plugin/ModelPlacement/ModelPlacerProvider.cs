@@ -121,7 +121,33 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// アタッチ中の親ボーン。未アタッチなら null（任意メンバ）。
+        /// obj を別の配置モデル parent へアタッチする（任意メンバ）。
+        /// boneName は parent 内のボーン名で、空なら原点。SceneEditor が循環を弾いたうえで呼ぶ
+        /// </summary>
+        public static void AttachModelToModel(GameObject obj, GameObject parent, string boneName)
+        {
+            var model = placer.FindModelByGameObject(obj);
+            var parentModel = placer.FindModelByGameObject(parent);
+            if (model == null)
+            {
+                return;
+            }
+            if (parentModel == null)
+            {
+                MTEUtils.LogWarning("アタッチ先のモデルが配置済みモデルではないため解除します。{0}", obj.name);
+                placer.AttachByBoneName(model, null, null);
+                return;
+            }
+            // 拒否したまま前のアタッチを残すと、SceneEditor の stat (付けた扱い) と実体が食い違い、
+            // 次の同期で意図しないキーが書かれる。解除して実体を確定させる
+            if (!placer.AttachToModel(model, parentModel, boneName))
+            {
+                placer.AttachByBoneName(model, null, null);
+            }
+        }
+
+        /// <summary>
+        /// アタッチ中の親ボーン、またはアタッチ先モデルの Transform。未アタッチなら null（任意メンバ）。
         /// SceneEditor が UI での付け替えをモデルのキーへ取り込むのに使う
         /// </summary>
         public static Transform GetModelAttachBone(GameObject obj)
