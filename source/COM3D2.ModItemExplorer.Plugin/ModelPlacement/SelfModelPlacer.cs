@@ -1161,6 +1161,17 @@ namespace COM3D2.ModItemExplorer.Plugin
             return Mathf.Max(0, AttachPoints.FindIndex(p => p.boneName == state.boneName));
         }
 
+        /// <summary>メイドの部位へ付いていればそのメイド。モデルへのアタッチ中・未アタッチ・メイド不在は null</summary>
+        public Maid GetAttachedMaid(StudioModelStatWrapper model)
+        {
+            var state = GetAttachState(model);
+            if (state == null || state.parentModelName != null || string.IsNullOrEmpty(state.maidGuid))
+            {
+                return null;
+            }
+            return GameMain.Instance.CharacterMgr.GetMaid(state.maidGuid);
+        }
+
         /// <summary>SceneEditor 側のモデルのタイムラインレイヤー名 (AutoEditModeClient / TimelineLayerGateClient へ渡す)</summary>
         internal const string ModelTimelineLayerName = "ModelTimelineLayer";
 

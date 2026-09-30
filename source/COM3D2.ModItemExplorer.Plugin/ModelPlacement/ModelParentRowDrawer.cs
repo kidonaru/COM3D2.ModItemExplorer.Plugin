@@ -11,19 +11,22 @@ namespace COM3D2.ModItemExplorer.Plugin
     public class ModelParentRowDrawer
     {
         private static SelfModelPlacer placer => SelfModelPlacer.instance;
+        private static ModItemManager modItemManager => ModItemManager.instance;
 
         /// <summary>アタッチ先の選択肢 (先頭の null は「なし」)</summary>
         private readonly List<StudioModelStatWrapper> _candidates = new List<StudioModelStatWrapper>();
 
         private readonly GUIComboBox<StudioModelStatWrapper> _comboBox;
 
-        public ModelParentRowDrawer(float buttonWidth)
+        /// <summary>狭いウィンドウでもボタンが潰れないための下限</summary>
+        private const float MinButtonWidth = 60f;
+
+        public ModelParentRowDrawer()
         {
             _comboBox = new GUIComboBox<StudioModelStatWrapper>
             {
                 items = _candidates,
-                getName = (model, _) => model == null ? "なし" : model.displayName,
-                buttonSize = new Vector2(buttonWidth, 20),
+                getName = (model, _) => model == null ? "なし" : modItemManager.GetModelDisplayName(model),
             };
         }
 
@@ -45,6 +48,11 @@ namespace COM3D2.ModItemExplorer.Plugin
             view.BeginHorizontal();
             {
                 view.DrawLabel(label, labelWidth, rowHeight, style: labelStyle);
+
+                // 右端までの残り幅から前後送りボタン 2 個を除いた幅いっぱいに広げる
+                var remainingWidth = view.viewRect.width - view.padding.x * 2 - view.currentPos.x;
+                var buttonWidth = remainingWidth - GUIComboBoxBase.ARROW_SIZE * 2;
+                _comboBox.buttonSize = new Vector2(Mathf.Max(MinButtonWidth, buttonWidth), 20);
 
                 _comboBox.currentIndex = Mathf.Max(0, _candidates.IndexOf(parent));
                 _comboBox.onSelected = (selected, _) =>

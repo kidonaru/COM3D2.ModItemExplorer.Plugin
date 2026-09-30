@@ -101,15 +101,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             set => placer.selectedModel = value;
         }
 
-        private GUIComboBox<SelfModelPlacer.AttachPoint> _attachPointComboBox
-            = new GUIComboBox<SelfModelPlacer.AttachPoint>
-        {
-            items = SelfModelPlacer.AttachPoints,
-            getName = (point, _) => point.displayName,
-            buttonSize = new Vector2(150, 20),
-        };
+        private readonly ModelMaidAttachRowDrawer _maidAttachRowDrawer = new ModelMaidAttachRowDrawer();
 
-        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer(150);
+        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer();
 
         private string _presetName = "";
 
@@ -573,27 +567,9 @@ namespace COM3D2.ModItemExplorer.Plugin
             ModelTransformRowDrawer.Draw(view, model, go, LABEL_WIDTH, ROW_HEIGHT,
                 labelStyle: GUIView.gsLabelRight);
 
-            DrawAttachRow(view, model);
-            _parentRowDrawer.Draw(view, model, "モデル", LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
+            _maidAttachRowDrawer.Draw(view, model, "親メイド", LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
+            _parentRowDrawer.Draw(view, model, "親モデル", LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
             DrawLayerRow(view, model);
-        }
-
-        /// <summary>
-        /// アタッチ先の選択行。対象メイドは編集中のメイド固定
-        /// </summary>
-        private void DrawAttachRow(GUIView view, StudioModelStatWrapper model)
-        {
-            view.BeginHorizontal();
-            {
-                view.DrawLabel("アタッチ", LABEL_WIDTH, ROW_HEIGHT, style: GUIView.gsLabelRight);
-
-                _attachPointComboBox.currentIndex = placer.GetAttachPointIndex(model);
-
-                _attachPointComboBox.onSelected = (point, _) =>
-                    placer.AttachFromUI(model, modItemManager.currentMaid, point);
-                _attachPointComboBox.DrawButton(view);
-            }
-            view.EndLayout();
         }
 
         /// <summary>

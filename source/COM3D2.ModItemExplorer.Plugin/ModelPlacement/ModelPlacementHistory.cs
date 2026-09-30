@@ -352,7 +352,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             _baselines[model] = after;
 
-            var description = "モデルアタッチ: " + ResolveDisplayName(after, model?.displayName)
+            var description = "モデルアタッチ: "
+                + (ModItemManager.instance.GetModelDisplayName(model) ?? ResolveDisplayName(after, null))
                 + " → " + GetAttachLabel(after);
             HistoryClient.Register(
                 description,
@@ -445,14 +446,25 @@ namespace COM3D2.ModItemExplorer.Plugin
             return !string.IsNullOrEmpty(fallbackName) ? fallbackName : state.fileName;
         }
 
-        private static string GetAttachLabel(ModelPlacementPresetItem state)
+        private string GetAttachLabel(ModelPlacementPresetItem state)
         {
             if (!string.IsNullOrEmpty(state.attachModelName))
             {
-                return "モデル: " + state.attachModelName;
+                // attachModelName はファイル名ベースなので、一覧と同じ表示名へ引き直す
+                var parent = _placer.FindModelByName(state.attachModelName);
+                var parentName = ModItemManager.instance.GetModelDisplayName(parent);
+                return "モデル: " + (parentName ?? state.attachModelName);
             }
             var point = SelfModelPlacer.AttachPoints.Find(p => p.boneName == state.attachBoneName);
-            return point != null ? point.displayName : "なし";
+            if (point == null || point.boneName == null)
+            {
+                return "なし";
+            }
+
+            // メイドを選べるため、同じ部位のままのメイドの付け替えも見分けられるよう名前を添える
+            var maid = string.IsNullOrEmpty(state.attachMaidGuid)
+                ? null : GameMain.Instance.CharacterMgr.GetMaid(state.attachMaidGuid);
+            return maid != null ? maid.status.fullNameJpStyle + " / " + point.displayName : point.displayName;
         }
     }
 }

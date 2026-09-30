@@ -205,6 +205,7 @@
     <Compile Include="ModelPlacement\ModelGizmoManager.cs" />
     <Compile Include="ModelPlacement\ModelInspectorDrawer.cs" />
     <Compile Include="ModelPlacement\ModelLayerRowDrawer.cs" />
+    <Compile Include="ModelPlacement\ModelMaidAttachRowDrawer.cs" />
     <Compile Include="ModelPlacement\ModelParentRowDrawer.cs" />
     <Compile Include="ModelPlacement\ModelMeshLoader.cs" />
     <Compile Include="ModelPlacement\ModelMenuScript.cs" />

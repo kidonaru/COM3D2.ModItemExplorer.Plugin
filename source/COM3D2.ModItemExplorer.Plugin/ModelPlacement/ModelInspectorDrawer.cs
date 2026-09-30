@@ -26,21 +26,13 @@ namespace COM3D2.ModItemExplorer.Plugin
         /// </summary>
         private readonly GUIView _rowsView = new GUIView();
 
-        private readonly GUIComboBox<SelfModelPlacer.AttachPoint> _attachPointComboBox
-            = new GUIComboBox<SelfModelPlacer.AttachPoint>
-        {
-            items = SelfModelPlacer.AttachPoints,
-            getName = (point, _) => point.displayName,
-            // ラベル + 前後送りボタンと合わせて Inspector 既定幅 (280) に収まるサイズ
-            buttonSize = new Vector2(110, 20),
-        };
+        private readonly ModelMaidAttachRowDrawer _maidAttachRowDrawer = new ModelMaidAttachRowDrawer();
 
-        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer(110);
+        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer();
 
         private readonly HostWindowProxy _hostWindow = new HostWindowProxy();
 
         private static SelfModelPlacer placer => SelfModelPlacer.instance;
-        private static ModItemManager modItemManager => ModItemManager.instance;
 
         /// <summary>
         /// InspectorHost の canDraw。自プラグイン管理のモデルだけ引き受ける。
@@ -113,8 +105,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
-            DrawAttachRow(model);
-            _parentRowDrawer.Draw(_view, model, "モデル", LabelWidth + 20, RowHeight);
+            _maidAttachRowDrawer.Draw(_view, model, "親メイド", LabelWidth + 20, RowHeight);
+            _parentRowDrawer.Draw(_view, model, "親モデル", LabelWidth + 20, RowHeight);
             DrawLayerRow(_view, model);
 
             _view.EndScrollView();
@@ -156,23 +148,6 @@ namespace COM3D2.ModItemExplorer.Plugin
             // EndLayout 後の currentPos.y は最後の要素の下端 + margin なので、
             // ホストが余白を重ねないよう 1 個ぶん差し引いて返す
             return Mathf.Max(0f, _rowsView.currentPos.y - _rowsView.margin);
-        }
-
-        /// <summary>
-        /// アタッチ先の選択行。対象メイドは編集中のメイド固定 (操作ウィンドウと同じ)
-        /// </summary>
-        private void DrawAttachRow(StudioModelStatWrapper model)
-        {
-            _view.BeginHorizontal();
-            {
-                _view.DrawLabel("アタッチ", LabelWidth + 20, RowHeight);
-
-                _attachPointComboBox.currentIndex = placer.GetAttachPointIndex(model);
-                _attachPointComboBox.onSelected = (point, _) =>
-                    placer.AttachFromUI(model, modItemManager.currentMaid, point);
-                _attachPointComboBox.DrawButton(_view);
-            }
-            _view.EndLayout();
         }
 
         /// <summary>
