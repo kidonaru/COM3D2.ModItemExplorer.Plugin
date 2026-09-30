@@ -109,6 +109,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             buttonSize = new Vector2(150, 20),
         };
 
+        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer(150);
+
         private string _presetName = "";
 
         private List<string> _presetNames = new List<string>();
@@ -572,6 +574,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 labelStyle: GUIView.gsLabelRight);
 
             DrawAttachRow(view, model);
+            _parentRowDrawer.Draw(view, model, "モデル", LABEL_WIDTH, ROW_HEIGHT, GUIView.gsLabelRight);
             DrawLayerRow(view, model);
         }
 

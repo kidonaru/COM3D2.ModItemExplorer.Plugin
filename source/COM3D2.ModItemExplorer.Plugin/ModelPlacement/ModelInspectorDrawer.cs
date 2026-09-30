@@ -35,6 +35,8 @@ namespace COM3D2.ModItemExplorer.Plugin
             buttonSize = new Vector2(110, 20),
         };
 
+        private readonly ModelParentRowDrawer _parentRowDrawer = new ModelParentRowDrawer(110);
+
         private readonly HostWindowProxy _hostWindow = new HostWindowProxy();
 
         private static SelfModelPlacer placer => SelfModelPlacer.instance;
@@ -112,6 +114,7 @@ namespace COM3D2.ModItemExplorer.Plugin
             ModelTransformRowDrawer.Draw(_view, model, go, LabelWidth, RowHeight);
 
             DrawAttachRow(model);
+            _parentRowDrawer.Draw(_view, model, "モデル", LabelWidth + 20, RowHeight);
             DrawLayerRow(_view, model);
 
             _view.EndScrollView();
