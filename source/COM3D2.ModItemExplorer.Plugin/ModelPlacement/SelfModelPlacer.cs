@@ -791,7 +791,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 // Mesh/Material はアセットバンドル所有のため破棄対象に積まない。
                 // 破棄すると同じバンドルから作った他インスタンスまで壊れる
                 return RegisterCreatedModel(
-                    modelGo, fileName, group, visible, new List<UnityEngine.Object>());
+                    modelGo, fileName, group, visible, new List<UnityEngine.Object>(),
+                    keepPrefabTransform: true);
             }
             catch (Exception e)
             {
@@ -875,7 +876,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
                 // Mesh/Material はアセットバンドル / Resources 所有のため破棄対象に積まない
                 return RegisterCreatedModel(
-                    modelGo, assetName, group, visible, new List<UnityEngine.Object>());
+                    modelGo, assetName, group, visible, new List<UnityEngine.Object>(),
+                    keepPrefabTransform: true);
             }
             catch (Exception e)
             {
@@ -930,7 +932,8 @@ namespace COM3D2.ModItemExplorer.Plugin
                 SetLayerRecursively(modelGo, GetModelLayer());
 
                 return RegisterCreatedModel(
-                    modelGo, "MYR_" + myRoomId, group, visible, new List<UnityEngine.Object>());
+                    modelGo, "MYR_" + myRoomId, group, visible, new List<UnityEngine.Object>(),
+                    keepPrefabTransform: true);
             }
             catch (Exception e)
             {
@@ -946,16 +949,19 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// 生成済みの modelGo をラッパーで包んでシーンへ据え、配置中モデルとして登録する。
-        /// menu 経路 (CreateModel) と .asset_bg 経路 (CreateBgObject) の共通後半部分。
+        /// menu 経路 (CreateModel) と prefab 経路 (CreateBgObject / CreateGameModel / CreateMyRoomObject) の共通後半部分。
         /// 途中で失敗した場合はラッパーだけ片付けて呼び出し側へ投げ返す
-        /// (modelGo と disposables の後始末は生成した側の責務)
+        /// (modelGo と disposables の後始末は生成した側の責務)。
+        /// keepPrefabTransform: true なら modelGo のローカル変換を prefab のまま残す。公式の背景オブジェクトは
+        /// prefab ルートに X -90 度の回転や拡縮・位置オフセットを持つため、リセットすると横倒しになる
         /// </summary>
         private StudioModelStatWrapper RegisterCreatedModel(
             GameObject modelGo,
             string fileName,
             int group,
             bool visible,
-            List<UnityEngine.Object> disposables)
+            List<UnityEngine.Object> disposables,
+            bool keepPrefabTransform = false)
         {
             // ギズモ操作でモデル内部の Transform を壊さないよう、ラッパー越しに動かす
             var resolvedGroup = ResolveGroup(fileName, group);
@@ -967,9 +973,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 wrapperGo.transform.SetParent(GetOrCreateParent().transform, false);
                 wrapperGo.transform.position = GetDefaultPosition();
                 modelGo.transform.SetParent(wrapperGo.transform, false);
-                modelGo.transform.localPosition = Vector3.zero;
-                modelGo.transform.localRotation = Quaternion.identity;
-                modelGo.transform.localScale = Vector3.one;
+                if (!keepPrefabTransform)
+                {
+                    modelGo.transform.localPosition = Vector3.zero;
+                    modelGo.transform.localRotation = Quaternion.identity;
+                    modelGo.transform.localScale = Vector3.one;
+                }
 
                 AddGizmo(wrapperGo);
                 wrapperGo.SetActive(visible);
