@@ -365,7 +365,11 @@ namespace COM3D2.ModItemExplorer.Plugin
         {
             RunSuppressed(() =>
             {
-                _placer.RestoreAttachState(model, state);
+                if (!_placer.RestoreAttachState(model, state))
+                {
+                    MTEUtils.LogWarning("アタッチ先モデルが見つからないためワールド配置に戻します。{0}",
+                        state.attachModelName);
+                }
                 _placer.ApplyTransform(model, state);
                 Rebase(model);
             });

@@ -1318,13 +1318,16 @@ namespace COM3D2.ModItemExplorer.Plugin
                     continue;
                 }
 
+                _attachStates.Remove(child);
                 var childGo = child.obj as GameObject;
                 if (childGo != null)
                 {
                     childGo.transform.SetParent(root, true);
+                    // ローカル値が変わるので、オイラー角キャッシュを捨ててから履歴の基準を取り直す
+                    // (取り直さないと、編集モード中は次のフレームで「移動」として履歴に積まれる)
+                    _rotationCaches.Remove(child);
+                    history.Rebase(child);
                 }
-                // ローカル回転の変化は Update がオイラー角キャッシュへ取り込み直す
-                _attachStates.Remove(child);
             }
         }
 
