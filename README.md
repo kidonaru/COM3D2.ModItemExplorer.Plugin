@@ -266,6 +266,9 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 ### 設定画面
 
 
+- **UI 倍率 %**: 本プラグインのウィンドウの表示倍率を80〜200%の範囲で設定します
+  - SceneEditorが有効な間はSceneEditorのUI倍率に従い、ここで変えるとSceneEditorの設定も変わります
+  - SceneEditorの版が古く書き込みに対応していない場合は、SceneEditorの設定ウィンドウ「表示」タブで変更します
 - **公式アイテムをMPN毎に表示する**: 公式アイテムをMPN毎にグループ化して表示します
   - チェックを外した場合、menuのパス毎に表示します
 - **ModアイテムをMPN毎に表示する**: ModアイテムをMPN毎にグループ化して表示します
@@ -349,7 +352,7 @@ MotionTimelineEditorのREADMEを参考に導入してください。
 
 衣装・配置モデルのファイル更新後は、再起動せずに[モデルの再読み込み](docs/model-reload.md)を実行できます。
 
-SceneEditorが導入されている場合、ギズモ・表示対象・Transform・アタッチ・レイヤーの各行はSceneEditorのInspector側に表示され、このウィンドウはモデル一覧の表示に専念します。
+SceneEditorが有効な間は、ギズモ・表示対象・Transform・アタッチ・レイヤーの各行はSceneEditorのInspector側に表示され、このウィンドウはモデル一覧の表示に専念します。SceneEditorが無効な間は、これらの行をこのウィンドウに表示します。
 
 SceneEditorでタイムラインを読み込んでいる場合、モデルのアタッチ先とレイヤーもタイムラインへ記録されます。
 タイムラインにモデルレイヤーが無いときは、操作タブに注意文と追加ボタンが表示されます。
@@ -422,6 +425,7 @@ https://github.com/user-attachments/assets/6a24b179-7dab-4570-bdf0-d7d71e2d13a1
 - 配置モデルを別の配置モデルへアタッチできるようになりました
   - モデル操作ウィンドウとSceneEditorのInspectorのアタッチ欄を「親メイド」「親モデル」の2行に分けました
   - 親メイドでは、編集中のメイド以外も選べるようになりました
+  - アタッチ先のモデルは配置プリセットにも保存されます(プリセットv4)
 - UI倍率に対応
   - 設定タブのUI倍率の行で変更できます
   - SceneEditorが有効な間はSceneEditorのUI倍率に従い、設定タブで変えるとSceneEditor側にも反映されます
