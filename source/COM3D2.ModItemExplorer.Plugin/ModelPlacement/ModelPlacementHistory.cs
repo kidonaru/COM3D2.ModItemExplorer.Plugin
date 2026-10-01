@@ -334,7 +334,7 @@ namespace COM3D2.ModItemExplorer.Plugin
         }
 
         /// <summary>
-        /// アタッチ先の変更。Attach は位置・回転もリセットするため、
+        /// アタッチ先の変更。付け替えでローカル位置・回転・拡縮が変わるため、
         /// before/after とも Transform ごと復元する
         /// </summary>
         public void RegisterAttach(StudioModelStatWrapper model, ModelPlacementPresetItem before)

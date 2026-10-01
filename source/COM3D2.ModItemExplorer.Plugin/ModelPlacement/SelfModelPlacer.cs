@@ -1188,7 +1188,8 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// モデルをメイドのボーンにアタッチする。point.boneName が null ならワールドに戻す。
-        /// 切替時はローカル位置・回転をリセットしてボーン直上に置く
+        /// 切替時はローカル位置・回転をリセットしてボーン直上に置く。
+        /// ただしモデルへのアタッチから外してワールドへ戻すときは、ワールド姿勢を保つ
         /// </summary>
         public void Attach(StudioModelStatWrapper model, Maid maid, AttachPoint point)
         {
@@ -1203,8 +1204,12 @@ namespace COM3D2.ModItemExplorer.Plugin
                 return;
             }
 
-            // Attach は位置・回転もリセットするため、履歴の控えは Transform ごと取る
+            // 付け替えでローカル値が変わるため、履歴の控えは Transform ごと取る
             var historyState = history.TryCaptureState(model);
+
+            // モデルへのアタッチはワールド姿勢を保って付けるので、外すときも保つ。
+            // 原点へリセットすると付けて外すだけで位置と見た目の大きさが変わってしまう
+            var keepWorld = GetParentModel(model) != null;
 
             Transform parent;
             if (point != null && point.boneName != null)
@@ -1217,6 +1222,7 @@ namespace COM3D2.ModItemExplorer.Plugin
                 }
 
                 parent = bone;
+                keepWorld = false;
                 _attachStates[model] = new AttachState
                 {
                     maidGuid = maid.status.guid,
@@ -1229,7 +1235,14 @@ namespace COM3D2.ModItemExplorer.Plugin
                 _attachStates.Remove(model);
             }
 
-            ReparentAndReset(model, go, parent);
+            if (keepWorld)
+            {
+                ReparentKeepingWorld(model, go, parent);
+            }
+            else
+            {
+                ReparentAndReset(model, go, parent);
+            }
 
             if (!isBatching)
             {
@@ -1281,7 +1294,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
         /// <summary>
         /// モデルを別のモデルへアタッチする。boneName は親モデル内のボーン名だが、今は原点 (空) だけに対応する。
-        /// 付け替え時の位置・回転のリセットはメイドへのアタッチと同じ。付けられなければ何もせず false
+        /// メイドへのアタッチと違い、ワールド位置・回転・見た目の拡縮を保ったまま付け替える。付けられなければ何もせず false
         /// </summary>
         public bool AttachToModel(StudioModelStatWrapper model, StudioModelStatWrapper parent, string boneName)
         {
@@ -1305,7 +1318,7 @@ namespace COM3D2.ModItemExplorer.Plugin
 
             var historyState = history.TryCaptureState(model);
             _attachStates[model] = new AttachState { parentModelName = parent.name, boneName = "" };
-            ReparentAndReset(model, go, ((GameObject)parent.obj).transform);
+            ReparentKeepingWorld(model, go, ((GameObject)parent.obj).transform);
 
             if (!isBatching)
             {
@@ -1321,6 +1334,14 @@ namespace COM3D2.ModItemExplorer.Plugin
             go.transform.localPosition = Vector3.zero;
             // 回転はキャッシュ経由でリセットし、UI 表示との整合を保つ
             SetEulerAngles(model, Vector3.zero);
+        }
+
+        /// <summary>付け替え先の直下へ、ワールド位置・回転・見た目の拡縮を保ったまま移す</summary>
+        private void ReparentKeepingWorld(StudioModelStatWrapper model, GameObject go, Transform parent)
+        {
+            go.transform.SetParent(parent, true);
+            // ローカル回転が変わるので、古いオイラー角を UI に出さないようキャッシュを捨てる
+            _rotationCaches.Remove(model);
         }
 
         /// <summary>
@@ -1342,10 +1363,9 @@ namespace COM3D2.ModItemExplorer.Plugin
                 var childGo = child.obj as GameObject;
                 if (childGo != null)
                 {
-                    childGo.transform.SetParent(root, true);
-                    // ローカル値が変わるので、オイラー角キャッシュを捨ててから履歴の基準を取り直す
+                    ReparentKeepingWorld(child, childGo, root);
+                    // ローカル値が変わるので履歴の基準を取り直す
                     // (取り直さないと、編集モード中は次のフレームで「移動」として履歴に積まれる)
-                    _rotationCaches.Remove(child);
                     history.Rebase(child);
                 }
             }
